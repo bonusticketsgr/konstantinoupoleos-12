@@ -72,6 +72,8 @@ def sheet_t01a(c):
         v.dim_chain("V", a0 - 0.14, pts, size=4.2, color=DIMC, side=-1, tick=0.06)
     for orient, pos, pts in M.DIMS_OUT:
         v.dim_chain(orient, pos, pts, size=5.4 if len(pts) > 2 else 6.2, color=DIMC, side=-1)
+    v.dim_chain("H", 0.42, [4.60, 5.50, 6.10, 6.60], size=4.2, color=DIMC, side=-1, tick=0.06)
+    v.text(4.62, 0.17, "W2.07 – κενό 0,60×0,90 στο τοιχείο Κ2 (ξυλότυπος)", size=4.2, font="Inter-Medium", color=(0.30, 0.45, 0.75), anchor="l", bg=True)
     north_arrow(c, 845, 790)
     # ---- πίνακας συντεταγμένων παρειών (από την αρχή: εξωτ. Β παρειά Τ4-01 / εξωτ. Δ παρειά Τ4-05)
     x0, y = 880, PAGE_H - 50

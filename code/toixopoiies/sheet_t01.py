@@ -208,7 +208,8 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
             if area:
                 v.text(x, y + 0.22, area, size=5.6, color=(0.45, 0.45, 0.50))
         for lab, dim, (x, y) in M.WINDOWS:
-            v.text(x, y, "%s  %s" % (lab, dim), size=5.2, font="Inter-Medium", color=(0.30, 0.45, 0.75), anchor="l")
+            v.text(x, y, "%s  %s" % (lab, dim), size=5.2 if lab != "W2.07" else 4.4, font="Inter-Medium",
+                   color=(0.30, 0.45, 0.75), anchor="l", bg=(lab == "W2.07"))
         v.text(-1.47, 1.40, "αρχιτεκτονικό στοιχείο – σταθερό σύστημα σκίασης", size=5.6, font="Inter-Medium", color=GREY, rot=90, bg=True)
         v.text(-1.52, 7.35, "ζαρντινιέρα", size=5.6, font="Inter-Medium", color=(0.40, 0.55, 0.40), rot=90, bg=True)
         v.text(7.55, 11.90, "ζαρντινιέρα", size=5.6, font="Inter-Medium", color=(0.40, 0.55, 0.40), bg=True)
@@ -243,5 +244,6 @@ def sheet_t01(c):
         "· Λουτρά: πάγκος 0,50 · λεκάνη · γυάλινο διαχωριστικό 0,70 · ντους 0,70–1,00",
         "· Αλουμίνια στη μέση του τοίχου: Τ3 και στις δύο παραστάδες",
         "· Πόρτες: ανοίγουν μέσα στον χώρο (Υπν.1, λουτρά, Υπν.2)",
+        "· W2.07 μέσα στο τοιχείο Κ2: κενό 0,60×0,90 στον ξυλότυπο (ποδιά +1,50)",
         "· Αλυσίδες διαστάσεων μέσα στους χώρους · φύλλο χάραξης Τ-01Α"]):
         c.drawString(x, y - 9 - i * 8, s)
