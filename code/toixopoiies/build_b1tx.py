@@ -16,7 +16,7 @@ OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
 
 c = new_canvas(OUT, "Β1 Τοιχοποιίες Τ-01/Τ-03 %s" % M.REV)
 sheet_t01(c); c.showPage()
-sheet_t01a(c); c.showPage()
+# sheet_t01a(c); c.showPage()   # φύλλο χάραξης με πίνακα παρειών – ΔΕΝ το θέλει ο Γιάννης (05/11)
 sheet_t02(c); c.showPage()
 sheet_t03(c); c.showPage()
 c.save()

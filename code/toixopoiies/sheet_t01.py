@@ -94,16 +94,66 @@ def wardrobe(v, r, washing=False, depth=0.60, joinery=False):
             if i: v.line(x0, a, x1, a, color=col, lw=0.3)
 
 
+def draw_core(v):
+    """Σκάλα και ανελκυστήρας αχνά (γκρι)."""
+    import math
+    col = (0.70, 0.70, 0.74); lw = 0.35
+    S = M.STAIR; x0, y0, x1, y1 = S["hall"]; lx = S["landing_x"]; wy = S["well_y"]; tr = S["tread"]
+    cx, cy = S["fan_center"]
+    v.line(lx, y0, lx, y1, color=col, lw=lw)                      # άκρη πλατύσκαλου
+    v.line(lx, wy, x1, wy, color=col, lw=lw)                      # διαχωριστική σκελών
+    for i in range(1, S["n_lower"]):                              # κάτω σκέλος (ανεβαίνει ανατολικά)
+        x = lx + tr * i
+        if x < cx: v.line(x, wy, x, y1, color=col, lw=lw)
+    for i in range(1, S["n_upper"]):                              # πάνω σκέλος (επιστρέφει δυτικά) – διακεκομμένο πάνω από την τομή
+        x = cx - tr * i
+        if x > lx: v.line(x, y0, x, wy, color=col, lw=lw, dash=[1.5, 1.2])
+    n = S["fan_steps"] + 1                                        # σφηνοειδή: ακτίνες από το κέντρο στην περίμετρο
+    for k in range(n):
+        a = math.radians(90 - 180 * k / (n - 1))                  # 90 = νότος … −90 = βορράς (μέσω ανατολής)
+        dx, dy = math.cos(a), math.sin(a)
+        ts = []
+        if dx > 1e-6: ts.append((x1 - cx) / dx)
+        if dy > 1e-6: ts.append((y1 - cy) / dy)
+        if dy < -1e-6: ts.append((y0 - cy) / dy)
+        tmin = min(ts)
+        v.line(cx, cy, cx + dx * tmin, cy + dy * tmin, color=col, lw=lw, dash=None if k < 4 else [1.5, 1.2])
+    # γραμμή ανόδου με βέλος
+    ya = (wy + y1) / 2
+    v.line(lx - 0.5, ya, cx + 0.3, ya, color=col, lw=0.5)
+    v.line(cx + 0.3, ya, cx + 0.3, (y0 + wy) / 2, color=col, lw=0.5, dash=[1.5, 1.2])
+    v.line(cx + 0.3, (y0 + wy) / 2, lx + 0.4, (y0 + wy) / 2, color=col, lw=0.5, dash=[1.5, 1.2])
+    v.line(lx + 0.4, (y0 + wy) / 2, lx + 0.55, (y0 + wy) / 2 - 0.08, color=col, lw=0.5)
+    v.line(lx + 0.4, (y0 + wy) / 2, lx + 0.55, (y0 + wy) / 2 + 0.08, color=col, lw=0.5)
+    v.circle(lx - 0.5, ya, 0.05, stroke=col, lw=0.5)
+    v.text(lx - 0.25, ya - 0.15, "ΑΝΟΔΟΣ", size=3.8, color=col)
+    # ανελκυστήρας: θάλαμος + συρόμενη πόρτα στη δυτική παρειά
+    L = M.LIFT; sx0, sy0, sx1, sy1 = L["shaft"]; c0, c1, c2, c3 = L["cabin"]
+    v.rect(c0, c1, c2, c3, stroke=col, lw=lw)
+    v.line(c0, c1, c2, c3, color=col, lw=0.25); v.line(c0, c3, c2, c1, color=col, lw=0.25)
+    dx_, dy0, dy1 = L["door"]
+    v.rect(dx_ - 0.03, dy0, dx_ + 0.03, (dy0 + dy1) / 2, stroke=col, lw=lw)
+    v.rect(dx_ + 0.03, (dy0 + dy1) / 2, dx_ + 0.09, dy1, stroke=col, lw=lw)
+    v.line(dx_ - 0.03, dy0 - 0.02, dx_ + 0.09, dy0 - 0.02, color=col, lw=0.25)
+    v.line(dx_ - 0.03, dy1 + 0.02, dx_ + 0.09, dy1 + 0.02, color=col, lw=0.25)
+
+
 def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_text=True, highlight=None):
     """Η κάτοψη. highlight: τύπος → μόνο αυτός χρωματιστός (για τα mini-plans του Τ-02)."""
     # δάπεδα εξωστών (μπεζ, όπως R14)
     if with_furniture:
         for poly in M.FLOORS:
             v.poly(poly, fill=(0.975, 0.97, 0.95))
-    # θερμοπρόσοψη
+    # θερμοπρόσοψη: 10 cm διαμερίσματα · 5 cm πυρήνας
     for poly in M.ETICS:
         v.poly(poly, fill=M.ETICS_FILL if not highlight else (0.96, 0.96, 0.96),
                stroke=(0.55, 0.45, 0.20) if not highlight else LIGHT, lw=0.5 if not highlight else 0.3)
+    for poly in M.ETICS5:
+        v.poly(poly, fill=M.ETICS5_FILL if not highlight else (0.96, 0.96, 0.96),
+               stroke=(0.55, 0.45, 0.20) if not highlight else LIGHT, lw=0.5 if not highlight else 0.3)
+    if with_text and not highlight:
+        v.text(12.45, 2.82, "ETICS 5 cm", size=3.8, color=(0.55, 0.45, 0.20), font="Inter-Medium")
+        v.text(13.52, 6.70, "ETICS 5 cm", size=3.8, color=(0.55, 0.45, 0.20), font="Inter-Medium", rot=90)
     # εξώστες, κάγκελα, ζαρντινιέρες, σκίαστρο (από R14)
     if with_furniture:
         draw_strokes(v, "(0.3, 0.3, 0.34)|0.60", (0.30, 0.30, 0.34), 0.6)
@@ -114,6 +164,7 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
         # έπιπλα αχνά (εκτός μασκών) + εξοπλισμός EPIPLA
         draw_strokes(v, "(0.8, 0.8, 0.82)|0.30", LIGHT, 0.3, masks=M.FURN_MASKS)
         draw_strokes(v, "(0.72, 0.72, 0.75)|0.35", (0.72, 0.72, 0.75), 0.35, masks=M.FURN_MASKS)
+        draw_core(v)
         # R15: ντουλάπες χωνευτές + λουτρά
         for wd in M.WARDROBES:
             wardrobe(v, wd["r"], washing=wd.get("washing", False), depth=wd["depth"], joinery=wd.get("joinery", False))
@@ -245,5 +296,6 @@ def sheet_t01(c):
         "· Αλουμίνια στη μέση του τοίχου: Τ3 και στις δύο παραστάδες",
         "· Πόρτες: ανοίγουν μέσα στον χώρο (Υπν.1, λουτρά, Υπν.2)",
         "· W2.07 μέσα στο τοιχείο Κ2: κενό 0,60×0,90 στον ξυλότυπο (ποδιά +1,50)",
+        "· Θερμοπρόσοψη: 10 cm διαμερίσματα · 5 cm κλιμακοστάσιο / πυρήνας",
         "· Αλυσίδες διαστάσεων μέσα στους χώρους · φύλλο χάραξης Τ-01Α"]):
         c.drawString(x, y - 9 - i * 8, s)
