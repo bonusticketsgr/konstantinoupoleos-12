@@ -66,13 +66,16 @@ def toilet(v, pos, facing):
         v.line(x + 0.19, y + 0.15, x + 0.19, y + 0.42, color=col, lw=0.45)
 
 
-def wardrobe(v, r, washing=False, depth=0.60, joinery=False):
+def wardrobe(v, r, washing=False, depth=0.60, joinery=False, poly=None):
     x0, y0, x1, y1 = r
     col = (0.62, 0.62, 0.66)
-    if joinery:   # ξυλουργικό που συνεχίζει τη ντουλάπα (διακεκομμένο)
-        v.line(x0, y0, x0, y1, color=col, lw=0.5, dash=[2, 1.5]); v.line(x0, y0, x1, y0, color=col, lw=0.5, dash=[2, 1.5])
-        v.line(x1, y0, x1, y1, color=col, lw=0.5, dash=[2, 1.5])
-        v.text(x0 + 0.13, (y0 + y1) / 2, "ΞΥΛ.", size=3.8, color=col, rot=90)
+    if joinery:   # ξυλουργικό που συνεχίζει τη ντουλάπα (διακεκομμένο) – poly: περίγραμμα ως το γυμνό τοιχείο
+        pts = poly or [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+        for (ax, ay), (bx, by) in zip(pts, pts[1:] + pts[:1]):
+            if abs(ay - y1) < 1e-6 and abs(by - y1) < 1e-6:
+                continue   # η πλευρά προς τη ντουλάπα μένει ανοιχτή
+            v.line(ax, ay, bx, by, color=col, lw=0.5, dash=[2, 1.5])
+        v.text(x0 + 0.10, (y0 + y1) / 2, "ΞΥΛ.", size=3.8, color=col, rot=90)
         return
     v.rect(x0, y0, x1, y1, stroke=col, lw=0.4)
     if washing:
@@ -166,7 +169,7 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
         draw_core(v)
         # R15: ντουλάπες χωνευτές + λουτρά
         for wd in M.WARDROBES:
-            wardrobe(v, wd["r"], washing=wd.get("washing", False), depth=wd["depth"], joinery=wd.get("joinery", False))
+            wardrobe(v, wd["r"], washing=wd.get("washing", False), depth=wd["depth"], joinery=wd.get("joinery", False), poly=wd.get("poly"))
         for b in M.BATHS:
             v.rect(*b["counter"], stroke=(0.72, 0.72, 0.75), lw=0.45)
             toilet(v, *b["toilet"])
@@ -247,8 +250,13 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
                     v.text(cx, y0 - 0.12 if cy < 5 else y1 + 0.12, w["id"], size=4.6,
                            color=(0.30, 0.45, 0.75) if w["type"] == "T3" else (0.45, 0.40, 0.65), font="Inter-Medium")
                 continue
-            if L < 0.30 and w["type"] in ("T2", "T4", "T1", "T5"):
-                v.text(cx, cy, w["id"], size=3.8, rot=rot, font="Inter-Medium")
+            if L < 0.55 and M.is_rect(w["pts"]):
+                # μικρός τοίχος: η ετικέτα δίπλα του (δυτικά / βόρεια), χωρίς κουτί, για να μην τον κρύβει
+                x0, y0, x1, y1 = M.bbox(w["pts"])
+                if rot == 90:
+                    v.text(x0 - 0.10, cy, w["id"], size=3.8, rot=90, font="Inter-Medium")
+                else:
+                    v.text(cx, y0 - 0.10, w["id"], size=3.8, font="Inter-Medium")
             else:
                 v.label(cx, cy, w["id"], rot=rot)
     # κείμενα χώρων / κουφωμάτων
@@ -285,7 +293,7 @@ def sheet_t01(c):
     # δεξιά στήλη, μετά τις εξωτερικές αλυσίδες (x 14,9 m ≈ 1013 pt), κάτω από τον βορρά
     x, y, wcol = 1022, 765, 150
     c.setFont("Inter-SemiBold", 6.2); c.setFillColorRGB(*DARK)
-    c.drawString(x, y, "ΑΛΛΑΓΕΣ R15 – R17 (05/11/2026)")
+    c.drawString(x, y, "ΑΛΛΑΓΕΣ R15 – R18 (05/11/2026)")
     c.setFont("Inter", 5.2)
     def _wrap(txt):
         out, cur = [], ""
@@ -310,6 +318,7 @@ def sheet_t01(c):
         "· Τ6 15 cm · μέτωπο ανελκυστήρα Τ10 20 cm, πόρτα 0,90 · εξώστης Υπν.2 ως 2,70",
         "· Πόρτες σε γυψοσανίδα: ορθοστάτες UA 2 mm (Knauf) · είσοδος UA 100",
         "· Τ7-02: ισοπαχείς παραστάδες – λουτρό γονέων σε 25 (Τ7-03), πόρτα Υπν.1 3,30–4,10 σε 10 cm",
+        "· R18: λουτρό +10 cm (Τ7-01 4,80–5,05) · ντους 1,35×1,00, γυαλί στο 1,00 · Τ9-02 καταργήθηκε (ξυλουργικό βάθους 0,40) · Τ6-02 από 9,55",
         "· Αλυσίδες διαστάσεων μέσα στους χώρους"]:
         ws = _wrap(s); lines += [ws[0]] + ["   " + l for l in ws[1:]]
     for i, s in enumerate(lines):
