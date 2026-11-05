@@ -185,6 +185,10 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
             if ftxt and with_text:
                 v.text((fx0 + fx1) / 2, (fy0 + fy1) / 2, ftxt, size=3.6, color=(0.62, 0.62, 0.66),
                        rot=90 if (fy1 - fy0) > (fx1 - fx0) else 0)
+        for cx_, cy_, cr_, ctxt in getattr(M, "CIRCLES", []):      # π.χ. κύκλος περιστροφής ΑΜΕΑ (ισόγειο)
+            v.circle(cx_, cy_, cr_, stroke=(0.72, 0.72, 0.75), lw=0.4)
+            if ctxt and with_text:
+                v.text(cx_, cy_ + cr_ + 0.12, ctxt, size=3.6, color=(0.62, 0.62, 0.66))
         # R15: ντουλάπες χωνευτές + λουτρά
         for wd in M.WARDROBES:
             wardrobe(v, wd["r"], washing=wd.get("washing", False), depth=wd["depth"], joinery=wd.get("joinery", False), poly=wd.get("poly"))
@@ -288,9 +292,9 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
         for lab, dim, (x, y) in M.WINDOWS:
             v.text(x, y, "%s  %s" % (lab, dim), size=5.2 if lab != "W2.07" else 4.4, font="Inter-Medium",
                    color=(0.30, 0.45, 0.75), anchor="l", bg=(lab == "W2.07"))
-        v.text(-1.47, 1.40, "αρχιτεκτονικό στοιχείο – σταθερό σύστημα σκίασης", size=5.6, font="Inter-Medium", color=GREY, rot=90, bg=True)
-        v.text(-1.52, 7.35, "ζαρντινιέρα", size=5.6, font="Inter-Medium", color=(0.40, 0.55, 0.40), rot=90, bg=True)
-        v.text(7.55, 11.90, "ζαρντινιέρα", size=5.6, font="Inter-Medium", color=(0.40, 0.55, 0.40), bg=True)
+        for ex, ey, es, er in getattr(M, "EXTRA_TEXTS", [(-1.47, 1.40, "αρχιτεκτονικό στοιχείο – σταθερό σύστημα σκίασης", 90),
+                                                        (-1.52, 7.35, "ζαρντινιέρα", 90), (7.55, 11.90, "ζαρντινιέρα", 0)]):
+            v.text(ex, ey, es, size=5.6, font="Inter-Medium", color=(0.40, 0.55, 0.40) if "ζαρντ" in es else GREY, rot=er, bg=True)
     # διαστάσεις
     if with_dims:
         for orient, pos, pts in M.DIMS_IN:
