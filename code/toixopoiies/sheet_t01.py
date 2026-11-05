@@ -105,7 +105,16 @@ def draw_furn(v):
         return
     import json
     col = F.get("color", (0.72, 0.72, 0.75))
-    _draw_paths(v, json.load(open(F["json"])), lambda rgb: col, lw=(0.3, 0.35, 0.4))
+    paths = json.load(open(F["json"]))
+    # R05: μετατόπιση ομάδων επίπλων (π.χ. καναπές / τραπεζαρία όταν μετακινείται τοίχος): [((x0, y0, x1, y1), dx, dy), ...]
+    for (bx0, by0, bx1, by1), dx, dy in F.get("shift", []):
+        for d in paths:
+            xs = [c for it in d["items"] for c in it[1::2]]; ys = [c for it in d["items"] for c in it[2::2]]
+            if xs and bx0 <= min(xs) and max(xs) <= bx1 and by0 <= min(ys) and max(ys) <= by1:
+                for it in d["items"]:
+                    for i in range(1, len(it), 2):
+                        it[i] += dx; it[i + 1] += dy
+    _draw_paths(v, paths, lambda rgb: col, lw=(0.3, 0.35, 0.4))
 
 
 def wall_label_pose(w):
@@ -173,6 +182,43 @@ def wardrobe(v, r, washing=False, depth=0.60, joinery=False, poly=None):
             a, b = y0 + i * step, y0 + (i + 1) * step
             v.line(x0, a, x1, b, color=col, lw=0.3); v.line(x0, b, x1, a, color=col, lw=0.3)
             if i: v.line(x0, a, x1, a, color=col, lw=0.3)
+
+
+def equip(v, item, with_text=True):
+    """Εξοπλισμός κουζίνας / κρεβάτι (αχνά, R05): ("rect"|"tall"|"appl"|"hob"|"sink"|"bed", x0, y0, x1, y1[, κείμενο])."""
+    kind, x0, y0, x1, y1 = item[:5]
+    lab = item[5] if len(item) > 5 else ""
+    col = (0.72, 0.72, 0.75); tcol = (0.62, 0.62, 0.66)
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    v.rect(x0, y0, x1, y1, stroke=col, lw=0.45 if kind != "rect" else 0.4)
+    if kind == "tall":            # ψηλό ντουλάπι (ψυγείο / φούρνος): Χ
+        v.line(x0, y0, x1, y1, color=col, lw=0.3); v.line(x0, y1, x1, y0, color=col, lw=0.3)
+    elif kind == "appl":          # πλυντήριο ρούχων / πιάτων: κύκλος
+        v.circle(cx, cy, min(x1 - x0, y1 - y0) * 0.32, stroke=col, lw=0.3)
+    elif kind == "hob":           # εστίες: 4 κύκλοι
+        for fx in (0.28, 0.72):
+            for fy in (0.28, 0.72):
+                v.circle(x0 + fx * (x1 - x0), y0 + fy * (y1 - y0), 0.085, stroke=col, lw=0.3)
+    elif kind == "sink":          # νεροχύτης: εσωτερική λεκάνη + βρύση
+        horiz = (x1 - x0) >= (y1 - y0)
+        if horiz:
+            v.rect(x0 + 0.08, y0 + 0.10, x1 - 0.08, y1 - 0.12, stroke=col, lw=0.3); v.circle(cx, y1 - 0.06, 0.03, stroke=col, lw=0.3)
+        else:
+            v.rect(x0 + 0.10, y0 + 0.08, x1 - 0.12, y1 - 0.08, stroke=col, lw=0.3); v.circle(x1 - 0.06, cy, 0.03, stroke=col, lw=0.3)
+    elif kind == "bed":           # κρεβάτι: κεφαλάρι (lab = πλευρά W/E/N/S) + 2 μαξιλάρια
+        side = lab or "W"; lab = ""
+        if side in ("W", "E"):
+            hx = x0 + 0.08 if side == "W" else x1 - 0.08
+            v.line(hx + (0.40 if side == "W" else -0.40), y0, hx + (0.40 if side == "W" else -0.40), y1, color=col, lw=0.3)
+            for (a, b) in ((y0 + 0.10, cy - 0.05), (cy + 0.05, y1 - 0.10)):
+                v.rect(min(hx, hx + (0.32 if side == "W" else -0.32)), a, max(hx, hx + (0.32 if side == "W" else -0.32)), b, stroke=col, lw=0.3)
+        else:
+            hy = y0 + 0.08 if side == "N" else y1 - 0.08
+            v.line(x0, hy + (0.40 if side == "N" else -0.40), x1, hy + (0.40 if side == "N" else -0.40), color=col, lw=0.3)
+            for (a, b) in ((x0 + 0.10, cx - 0.05), (cx + 0.05, x1 - 0.10)):
+                v.rect(a, min(hy, hy + (0.32 if side == "N" else -0.32)), b, max(hy, hy + (0.32 if side == "N" else -0.32)), stroke=col, lw=0.3)
+    if lab and with_text:
+        v.text(cx, cy, lab, size=3.4, color=tcol, rot=90 if (y1 - y0) > (x1 - x0) * 1.3 else 0)
 
 
 def draw_core(v):
@@ -258,6 +304,8 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
             v.circle(cx_, cy_, cr_, stroke=(0.72, 0.72, 0.75), lw=0.4)
             if ctxt and with_text:
                 v.text(cx_, cy_ + cr_ + 0.12, ctxt, size=3.6, color=(0.62, 0.62, 0.66))
+        for item in getattr(M, "EQUIP", []):                          # κουζίνα / κρεβάτι (ισόγειο R05)
+            equip(v, item, with_text)
         # R15: ντουλάπες χωνευτές + λουτρά
         for wd in M.WARDROBES:
             wardrobe(v, wd["r"], washing=wd.get("washing", False), depth=wd["depth"], joinery=wd.get("joinery", False), poly=wd.get("poly"))
