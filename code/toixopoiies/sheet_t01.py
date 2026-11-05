@@ -131,11 +131,10 @@ def draw_core(v):
     L = M.LIFT; sx0, sy0, sx1, sy1 = L["shaft"]; c0, c1, c2, c3 = L["cabin"]
     v.rect(c0, c1, c2, c3, stroke=col, lw=lw)
     v.line(c0, c1, c2, c3, color=col, lw=0.25); v.line(c0, c3, c2, c1, color=col, lw=0.25)
-    dx_, dy0, dy1 = L["door"]
-    v.rect(dx_ - 0.03, dy0, dx_ + 0.03, (dy0 + dy1) / 2, stroke=col, lw=lw)
-    v.rect(dx_ + 0.03, (dy0 + dy1) / 2, dx_ + 0.09, dy1, stroke=col, lw=lw)
-    v.line(dx_ - 0.03, dy0 - 0.02, dx_ + 0.09, dy0 - 0.02, color=col, lw=0.25)
-    v.line(dx_ - 0.03, dy1 + 0.02, dx_ + 0.09, dy1 + 0.02, color=col, lw=0.25)
+    dx_, dy0, dy1 = L["door"]      # δίφυλλη συρόμενη πόρτα 0,90 στον άξονα του μετώπου (x 11,10)
+    v.rect(dx_ - 0.03, dy0, dx_ + 0.01, (dy0 + dy1) / 2, stroke=(0.45, 0.45, 0.5), lw=0.5)
+    v.rect(dx_ - 0.01, (dy0 + dy1) / 2, dx_ + 0.03, dy1, stroke=(0.45, 0.45, 0.5), lw=0.5)
+    v.text(dx_ + 0.22, (dy0 + dy1) / 2, "0,90", size=3.8, color=col, rot=90)
 
 
 def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_text=True, highlight=None):
@@ -267,7 +266,7 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
     # διαστάσεις
     if with_dims:
         for orient, pos, pts in M.DIMS_IN:
-            v.dim_chain(orient, pos, pts, size=5.0, color=DIMC, side=-1)
+            v.dim_chain(orient, pos, pts, size=5.0, color=DIMC, side=(+1 if (orient, pos) == ("V", 11.22) else -1))
         for orient, pos, pts in M.DIMS_OUT:
             v.dim_chain(orient, pos, pts, size=5.4 if len(pts) > 2 else 6.2, color=DIMC, side=-1, ext=0.0)
         for x, y, s, horiz in M.THICK_NOTES:
