@@ -67,13 +67,16 @@ class View:
             (path.moveTo if i == 0 else path.lineTo)(X, Y)
         c.drawPath(path, stroke=1, fill=0)
 
-    def text(self, x, y, s, size=5, font="Inter", color=DARK, anchor="c", rot=0, dy=0):
-        """anchor: c / l / r (οριζόντια), κατακόρυφα κεντραρισμένο· rot 90 = κείμενο προς τα πάνω."""
+    def text(self, x, y, s, size=5, font="Inter", color=DARK, anchor="c", rot=0, dy=0, bg=False):
+        """anchor: c / l / r (οριζόντια), κατακόρυφα κεντραρισμένο· rot 90 = κείμενο προς τα πάνω· bg: λευκό φόντο."""
         c = self.c; X, Y = self.p(x, y)
         c.saveState(); c.translate(X, Y); c.rotate(rot)
         c.setFont(font, size); c.setFillColorRGB(*color)
         w = pdfmetrics.stringWidth(s, font, size)
         off = {"c": -w / 2, "l": 0, "r": -w}[anchor]
+        if bg:
+            c.setFillColorRGB(1, 1, 1); c.rect(off - 1.5, -size * 0.35 + dy - 1.5, w + 3, size + 2, stroke=0, fill=1)
+            c.setFillColorRGB(*color)
         c.drawString(off, -size * 0.35 + dy, s)
         c.restoreState()
 

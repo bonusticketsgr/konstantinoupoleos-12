@@ -96,6 +96,10 @@ def wardrobe(v, r, washing=False, depth=0.60, joinery=False):
 
 def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_text=True, highlight=None):
     """Η κάτοψη. highlight: τύπος → μόνο αυτός χρωματιστός (για τα mini-plans του Τ-02)."""
+    # δάπεδα εξωστών (μπεζ, όπως R14)
+    if with_furniture:
+        for poly in M.FLOORS:
+            v.poly(poly, fill=(0.975, 0.97, 0.95))
     # θερμοπρόσοψη
     for poly in M.ETICS:
         v.poly(poly, fill=M.ETICS_FILL if not highlight else (0.96, 0.96, 0.96),
@@ -116,19 +120,33 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
         for b in M.BATHS:
             v.rect(*b["counter"], stroke=(0.72, 0.72, 0.75), lw=0.45)
             toilet(v, *b["toilet"])
+            sx0, sy0, sx1, sy1 = b["shower"]
+            for (ax, ay, bx, by) in [(sx0, sy0, sx1, sy0), (sx1, sy0, sx1, sy1), (sx1, sy1, sx0, sy1), (sx0, sy1, sx0, sy0)]:
+                v.line(ax, ay, bx, by, color=(0.60, 0.65, 0.75), lw=0.4, dash=[2, 1.5])
             (x0, y0), (x1, y1) = b["screen"]
             v.line(x0, y0, x1, y1, color=(0.30, 0.40, 0.60), lw=1.2)
             if with_text:
                 gl = b["glass_label"]
                 v.text(gl[0], gl[1], "γυαλί 0,70", size=4.2, color=(0.30, 0.40, 0.60), rot=0 if y0 == y1 else 90)
                 v.text(b["shower_label"][0], b["shower_label"][1], "ΝΤΟΥΣ", size=4.6, color=GREY, font="Inter-Medium")
+                v.text(b["shower_label"][0], b["shower_label"][1] + 0.16, b["shower_dim"], size=4.0, color=GREY)
     # κολόνες / τοιχεία
     for poly in M.COLS:
         v.poly(poly, fill=M.COL_FILL if not highlight else (0.80, 0.80, 0.82), stroke=DARK, lw=0.6)
         if not highlight:
             v.hatch(poly, 0.075, 45, (0.75, 0.75, 0.78), 0.3)
-    for poly in M.COLS2:
-        v.poly(poly, fill=M.COL2_FILL if not highlight else (0.86, 0.86, 0.88), stroke=DARK, lw=0.6)
+    for poly in M.COLS2:   # στηθαία εξωστών: λεπτή σκούρα λωρίδα 5 cm στην εξωτερική ακμή (γυάλινο στηθαίο)
+        if highlight:
+            continue
+        x0, y0, x1, y1 = M.bbox(poly)
+        if (x1 - x0) >= (y1 - y0):
+            yo = y0 if (y0 + y1) / 2 < 5.2 else y1
+            ya, yb = (yo, yo + 0.05) if yo == y0 else (yo - 0.05, yo)
+            v.rect(x0, ya, x1, yb, fill=(0.25, 0.25, 0.28))
+        else:
+            xo = x0 if (x0 + x1) / 2 < 6.5 else x1
+            xa, xb = (xo, xo + 0.05) if xo == x0 else (xo - 0.05, xo)
+            v.rect(xa, y0, xb, y1, fill=(0.25, 0.25, 0.28))
     # τοίχοι
     for w in M.WALLS:
         t = M.TYPES[w["type"]]
@@ -191,9 +209,9 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
                 v.text(x, y + 0.22, area, size=5.6, color=(0.45, 0.45, 0.50))
         for lab, dim, (x, y) in M.WINDOWS:
             v.text(x, y, "%s  %s" % (lab, dim), size=5.2, font="Inter-Medium", color=(0.30, 0.45, 0.75), anchor="l")
-        v.text(-1.47, 1.40, "αρχιτεκτονικό στοιχείο – σταθερό σύστημα σκίασης", size=5.6, font="Inter-Medium", color=GREY, rot=90)
-        v.text(-1.52, 7.35, "ζαρντινιέρα", size=5.6, font="Inter-Medium", color=(0.40, 0.55, 0.40), rot=90)
-        v.text(7.55, 11.90, "ζαρντινιέρα", size=5.6, font="Inter-Medium", color=(0.40, 0.55, 0.40))
+        v.text(-1.47, 1.40, "αρχιτεκτονικό στοιχείο – σταθερό σύστημα σκίασης", size=5.6, font="Inter-Medium", color=GREY, rot=90, bg=True)
+        v.text(-1.52, 7.35, "ζαρντινιέρα", size=5.6, font="Inter-Medium", color=(0.40, 0.55, 0.40), rot=90, bg=True)
+        v.text(7.55, 11.90, "ζαρντινιέρα", size=5.6, font="Inter-Medium", color=(0.40, 0.55, 0.40), bg=True)
     # διαστάσεις
     if with_dims:
         for orient, pos, pts in M.DIMS_IN:
@@ -207,13 +225,13 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
 def sheet_t01(c):
     v = View(c, OX, OY, PT_PER_M_60)
     draw_plan(v)
-    north_arrow(c, 1135, 770)
+    north_arrow(c, 1150, 795)
     frame_and_title(c, "Τ-01", "ΚΑΤΟΨΗ ΤΟΙΧΟΠΟΙΙΩΝ – Β΄ ΟΡΟΦΟΣ",
                     "Είδη τοιχοποιιών · διαστάσεις χάραξης · κουφώματα · εξώστες", "Β΄ ΟΡΟΦΟΣ – Β1",
                     "Βάση: κάτοψη A-10-2F (μελέτη εφαρμογής) · ξυλότυποι Σ · R14 + αλλαγές 05/11",
                     "Κλίμακα 1:60 · A3", M.REV, M.DATE)
     # υπόμνημα αλλαγών R15 (πάνω δεξιά)
-    x, y = 905, 800
+    x, y = 860, 800
     c.setFont("Inter-SemiBold", 6.5); c.setFillColorRGB(*DARK)
     c.drawString(x, y, "ΑΛΛΑΓΕΣ R15 / R16 (05/11/2026)")
     c.setFont("Inter", 5.6)
@@ -222,7 +240,8 @@ def sheet_t01(c):
         "· Τ1-05 ως 1,38 (+0,03 περιθώριο) · Τ3-06 μένει (ισοπαχείς λαμπάδες) · W2.06 → 1,38–2,38",
         "· Υπν.1: χωρίς κουτί – ξυλουργικό συνέχεια ντουλάπας ως τον β. τοίχο",
         "· Τ2-05 → Τ2N-02 (1 φύλλο προς ντουλάπα) · διάδρομος χωλ 1,00",
-        "· Λουτρά: πάγκος 0,50 · λεκάνη · γυάλινο διαχωριστικό 0,70",
+        "· Λουτρά: πάγκος 0,50 · λεκάνη · γυάλινο διαχωριστικό 0,70 · ντους 0,70–1,00",
         "· Αλουμίνια στη μέση του τοίχου: Τ3 και στις δύο παραστάδες",
-        "· Αλυσίδες διαστάσεων μέσα στους χώρους (χάραξη)"]):
+        "· Πόρτες: ανοίγουν μέσα στον χώρο (Υπν.1, λουτρά, Υπν.2)",
+        "· Αλυσίδες διαστάσεων μέσα στους χώρους · φύλλο χάραξης Τ-01Α"]):
         c.drawString(x, y - 9 - i * 8, s)
