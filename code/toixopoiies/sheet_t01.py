@@ -1,7 +1,6 @@
 """Φύλλο Τ-01: κάτοψη τοιχοποιιών Β΄ ορόφου (Β1), A3, 1:60."""
 import math
 import b1_model as M
-from reportlab.lib.utils import ImageReader
 from draw import View, PT_PER_M_60, PAGE_W, PAGE_H, DARK, GREY, LIGHT, DIMC, BLUE, frame_and_title, north_arrow
 
 B1_SHEET = dict(floor="Β΄ ΟΡΟΦΟΣ – Β1", floor_short="Β΄ ΟΡΟΦΟΥ", apt="Β1",
@@ -43,16 +42,54 @@ def draw_strokes(v, key, color, lw, masks=None, bbox_filter=None):
                     v.line(prev[0], prev[1], x, y, color=color, lw=lw); prev = (x, y)
 
 
-def draw_underlay(v):
-    """Αχνό υπόβαθρο (π.χ. απόσπασμα A-10-GF για τον κήπο του ισογείου), κομμένο στο πλαίσιο της σελίδας."""
-    U = getattr(M, "UNDERLAY", None)
-    if not U:
+def draw_site(v):
+    """Περιβάλλων χώρος (ισόγειο): η διανυσματική γεωμετρία του αρχιτεκτονικού χωρίς κείμενα / διαστάσεις, αχνά,
+    κομμένη έξω από το περίγραμμα του κτιρίου (even-odd clip: πλαίσιο σελίδας − πολύγωνο κτιρίου)."""
+    S = getattr(M, "SITE", None)
+    if not S:
         return
-    x0, y0, x1, y1 = U["bbox"]
+    import json
+    from reportlab.pdfgen.canvas import FILL_EVEN_ODD
+    paths = json.load(open(S["json"]))
     c = v.c; c.saveState()
-    p = c.beginPath(); p.rect(20, 20, PAGE_W - 40, PAGE_H - 40); c.clipPath(p, stroke=0, fill=0)
-    X, Yb = v.p(x0, y1)
-    c.drawImage(ImageReader(U["png"]), X, Yb, (x1 - x0) * v.s, (y1 - y0) * v.s, mask="auto")
+    p = c.beginPath(); p.rect(20, 20, PAGE_W - 40, PAGE_H - 40)
+    pts = S["building"]; p.moveTo(*v.p(*pts[0]))
+    for q in pts[1:]:
+        p.lineTo(*v.p(*q))
+    p.close()
+    c.clipPath(p, stroke=0, fill=0, fillMode=FILL_EVEN_ODD)
+    k = S.get("fade", 0.5)
+    col = lambda rgb: tuple(1 - (1 - ch) * k for ch in rgb)
+    for d in paths:
+        if d["f"]:
+            c.setFillColorRGB(*col(d["f"]))
+        if d["c"]:
+            c.setStrokeColorRGB(*col(d["c"]))
+        w = d["w"]; c.setLineWidth(0.25 if w < 0.5 else (0.4 if w < 1.0 else 0.6))
+        pth = c.beginPath(); cur = None
+        for it in d["items"]:
+            if it[0] == "l":
+                a = v.p(it[1], it[2]); b = v.p(it[3], it[4])
+                if cur != a:
+                    pth.moveTo(*a)
+                pth.lineTo(*b); cur = b
+            elif it[0] == "c":
+                a = v.p(it[1], it[2]); p1 = v.p(it[3], it[4]); p2 = v.p(it[5], it[6]); b = v.p(it[7], it[8])
+                if cur != a:
+                    pth.moveTo(*a)
+                pth.curveTo(p1[0], p1[1], p2[0], p2[1], b[0], b[1]); cur = b
+            elif it[0] == "re":
+                x0, y0 = v.p(it[1], it[2]); x1, y1 = v.p(it[3], it[4])
+                pth.rect(min(x0, x1), min(y0, y1), abs(x1 - x0), abs(y1 - y0)); cur = None
+            elif it[0] == "qu":
+                q = [v.p(it[i], it[i + 1]) for i in (1, 3, 5, 7)]
+                pth.moveTo(*q[0])
+                for z in q[1:]:
+                    pth.lineTo(*z)
+                pth.close(); cur = None
+        if d["closed"]:
+            pth.close()
+        c.drawPath(pth, stroke=1 if d["c"] else 0, fill=1 if d["f"] else 0)
     c.restoreState()
 
 
@@ -168,12 +205,12 @@ def draw_core(v):
 
 def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_text=True, highlight=None):
     """Η κάτοψη. highlight: τύπος → μόνο αυτός χρωματιστός (για τα mini-plans του Τ-02)."""
-    if with_furniture and not highlight:
-        draw_underlay(v)
-    # δάπεδα εξωστών (μπεζ, όπως R14)
+    # δάπεδα εξωστών / βεραντών (μπεζ, όπως R14) – κάτω από τη γεωμετρία του περιβάλλοντος χώρου
     if with_furniture:
         for poly in M.FLOORS:
             v.poly(poly, fill=(0.975, 0.97, 0.95))
+    if with_furniture and not highlight:
+        draw_site(v)
     # θερμοπρόσοψη: 10 cm διαμερίσματα · 5 cm πυρήνας
     for poly in M.ETICS:
         v.poly(poly, fill=M.ETICS_FILL if not highlight else (0.96, 0.96, 0.96),
@@ -324,7 +361,7 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
 def sheet_t01(c):
     v = View(c, OX, OY, PT_PER_M_60)
     draw_plan(v)
-    if getattr(M, "UNDERLAY", None):      # λευκό κάτω από το υπόμνημα τίτλου (το υπόβαθρο φτάνει ως εκεί)
+    if getattr(M, "SITE", None):      # λευκό κάτω από το υπόμνημα τίτλου (το υπόβαθρο φτάνει ως εκεί)
         c.setFillColorRGB(1, 1, 1); c.rect(20, 20, PAGE_W - 40, 72, stroke=0, fill=1)
     north_arrow(c, 1150, 795)
     SH = getattr(M, "SHEET", B1_SHEET)
@@ -361,7 +398,7 @@ def sheet_t01(c):
         "· Πόρτα εισόδου 1,00 (5,30–6,30, μεντεσές βόρεια) · R18/R19: λουτρό +10 cm (Τ7-01 4,80–5,05) · ντους λουτρού 0,80, γονέων 1,00 · Τ9-02 καταργήθηκε, Τ3-05 λεπτή (ξυλουργικό 0,40) · Τ6-02 από 9,55",
         "· Αλυσίδες διαστάσεων μέσα στους χώρους"]:
         ws = _wrap(s); lines += [ws[0]] + ["   " + l for l in ws[1:]]
-    if getattr(M, "UNDERLAY", None):
+    if getattr(M, "SITE", None):
         c.setFillColorRGB(1, 1, 1); c.rect(x - 6, y - 9 - len(lines) * 6.6 - 2, wcol + 14, len(lines) * 6.6 + 22, stroke=0, fill=1)
     c.setFont("Inter-SemiBold", 6.2); c.setFillColorRGB(*DARK)
     c.drawString(x, y, getattr(M, "LEGEND_TITLE", "ΑΛΛΑΓΕΣ R15 – R20 (05/11/2026)"))

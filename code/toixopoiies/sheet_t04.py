@@ -2,7 +2,7 @@
 Το υπόβαθρο είναι απόσπασμα του ίδιου του αρχιτεκτονικού A-10-GF (αχνό, με το κτίριο μασκαρισμένο)· πάνω του οι τοιχοποιίες του Τ-01."""
 import b1_model as M
 from draw import PAGE_W, PAGE_H, View, DARK, GREY, frame_and_title, north_arrow
-from sheet_t01 import draw_plan, draw_underlay
+from sheet_t01 import draw_plan, draw_site
 
 S100 = 72 / 25.4 * 1000 / 100     # 28,35 pt/m
 
@@ -36,10 +36,12 @@ def wrap(c, text, font, size, width):
 
 
 def sheet_t04(c):
-    U = M.UNDERLAY; x0, y0, x1, y1 = U["bbox"]
+    x0, y0, x1, y1 = -6.2, -2.6, 18.6, 15.8
     ox = 40 - x0 * S100; oy = 48 - y0 * S100
     v = View(c, ox, oy, S100)
-    draw_underlay(v)
+    for poly in M.FLOORS:
+        v.poly(poly, fill=(0.975, 0.97, 0.95))
+    draw_site(v)
     draw_plan(v, with_labels=False, with_dims=False, with_furniture=False, with_text=False)
     # ονόματα χώρων (μικρά)
     for name, area, (x, y) in M.ROOMS:
@@ -48,13 +50,13 @@ def sheet_t04(c):
     X0, Yt = v.p(x0, y0); X1, Yb = v.p(x1, y1)
     c.setStrokeColorRGB(*GREY); c.setLineWidth(0.4); c.rect(X0, Yb, X1 - X0, Yt - Yb, stroke=1, fill=0)
     c.setFont("Inter", 5.5); c.setFillColorRGB(*GREY)
-    c.drawString(X0, Yb - 9, "Υπόβαθρο: απόσπασμα A-10-GF (EDGE, μελέτη εφαρμογής 23/07/2026) 1:100, αχνό, κτίριο μασκαρισμένο · τοιχοποιίες από το Τ-01 %s · συντεταγμένες μοντέλου σε m" % M.REV)
+    c.drawString(X0, Yb - 9, "Περιβάλλων χώρος: γεωμετρία A-10-GF (EDGE, μελέτη εφαρμογής 23/07/2026) 1:100, αχνά, χωρίς κείμενα / διαστάσεις · τοιχοποιίες από το Τ-01 %s · συντεταγμένες μοντέλου σε m" % M.REV)
     # κείμενα δεξιά
     xl = X1 + 28; wcol = PAGE_W - 20 - 14 - xl; y = PAGE_H - 46
     c.setFont("Inter-SemiBold", 8.5); c.setFillColorRGB(*DARK)
     c.drawString(xl, y, "ΠΕΡΙΒΑΛΛΩΝ ΧΩΡΟΣ ΙΣΟΓΕΙΟΥ – όπως τον έχει ο αρχιτέκτονας (A-10-GF)"); y -= 14
     c.setFont("Inter", 6.0); c.setFillColorRGB(*GREY)
-    for ln in wrap(c, "Το φύλλο δείχνει το οικόπεδο ολόκληρο με τον κήπο, τις βεράντες, τις εισόδους και τη ράμπα ακριβώς όπως στο A-10-GF, "
+    for ln in wrap(c, "Το φύλλο δείχνει το οικόπεδο ολόκληρο με τον κήπο, τις βεράντες, τις εισόδους και τη ράμπα όπως τα έχει ο αρχιτέκτονας στο A-10-GF (μόνο η γεωμετρία, χωρίς τα κείμενά του), "
                       "για να φαίνεται πώς δένουν οι τοιχοποιίες του ισογείου με τον περιβάλλοντα χώρο. Δεν είναι σχέδιο κατασκευής κήπου: "
                       "για διαστάσεις, στάθμες και φυτεύσεις ισχύουν τα A-10-GF / A-14-GF και η μελέτη περιβάλλοντος χώρου.", "Inter", 6.0, wcol):
         c.drawString(xl, y, ln); y -= 7.6
@@ -69,4 +71,4 @@ def sheet_t04(c):
     north_arrow(c, 1150, 795)
     SH = M.SHEET
     frame_and_title(c, "Τ-04", "ΠΕΡΙΒΑΛΛΩΝ ΧΩΡΟΣ – ΙΣΟΓΕΙΟ", "Κήπος ΙΣ1 · βεράντες · είσοδοι · ράμπα κατά A-10-GF", SH["floor"],
-                    "Βάση: A-10-GF (απόσπασμα ως υπόβαθρο) · τοιχοποιίες Τ-01", "Κλίμακα 1:100 · A3", M.REV, M.DATE)
+                    "Βάση: γεωμετρία περιβάλλοντος χώρου A-10-GF · τοιχοποιίες Τ-01", "Κλίμακα 1:100 · A3", M.REV, M.DATE)
