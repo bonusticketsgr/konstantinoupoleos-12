@@ -169,7 +169,7 @@ class View:
         off = 0.10 * size / 5.0
         for q0, q1 in zip(pts[:-1], pts[1:]):
             L = q1 - q0
-            s = ("%.2f" % L).replace(".", ",")
+            s = ("%.2f" % (L + 1e-6)).replace(".", ",")
             w = self.text_w(s, size, font)
             mid = (q0 + q1) / 2
             if orient == "H":

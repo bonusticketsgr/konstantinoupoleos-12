@@ -66,9 +66,14 @@ def toilet(v, pos, facing):
         v.line(x + 0.19, y + 0.15, x + 0.19, y + 0.42, color=col, lw=0.45)
 
 
-def wardrobe(v, r, washing=False, depth=0.60):
+def wardrobe(v, r, washing=False, depth=0.60, joinery=False):
     x0, y0, x1, y1 = r
     col = (0.62, 0.62, 0.66)
+    if joinery:   # ξυλουργικό που συνεχίζει τη ντουλάπα (διακεκομμένο)
+        v.line(x0, y0, x0, y1, color=col, lw=0.5, dash=[2, 1.5]); v.line(x0, y0, x1, y0, color=col, lw=0.5, dash=[2, 1.5])
+        v.line(x1, y0, x1, y1, color=col, lw=0.5, dash=[2, 1.5])
+        v.text(x0 + 0.13, (y0 + y1) / 2, "ΞΥΛ.", size=3.8, color=col, rot=90)
+        return
     v.rect(x0, y0, x1, y1, stroke=col, lw=0.4)
     if washing:
         v.rect(x0 + 0.02, y0 + 0.05, x1 - 0.02, y1 - 0.05, stroke=col, lw=0.3)
@@ -107,13 +112,15 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
         draw_strokes(v, "(0.72, 0.72, 0.75)|0.35", (0.72, 0.72, 0.75), 0.35, masks=M.FURN_MASKS)
         # R15: ντουλάπες χωνευτές + λουτρά
         for wd in M.WARDROBES:
-            wardrobe(v, wd["r"], washing=wd.get("washing", False), depth=wd["depth"])
+            wardrobe(v, wd["r"], washing=wd.get("washing", False), depth=wd["depth"], joinery=wd.get("joinery", False))
         for b in M.BATHS:
             v.rect(*b["counter"], stroke=(0.72, 0.72, 0.75), lw=0.45)
             toilet(v, *b["toilet"])
             (x0, y0), (x1, y1) = b["screen"]
-            v.line(x0, y0, x1, y1, color=(0.30, 0.40, 0.60), lw=0.9)
+            v.line(x0, y0, x1, y1, color=(0.30, 0.40, 0.60), lw=1.2)
             if with_text:
+                gl = b["glass_label"]
+                v.text(gl[0], gl[1], "γυαλί 0,70", size=4.2, color=(0.30, 0.40, 0.60), rot=0 if y0 == y1 else 90)
                 v.text(b["shower_label"][0], b["shower_label"][1], "ΝΤΟΥΣ", size=4.6, color=GREY, font="Inter-Medium")
     # κολόνες / τοιχεία
     for poly in M.COLS:
@@ -208,14 +215,14 @@ def sheet_t01(c):
     # υπόμνημα αλλαγών R15 (πάνω δεξιά)
     x, y = 905, 800
     c.setFont("Inter-SemiBold", 6.5); c.setFillColorRGB(*DARK)
-    c.drawString(x, y, "ΑΛΛΑΓΕΣ R15 (05/11/2026)")
+    c.drawString(x, y, "ΑΛΛΑΓΕΣ R15 / R16 (05/11/2026)")
     c.setFont("Inter", 5.6)
     for i, s in enumerate([
         "· Ντουλάπες χωνευτές: δωματίων 0,60 · πλυντηρίου 0,70",
-        "· Τ1-05 κομμένος στο 1,35 · Τ3-06 καταργήθηκε · W2.06 → 1,35–2,35 (*)",
-        "· Υπν.1: κουτί Τ2-09 (x 4,30–4,40) για χωνευτή ντουλάπα",
-        "· Τ2-05 → Τ2N-02 (1 φύλλο προς ντουλάπα)",
-        "· Λουτρά: πάγκος 0,50 · λεκάνη · 1 διαχωριστικό ντους",
-        "· Αλυσίδες διαστάσεων μέσα στους χώρους (χάραξη)",
-        "(*) προς επιβεβαίωση από τον αρχιτέκτονα (όψη)"]):
+        "· Τ1-05 ως 1,38 (+0,03 περιθώριο) · Τ3-06 μένει (ισοπαχείς λαμπάδες) · W2.06 → 1,38–2,38",
+        "· Υπν.1: χωρίς κουτί – ξυλουργικό συνέχεια ντουλάπας ως τον β. τοίχο",
+        "· Τ2-05 → Τ2N-02 (1 φύλλο προς ντουλάπα) · διάδρομος χωλ 1,00",
+        "· Λουτρά: πάγκος 0,50 · λεκάνη · γυάλινο διαχωριστικό 0,70",
+        "· Αλουμίνια στη μέση του τοίχου: Τ3 και στις δύο παραστάδες",
+        "· Αλυσίδες διαστάσεων μέσα στους χώρους (χάραξη)"]):
         c.drawString(x, y - 9 - i * 8, s)
