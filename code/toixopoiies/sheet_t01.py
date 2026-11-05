@@ -42,30 +42,24 @@ def draw_strokes(v, key, color, lw, masks=None, bbox_filter=None):
                     v.line(prev[0], prev[1], x, y, color=color, lw=lw); prev = (x, y)
 
 
-def draw_site(v):
-    """Περιβάλλων χώρος (ισόγειο): η διανυσματική γεωμετρία του αρχιτεκτονικού χωρίς κείμενα / διαστάσεις, αχνά,
-    κομμένη έξω από το περίγραμμα του κτιρίου (even-odd clip: πλαίσιο σελίδας − πολύγωνο κτιρίου)."""
-    S = getattr(M, "SITE", None)
-    if not S:
-        return
-    import json
-    from reportlab.pdfgen.canvas import FILL_EVEN_ODD
-    paths = json.load(open(S["json"]))
+def _draw_paths(v, paths, color_fn, clip_building=None, lw=(0.25, 0.4, 0.6)):
+    """Σχεδίαση διανυσματικών paths του αρχιτεκτονικού (m μοντέλου): l / c / re / qu. clip_building: πολύγωνο που
+    εξαιρείται (even-odd clip: πλαίσιο σελίδας − πολύγωνο)."""
     c = v.c; c.saveState()
-    p = c.beginPath(); p.rect(20, 20, PAGE_W - 40, PAGE_H - 40)
-    pts = S["building"]; p.moveTo(*v.p(*pts[0]))
-    for q in pts[1:]:
-        p.lineTo(*v.p(*q))
-    p.close()
-    c.clipPath(p, stroke=0, fill=0, fillMode=FILL_EVEN_ODD)
-    k = S.get("fade", 0.5)
-    col = lambda rgb: tuple(1 - (1 - ch) * k for ch in rgb)
+    if clip_building:
+        p = c.beginPath(); p.rect(20, 20, PAGE_W - 40, PAGE_H - 40)
+        p.moveTo(*v.p(*clip_building[0]))
+        for q in clip_building[1:]:
+            p.lineTo(*v.p(*q))
+        p.close()
+        from reportlab.pdfgen.canvas import FILL_EVEN_ODD
+        c.clipPath(p, stroke=0, fill=0, fillMode=FILL_EVEN_ODD)
     for d in paths:
         if d["f"]:
-            c.setFillColorRGB(*col(d["f"]))
+            c.setFillColorRGB(*color_fn(d["f"]))
         if d["c"]:
-            c.setStrokeColorRGB(*col(d["c"]))
-        w = d["w"]; c.setLineWidth(0.25 if w < 0.5 else (0.4 if w < 1.0 else 0.6))
+            c.setStrokeColorRGB(*color_fn(d["c"]))
+        w = d["w"]; c.setLineWidth(lw[0] if w < 0.5 else (lw[1] if w < 1.0 else lw[2]))
         pth = c.beginPath(); cur = None
         for it in d["items"]:
             if it[0] == "l":
@@ -91,6 +85,27 @@ def draw_site(v):
             pth.close()
         c.drawPath(pth, stroke=1 if d["c"] else 0, fill=1 if d["f"] else 0)
     c.restoreState()
+
+
+def draw_site(v):
+    """Περιβάλλων χώρος (ισόγειο): η διανυσματική γεωμετρία του αρχιτεκτονικού χωρίς κείμενα / διαστάσεις, αχνά,
+    κομμένη έξω από το περίγραμμα του κτιρίου."""
+    S = getattr(M, "SITE", None)
+    if not S:
+        return
+    import json
+    k = S.get("fade", 0.5)
+    _draw_paths(v, json.load(open(S["json"])), lambda rgb: tuple(1 - (1 - ch) * k for ch in rgb), clip_building=S["building"])
+
+
+def draw_furn(v):
+    """Έπιπλα από το layer EPIPLA του αρχιτεκτονικού (ισόγειο): αχνά, ενιαίο γκρι, όπως τα έπιπλα του Β1."""
+    F = getattr(M, "FURN_PATHS", None)
+    if not F:
+        return
+    import json
+    col = F.get("color", (0.72, 0.72, 0.75))
+    _draw_paths(v, json.load(open(F["json"])), lambda rgb: col, lw=(0.3, 0.35, 0.4))
 
 
 def wall_label_pose(w):
@@ -232,6 +247,7 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
         draw_strokes(v, "(0.8, 0.8, 0.82)|0.30", LIGHT, 0.3, masks=M.FURN_MASKS)
         draw_strokes(v, "(0.72, 0.72, 0.75)|0.35", (0.72, 0.72, 0.75), 0.35, masks=M.FURN_MASKS)
         draw_core(v)
+        draw_furn(v)
         # απλά έπιπλα του μοντέλου (αχνά): πάγκοι κουζίνας, εξοπλισμός
         for fx0, fy0, fx1, fy1, ftxt in getattr(M, "FURN", []):
             v.rect(fx0, fy0, fx1, fy1, stroke=(0.72, 0.72, 0.75), lw=0.4)
