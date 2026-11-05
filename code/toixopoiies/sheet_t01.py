@@ -1,7 +1,8 @@
 """Φύλλο Τ-01: κάτοψη τοιχοποιιών Β΄ ορόφου (Β1), A3, 1:60."""
 import math
 import b1_model as M
-from draw import View, PT_PER_M_60, DARK, GREY, LIGHT, DIMC, BLUE, frame_and_title, north_arrow
+from reportlab.lib.utils import ImageReader
+from draw import View, PT_PER_M_60, PAGE_W, PAGE_H, DARK, GREY, LIGHT, DIMC, BLUE, frame_and_title, north_arrow
 
 B1_SHEET = dict(floor="Β΄ ΟΡΟΦΟΣ – Β1", floor_short="Β΄ ΟΡΟΦΟΥ", apt="Β1",
                 base="Βάση: κάτοψη A-10-2F (μελέτη εφαρμογής) · ξυλότυποι Σ · R14 + αλλαγές 05/11", arch="A-10-2F")
@@ -40,6 +41,19 @@ def draw_strokes(v, key, color, lw, masks=None, bbox_filter=None):
                     x = (1-t)**3*p0[0] + 3*(1-t)**2*t*p1[0] + 3*(1-t)*t**2*p2[0] + t**3*p3[0]
                     y = (1-t)**3*p0[1] + 3*(1-t)**2*t*p1[1] + 3*(1-t)*t**2*p2[1] + t**3*p3[1]
                     v.line(prev[0], prev[1], x, y, color=color, lw=lw); prev = (x, y)
+
+
+def draw_underlay(v):
+    """Αχνό υπόβαθρο (π.χ. απόσπασμα A-10-GF για τον κήπο του ισογείου), κομμένο στο πλαίσιο της σελίδας."""
+    U = getattr(M, "UNDERLAY", None)
+    if not U:
+        return
+    x0, y0, x1, y1 = U["bbox"]
+    c = v.c; c.saveState()
+    p = c.beginPath(); p.rect(20, 20, PAGE_W - 40, PAGE_H - 40); c.clipPath(p, stroke=0, fill=0)
+    X, Yb = v.p(x0, y1)
+    c.drawImage(ImageReader(U["png"]), X, Yb, (x1 - x0) * v.s, (y1 - y0) * v.s, mask="auto")
+    c.restoreState()
 
 
 def wall_label_pose(w):
@@ -154,6 +168,8 @@ def draw_core(v):
 
 def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_text=True, highlight=None):
     """Η κάτοψη. highlight: τύπος → μόνο αυτός χρωματιστός (για τα mini-plans του Τ-02)."""
+    if with_furniture and not highlight:
+        draw_underlay(v)
     # δάπεδα εξωστών (μπεζ, όπως R14)
     if with_furniture:
         for poly in M.FLOORS:
@@ -308,6 +324,8 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
 def sheet_t01(c):
     v = View(c, OX, OY, PT_PER_M_60)
     draw_plan(v)
+    if getattr(M, "UNDERLAY", None):      # λευκό κάτω από το υπόμνημα τίτλου (το υπόβαθρο φτάνει ως εκεί)
+        c.setFillColorRGB(1, 1, 1); c.rect(20, 20, PAGE_W - 40, 72, stroke=0, fill=1)
     north_arrow(c, 1150, 795)
     SH = getattr(M, "SHEET", B1_SHEET)
     frame_and_title(c, "Τ-01", "ΚΑΤΟΨΗ ΤΟΙΧΟΠΟΙΙΩΝ – " + SH["floor_short"].upper() if SH["floor_short"] != "Β΄ ΟΡΟΦΟΥ" else "ΚΑΤΟΨΗ ΤΟΙΧΟΠΟΙΙΩΝ – Β΄ ΟΡΟΦΟΣ",
@@ -316,8 +334,6 @@ def sheet_t01(c):
     # υπόμνημα αλλαγών R15 (πάνω δεξιά)
     # δεξιά στήλη, μετά τις εξωτερικές αλυσίδες (x 14,9 m ≈ 1013 pt), κάτω από τον βορρά
     x, y, wcol = 1022, 765, 150
-    c.setFont("Inter-SemiBold", 6.2); c.setFillColorRGB(*DARK)
-    c.drawString(x, y, getattr(M, "LEGEND_TITLE", "ΑΛΛΑΓΕΣ R15 – R20 (05/11/2026)"))
     c.setFont("Inter", 5.2)
     def _wrap(txt):
         out, cur = [], ""
@@ -345,5 +361,10 @@ def sheet_t01(c):
         "· Πόρτα εισόδου 1,00 (5,30–6,30, μεντεσές βόρεια) · R18/R19: λουτρό +10 cm (Τ7-01 4,80–5,05) · ντους λουτρού 0,80, γονέων 1,00 · Τ9-02 καταργήθηκε, Τ3-05 λεπτή (ξυλουργικό 0,40) · Τ6-02 από 9,55",
         "· Αλυσίδες διαστάσεων μέσα στους χώρους"]:
         ws = _wrap(s); lines += [ws[0]] + ["   " + l for l in ws[1:]]
+    if getattr(M, "UNDERLAY", None):
+        c.setFillColorRGB(1, 1, 1); c.rect(x - 6, y - 9 - len(lines) * 6.6 - 2, wcol + 14, len(lines) * 6.6 + 22, stroke=0, fill=1)
+    c.setFont("Inter-SemiBold", 6.2); c.setFillColorRGB(*DARK)
+    c.drawString(x, y, getattr(M, "LEGEND_TITLE", "ΑΛΛΑΓΕΣ R15 – R20 (05/11/2026)"))
+    c.setFont("Inter", 5.2)
     for i, s in enumerate(lines):
         c.drawString(x, y - 9 - i * 6.6, s)
