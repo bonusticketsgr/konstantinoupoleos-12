@@ -3,7 +3,9 @@ import math
 import b1_model as M
 from draw import View, PT_PER_M_60, DARK, GREY, LIGHT, DIMC, BLUE, frame_and_title, north_arrow
 
-OX, OY = 309.5, 99.8   # όπως το R14 (αρχή μοντέλου σε pt, y προς τα κάτω)
+B1_SHEET = dict(floor="Β΄ ΟΡΟΦΟΣ – Β1", floor_short="Β΄ ΟΡΟΦΟΥ", apt="Β1",
+                base="Βάση: κάτοψη A-10-2F (μελέτη εφαρμογής) · ξυλότυποι Σ · R14 + αλλαγές 05/11", arch="A-10-2F")
+OX, OY = getattr(M, "OX", 309.5), getattr(M, "OY", 99.8)   # όπως το R14 (αρχή μοντέλου σε pt, y προς τα κάτω)
 
 
 def in_mask(seg_pts, masks):
@@ -59,6 +61,16 @@ def toilet(v, pos, facing):
         v.circle(x + 0.15 + 0.27, y, 0.19, stroke=col, lw=0.45)
         v.line(x + 0.15, y - 0.19, x + 0.42, y - 0.19, color=col, lw=0.45)
         v.line(x + 0.15, y + 0.19, x + 0.42, y + 0.19, color=col, lw=0.45)
+    elif facing == "W":    # τοίχος ανατολικά (x = σταθερό), λεκάνη προς −x
+        v.rect(x - 0.15, y - 0.20, x, y + 0.20, stroke=col, lw=0.45)
+        v.circle(x - 0.15 - 0.27, y, 0.19, stroke=col, lw=0.45)
+        v.line(x - 0.15, y - 0.19, x - 0.42, y - 0.19, color=col, lw=0.45)
+        v.line(x - 0.15, y + 0.19, x - 0.42, y + 0.19, color=col, lw=0.45)
+    elif facing == "N":    # τοίχος νότια (y = σταθερό), λεκάνη προς −y
+        v.rect(x - 0.20, y - 0.15, x + 0.20, y, stroke=col, lw=0.45)
+        v.circle(x, y - 0.15 - 0.27, 0.19, stroke=col, lw=0.45)
+        v.line(x - 0.19, y - 0.15, x - 0.19, y - 0.42, color=col, lw=0.45)
+        v.line(x + 0.19, y - 0.15, x + 0.19, y - 0.42, color=col, lw=0.45)
     else:                  # facing S: τοίχος βόρεια (y = σταθερό), λεκάνη προς +y
         v.rect(x - 0.20, y, x + 0.20, y + 0.15, stroke=col, lw=0.45)
         v.circle(x, y + 0.15 + 0.27, 0.19, stroke=col, lw=0.45)
@@ -154,8 +166,8 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
         v.poly(poly, fill=M.ETICS5_FILL if not highlight else (0.96, 0.96, 0.96),
                stroke=(0.55, 0.45, 0.20) if not highlight else LIGHT, lw=0.5 if not highlight else 0.3)
     if with_text and not highlight:
-        v.text(12.45, 2.82, "ETICS 5 cm", size=3.8, color=(0.55, 0.45, 0.20), font="Inter-Medium")
-        v.text(13.52, 6.70, "ETICS 5 cm", size=3.8, color=(0.55, 0.45, 0.20), font="Inter-Medium", rot=90)
+        for lx, ly, lrot in getattr(M, "ETICS5_LABELS", [(12.45, 2.82, 0), (13.52, 6.70, 90)]):
+            v.text(lx, ly, "ETICS 5 cm", size=3.8, color=(0.55, 0.45, 0.20), font="Inter-Medium", rot=lrot)
     # εξώστες, κάγκελα, ζαρντινιέρες, σκίαστρο (από R14)
     if with_furniture:
         draw_strokes(v, "(0.3, 0.3, 0.34)|0.60", (0.30, 0.30, 0.34), 0.6)
@@ -167,12 +179,20 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
         draw_strokes(v, "(0.8, 0.8, 0.82)|0.30", LIGHT, 0.3, masks=M.FURN_MASKS)
         draw_strokes(v, "(0.72, 0.72, 0.75)|0.35", (0.72, 0.72, 0.75), 0.35, masks=M.FURN_MASKS)
         draw_core(v)
+        # απλά έπιπλα του μοντέλου (αχνά): πάγκοι κουζίνας, εξοπλισμός
+        for fx0, fy0, fx1, fy1, ftxt in getattr(M, "FURN", []):
+            v.rect(fx0, fy0, fx1, fy1, stroke=(0.72, 0.72, 0.75), lw=0.4)
+            if ftxt and with_text:
+                v.text((fx0 + fx1) / 2, (fy0 + fy1) / 2, ftxt, size=3.6, color=(0.62, 0.62, 0.66),
+                       rot=90 if (fy1 - fy0) > (fx1 - fx0) else 0)
         # R15: ντουλάπες χωνευτές + λουτρά
         for wd in M.WARDROBES:
             wardrobe(v, wd["r"], washing=wd.get("washing", False), depth=wd["depth"], joinery=wd.get("joinery", False), poly=wd.get("poly"))
         for b in M.BATHS:
             v.rect(*b["counter"], stroke=(0.72, 0.72, 0.75), lw=0.45)
             toilet(v, *b["toilet"])
+            if not b.get("shower"):
+                continue
             sx0, sy0, sx1, sy1 = b["shower"]
             for (ax, ay, bx, by) in [(sx0, sy0, sx1, sy0), (sx1, sy0, sx1, sy1), (sx1, sy1, sx0, sy1), (sx0, sy1, sx0, sy0)]:
                 v.line(ax, ay, bx, by, color=(0.60, 0.65, 0.75), lw=0.4, dash=[2, 1.5])
@@ -274,7 +294,7 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
     # διαστάσεις
     if with_dims:
         for orient, pos, pts in M.DIMS_IN:
-            v.dim_chain(orient, pos, pts, size=5.0, color=DIMC, side=(+1 if (orient, pos) == ("V", 11.48) else -1))
+            v.dim_chain(orient, pos, pts, size=5.0, color=DIMC, side=(+1 if (orient, pos) in getattr(M, "DIM_SIDE_PLUS", {("V", 11.48)}) else -1))
         for orient, pos, pts in M.DIMS_OUT:
             v.dim_chain(orient, pos, pts, size=5.4 if len(pts) > 2 else 6.2, color=DIMC, side=-1, ext=0.0)
         for x, y, s, horiz in M.THICK_NOTES:
@@ -285,15 +305,15 @@ def sheet_t01(c):
     v = View(c, OX, OY, PT_PER_M_60)
     draw_plan(v)
     north_arrow(c, 1150, 795)
-    frame_and_title(c, "Τ-01", "ΚΑΤΟΨΗ ΤΟΙΧΟΠΟΙΙΩΝ – Β΄ ΟΡΟΦΟΣ",
-                    "Είδη τοιχοποιιών · διαστάσεις χάραξης · κουφώματα · εξώστες", "Β΄ ΟΡΟΦΟΣ – Β1",
-                    "Βάση: κάτοψη A-10-2F (μελέτη εφαρμογής) · ξυλότυποι Σ · R14 + αλλαγές 05/11",
-                    "Κλίμακα 1:60 · A3", M.REV, M.DATE)
+    SH = getattr(M, "SHEET", B1_SHEET)
+    frame_and_title(c, "Τ-01", "ΚΑΤΟΨΗ ΤΟΙΧΟΠΟΙΙΩΝ – " + SH["floor_short"].upper() if SH["floor_short"] != "Β΄ ΟΡΟΦΟΥ" else "ΚΑΤΟΨΗ ΤΟΙΧΟΠΟΙΙΩΝ – Β΄ ΟΡΟΦΟΣ",
+                    "Είδη τοιχοποιιών · διαστάσεις χάραξης · κουφώματα · εξώστες", SH["floor"],
+                    SH["base"], "Κλίμακα 1:60 · A3", M.REV, M.DATE)
     # υπόμνημα αλλαγών R15 (πάνω δεξιά)
     # δεξιά στήλη, μετά τις εξωτερικές αλυσίδες (x 14,9 m ≈ 1013 pt), κάτω από τον βορρά
     x, y, wcol = 1022, 765, 150
     c.setFont("Inter-SemiBold", 6.2); c.setFillColorRGB(*DARK)
-    c.drawString(x, y, "ΑΛΛΑΓΕΣ R15 – R20 (05/11/2026)")
+    c.drawString(x, y, getattr(M, "LEGEND_TITLE", "ΑΛΛΑΓΕΣ R15 – R20 (05/11/2026)"))
     c.setFont("Inter", 5.2)
     def _wrap(txt):
         out, cur = [], ""
@@ -305,7 +325,7 @@ def sheet_t01(c):
                 cur = t
         return out + [cur]
     lines = []
-    for s in [
+    for s in getattr(M, "LEGEND", None) or [
         "· Ντουλάπες χωνευτές: δωματίων 0,60 · πλυντηρίου 0,70",
         "· Τ1-05 ως 1,38 (+0,03 περιθώριο) · Τ3-06 μένει (ισοπαχείς λαμπάδες) · W2.06 → 1,38–2,38",
         "· Υπν.1: χωρίς κουτί – ξυλουργικό συνέχεια ντουλάπας ως τον β. τοίχο",

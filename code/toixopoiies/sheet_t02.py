@@ -105,10 +105,11 @@ def card(c, x, y, w, h, typ, row):
     for ln in wrap(c, t["desc"], "Inter", 5.2, w - 16)[:7]:
         c.drawString(x + 8, yy, ln); yy -= 6.4
     # mini κάτοψη
-    ms = 7.2   # pt/m
-    v = View(c, x + 16, PAGE_H - (y + 46 + 10.3 * ms) + 0, ms)   # oy έτσι ώστε y_model 0 → y + 46 + ... από πάνω
-    # View: Y = PAGE_H - (oy + y*s)· θέλουμε το μοντέλο y∈[0,10.3] μέσα στο [y+46, y+46+10.3*ms] από κάτω
-    v.oy = PAGE_H - (y + 46 + 10.3 * ms)
+    ms = getattr(M, "PLAN_MS", 7.2)   # pt/m
+    y1 = getattr(M, "PLAN_Y1", 10.3)
+    v = View(c, x + 16 + getattr(M, "PLAN_X_SHIFT", 0) * ms, PAGE_H - (y + 46 + y1 * ms) + 0, ms)
+    # View: Y = PAGE_H - (oy + y*s)· θέλουμε το μοντέλο y∈[0,y1] μέσα στο [y+46, y+46+y1*ms] από κάτω
+    v.oy = PAGE_H - (y + 46 + y1 * ms)
     draw_plan(v, highlight=typ, with_furniture=False, with_text=False, with_dims=False, with_labels=False)
     # λίστα τοίχων + σύνολα
     c.setFont("Inter", 5); c.setFillColorRGB(*GREY)
@@ -129,10 +130,11 @@ def sheet_t02(c):
     for i, typ in enumerate(M.TYPE_ORDER[6:]):
         card(c, left + i * (W + 6), top - 2 * Hc - 8, W, Hc, typ, rows[typ])
     c.setFont("Inter", 5.6); c.setFillColorRGB(*GREY)
-    c.drawString(left, top - 2 * Hc - 20,
-                 "Επιφάνειες ενδεικτικές: μήκος × ύψος 2,90 m (τελικό δάπεδο – πλάκα) – οι τοίχοι ορίζονται μεταξύ ανοιγμάτων, χωρίς αφαίρεση κασών. "
+    c.drawString(left, min(top - 2 * Hc - 20, 102),
+                 "Επιφάνειες ενδεικτικές: μήκος × ύψος " + ("%.2f" % M.H).replace(".", ",") + " m (τελικό δάπεδο – πλάκα) – οι τοίχοι ορίζονται μεταξύ ανοιγμάτων, χωρίς αφαίρεση κασών. "
                  "Τ3 = επένδυση στην εσωτερική παρειά των Τ1 · Τ9 = περίμετρος υποστυλώματος × ύψος. "
                  "R15: Τ2N = 1 φύλλο στην πλευρά ντουλάπας (Τ2N-01, Τ2N-02) · Τ7-01 1 φύλλο προς Υπν.1.")
-    frame_and_title(c, "Τ-02", "ΕΙΔΗ ΤΟΙΧΟΠΟΙΙΩΝ – Β΄ ΟΡΟΦΟΣ",
-                    "Είδη τοιχοποιιών · Β΄ ΟΡΟΦΟΣ – Β1", "τομές 1:4 · μήκη – εμβαδά ανά είδος",
-                    "Βάση: κάτοψη τοιχοποιιών Τ-01 · κάτοψη A-10-2F", "Κλίμακα 1:4 · A3", M.REV, M.DATE)
+    SH = getattr(M, "SHEET", dict(floor="Β΄ ΟΡΟΦΟΣ – Β1", floor_short="Β΄ ΟΡΟΦΟΥ", arch="A-10-2F"))
+    frame_and_title(c, "Τ-02", "ΕΙΔΗ ΤΟΙΧΟΠΟΙΙΩΝ – " + ("Β΄ ΟΡΟΦΟΣ" if SH["floor_short"] == "Β΄ ΟΡΟΦΟΥ" else SH["floor_short"]),
+                    "Είδη τοιχοποιιών · " + SH["floor"], "τομές 1:4 · μήκη – εμβαδά ανά είδος",
+                    "Βάση: κάτοψη τοιχοποιιών Τ-01 · κάτοψη " + SH["arch"], "Κλίμακα 1:4 · A3", M.REV, M.DATE)

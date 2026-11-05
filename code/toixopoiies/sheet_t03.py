@@ -14,9 +14,10 @@ def sheet_t03(c):
     rows = Q.per_type()
     m = 20; left = m + 14; top = PAGE_H - m - 26
     c.setFont("Inter-Bold", 14); c.setFillColorRGB(*DARK)
-    c.drawString(left, top, "ΠΡΟΜΕΤΡΗΣΗ ΤΟΙΧΟΠΟΙΙΩΝ – Β΄ ΟΡΟΦΟΣ – Β1")
+    SH = getattr(M, "SHEET", dict(floor="Β΄ ΟΡΟΦΟΣ – Β1", floor_short="Β΄ ΟΡΟΦΟΥ", apt="Β1"))
+    c.drawString(left, top, "ΠΡΟΜΕΤΡΗΣΗ ΤΟΙΧΟΠΟΙΙΩΝ – " + SH["floor"])
     c.setFont("Inter", 7); c.setFillColorRGB(*GREY)
-    c.drawString(left, top - 14, "τετραγωνικά ανά τυπολογία τοίχου · H = 2,90 m (τελικό δάπεδο – κάτω παρειά πλάκας) · μήκη στον άξονα, χωρίς αφαίρεση κουφωμάτων · " + M.REV)
+    c.drawString(left, top - 14, "τετραγωνικά ανά τυπολογία τοίχου · H = " + ("%.2f" % M.H).replace(".", ",") + " m (τελικό δάπεδο – κάτω παρειά πλάκας) · μήκη στον άξονα, χωρίς αφαίρεση κουφωμάτων · " + M.REV)
     # ---- πίνακας
     cols = [("", 26), ("Τύπος", 44), ("Περιγραφή", 330), ("Πάχος cm", 60), ("Τοίχοι", 50), ("Μήκος m", 70), ("Επιφάνεια m²", 90)]
     y = top - 42; x = left
@@ -32,6 +33,8 @@ def sheet_t03(c):
         c.setFont("Inter-Bold", 7); c.setFillColorRGB(*GREY); c.drawString(left + 4, y, gname); y -= 13
         gsum = 0
         for t in types:
+            if t not in bytype:
+                continue
             r = bytype[t]; tp = M.TYPES[t]
             area = r["L"] * M.H; gsum += area
             vals = ["", t, tp["name"], ("%g" % round(tp["thick"] * 100, 1)).replace(".", ","), str(r["n"]), f2(r["L"]), f2(area, 1)]
@@ -55,13 +58,13 @@ def sheet_t03(c):
         grand += gsum
         y -= 20
     c.setStrokeColorRGB(*DARK); c.setLineWidth(0.6); c.line(left, y + 8, left + sum(w for _, w in cols), y + 8)
-    c.setFont("Inter-Bold", 9); c.drawString(left + 30, y - 4, "ΣΥΝΟΛΟ ΤΟΙΧΟΠΟΙΙΩΝ Β1")
+    c.setFont("Inter-Bold", 9); c.drawString(left + 30, y - 4, "ΣΥΝΟΛΟ ΤΟΙΧΟΠΟΙΙΩΝ " + SH["apt"])
     c.drawRightString(left + sum(w for _, w in cols) - 8, y - 4, f2(grand, 1) + " m²")
     y -= 34
     # ---- θερμοπρόσοψη
     c.setFont("Inter-Bold", 9); c.setFillColorRGB(*DARK); c.drawString(left, y, "ΘΕΡΜΟΠΡΟΣΟΨΗ (ETICS)"); y -= 11
     c.setFont("Inter", 6.5); c.setFillColorRGB(*GREY)
-    c.drawString(left, y, "10 cm στις όψεις των διαμερισμάτων · 5 cm στο κλιμακοστάσιο / πυρήνα · ύψος 3,10 m (με τη μετώπη πλάκας) · καθαρά = όψη − κουφώματα + λαμπάδες/ανώφλια")
+    c.drawString(left, y, "10 cm στις όψεις των διαμερισμάτων · 5 cm στο κλιμακοστάσιο / πυρήνα · ύψος " + ("%.2f" % Q.ETICS_H).replace(".", ",") + " m (με τη μετώπη πλάκας) · καθαρά = όψη − κουφώματα + λαμπάδες/ανώφλια")
     y -= 16
     hdr = [("Ζώνη", 160), ("Μήκος όψης m", 90), ("Μικτά m²", 80), ("Κουφώματα m²", 90), ("Λαμπάδες m²", 90), ("Καθαρά m²", 90)]
     x = left; c.setFont("Inter-SemiBold", 7.5); c.setFillColorRGB(*DARK)
@@ -85,6 +88,6 @@ def sheet_t03(c):
         for ln in wrap(c, "• " + n, "Inter", 6, PAGE_W - m - 12 - xr):
             c.setFont("Inter", 6); c.setFillColorRGB(*DARK); c.drawString(xr, yy, ln); yy -= 7.6
         yy -= 2
-    frame_and_title(c, "Τ-03", "ΠΡΟΜΕΤΡΗΣΗ ΤΟΙΧΟΠΟΙΙΩΝ – Β΄ ΟΡΟΦΟΣ",
-                    "Τετραγωνικά ανά τυπολογία τοίχου · θερμοπρόσοψη 10 / 5 cm", "Β΄ ΟΡΟΦΟΣ – Β1",
+    frame_and_title(c, "Τ-03", "ΠΡΟΜΕΤΡΗΣΗ ΤΟΙΧΟΠΟΙΙΩΝ – " + ("Β΄ ΟΡΟΦΟΣ" if SH["floor_short"] == "Β΄ ΟΡΟΦΟΥ" else SH["floor_short"]),
+                    "Τετραγωνικά ανά τυπολογία τοίχου · θερμοπρόσοψη 10 / 5 cm", SH["floor"],
                     "Βάση: κάτοψη τοιχοποιιών Τ-01 · είδη Τ-02", "— · A3", M.REV, M.DATE)
