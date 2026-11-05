@@ -131,7 +131,7 @@ def draw_core(v):
     L = M.LIFT; sx0, sy0, sx1, sy1 = L["shaft"]; c0, c1, c2, c3 = L["cabin"]
     v.rect(c0, c1, c2, c3, stroke=col, lw=lw)
     v.line(c0, c1, c2, c3, color=col, lw=0.25); v.line(c0, c3, c2, c1, color=col, lw=0.25)
-    dx_, dy0, dy1 = L["door"]      # δίφυλλη συρόμενη πόρτα 0,90 στον άξονα του μετώπου (x 11,10)
+    dx_, dy0, dy1 = L["door"]      # δίφυλλη συρόμενη πόρτα 0,90 στον άξονα του μετώπου Τ10 (x 11,15)
     v.rect(dx_ - 0.03, dy0, dx_ + 0.01, (dy0 + dy1) / 2, stroke=(0.45, 0.45, 0.5), lw=0.5)
     v.rect(dx_ - 0.01, (dy0 + dy1) / 2, dx_ + 0.03, dy1, stroke=(0.45, 0.45, 0.5), lw=0.5)
     v.text(dx_ + 0.22, (dy0 + dy1) / 2, "0,90", size=3.8, color=col, rot=90)
@@ -266,7 +266,7 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
     # διαστάσεις
     if with_dims:
         for orient, pos, pts in M.DIMS_IN:
-            v.dim_chain(orient, pos, pts, size=5.0, color=DIMC, side=(+1 if (orient, pos) == ("V", 11.22) else -1))
+            v.dim_chain(orient, pos, pts, size=5.0, color=DIMC, side=(+1 if (orient, pos) == ("V", 11.48) else -1))
         for orient, pos, pts in M.DIMS_OUT:
             v.dim_chain(orient, pos, pts, size=5.4 if len(pts) > 2 else 6.2, color=DIMC, side=-1, ext=0.0)
         for x, y, s, horiz in M.THICK_NOTES:
@@ -282,11 +282,22 @@ def sheet_t01(c):
                     "Βάση: κάτοψη A-10-2F (μελέτη εφαρμογής) · ξυλότυποι Σ · R14 + αλλαγές 05/11",
                     "Κλίμακα 1:60 · A3", M.REV, M.DATE)
     # υπόμνημα αλλαγών R15 (πάνω δεξιά)
-    x, y = 860, 800
-    c.setFont("Inter-SemiBold", 6.5); c.setFillColorRGB(*DARK)
-    c.drawString(x, y, "ΑΛΛΑΓΕΣ R15 / R16 (05/11/2026)")
-    c.setFont("Inter", 5.6)
-    for i, s in enumerate([
+    # δεξιά στήλη, μετά τις εξωτερικές αλυσίδες (x 14,9 m ≈ 1013 pt), κάτω από τον βορρά
+    x, y, wcol = 1022, 765, 150
+    c.setFont("Inter-SemiBold", 6.2); c.setFillColorRGB(*DARK)
+    c.drawString(x, y, "ΑΛΛΑΓΕΣ R15 – R17 (05/11/2026)")
+    c.setFont("Inter", 5.2)
+    def _wrap(txt):
+        out, cur = [], ""
+        for wd in txt.split(" "):
+            t = (cur + " " + wd).strip()
+            if c.stringWidth(t, "Inter", 5.2) > wcol and cur:
+                out.append(cur); cur = wd
+            else:
+                cur = t
+        return out + [cur]
+    lines = []
+    for s in [
         "· Ντουλάπες χωνευτές: δωματίων 0,60 · πλυντηρίου 0,70",
         "· Τ1-05 ως 1,38 (+0,03 περιθώριο) · Τ3-06 μένει (ισοπαχείς λαμπάδες) · W2.06 → 1,38–2,38",
         "· Υπν.1: χωρίς κουτί – ξυλουργικό συνέχεια ντουλάπας ως τον β. τοίχο",
@@ -296,5 +307,10 @@ def sheet_t01(c):
         "· Πόρτες: ανοίγουν μέσα στον χώρο (Υπν.1, λουτρά, Υπν.2)",
         "· W2.07 μέσα στο τοιχείο Κ2: κενό 0,60×0,90 στον ξυλότυπο (ποδιά +1,50)",
         "· Θερμοπρόσοψη: 10 cm διαμερίσματα · 5 cm κλιμακοστάσιο / πυρήνας",
-        "· Αλυσίδες διαστάσεων μέσα στους χώρους · φύλλο χάραξης Τ-01Α"]):
-        c.drawString(x, y - 9 - i * 8, s)
+        "· Τ6 15 cm · μέτωπο ανελκυστήρα Τ10 20 cm, πόρτα 0,90 · εξώστης Υπν.2 ως 2,70",
+        "· Πόρτες σε γυψοσανίδα: ορθοστάτες UA 2 mm (Knauf) · είσοδος UA 100",
+        "· Τ7-02: ισοπαχείς παραστάδες – λουτρό γονέων σε 25 (Τ7-03), πόρτα Υπν.1 3,30–4,10 σε 10 cm",
+        "· Αλυσίδες διαστάσεων μέσα στους χώρους"]:
+        ws = _wrap(s); lines += [ws[0]] + ["   " + l for l in ws[1:]]
+    for i, s in enumerate(lines):
+        c.drawString(x, y - 9 - i * 6.6, s)

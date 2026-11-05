@@ -25,7 +25,7 @@ def sheet_t03(c):
         c.drawString(x + 4, y, n); x += w
     c.setStrokeColorRGB(*DARK); c.setLineWidth(0.6); c.line(left, y - 5, left + sum(w for _, w in cols), y - 5)
     y -= 20
-    groups = [("ΤΟΥΒΛΑ", ["T1", "T4", "T5"]), ("ΧΩΡΙΣΜΑΤΑ ΓΥΨΟΣΑΝΙΔΑΣ", ["T2", "T2N", "T2A", "T7", "T6", "T8"]), ("ΕΠΕΝΔΥΣΕΙΣ", ["T3", "T9"])]
+    groups = [("ΤΟΥΒΛΑ", ["T1", "T4", "T5", "T10"]), ("ΧΩΡΙΣΜΑΤΑ ΓΥΨΟΣΑΝΙΔΑΣ", ["T2", "T2N", "T2A", "T7", "T6", "T8"]), ("ΕΠΕΝΔΥΣΕΙΣ", ["T3", "T9"])]
     bytype = {r["type"]: r for r in rows}
     grand = 0
     for gname, types in groups:
