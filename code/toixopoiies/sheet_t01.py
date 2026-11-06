@@ -188,10 +188,10 @@ def equip(v, item, with_text=True):
     """Εξοπλισμός κουζίνας / κρεβάτι (αχνά, R05): ("rect"|"tall"|"appl"|"hob"|"sink"|"bed"|"seat"|"sofa", x0, y0, x1, y1[, κείμενο])."""
     kind, x0, y0, x1, y1 = item[:5]
     lab = item[5] if len(item) > 5 else ""
-    col = (0.72, 0.72, 0.75); tcol = (0.62, 0.62, 0.66)
+    col = (0.62, 0.62, 0.66); tcol = (0.55, 0.55, 0.60)   # R12/R23: λίγο πιο σκούρα από τα έπιπλα του R14 (0,72) ώστε να διαβάζονται
     cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
     if kind != "seat":
-        v.rect(x0, y0, x1, y1, stroke=col, lw=0.45 if kind != "rect" else 0.4)
+        v.rect(x0, y0, x1, y1, stroke=col, lw=0.5 if kind != "rect" else 0.45)
     if kind == "seat":            # σκαμπό / κάθισμα νησίδας: κύκλος (R06)
         v.circle(cx, cy, min(x1 - x0, y1 - y0) / 2, stroke=col, lw=0.35)
     elif kind == "sofa":          # καναπές: πλάτη 0,20 στη βόρεια πλευρά + μπράτσα 0,15 + διαχωριστικό μαξιλαριών (R06)
@@ -212,6 +212,28 @@ def equip(v, item, with_text=True):
             v.rect(x0 + 0.08, y0 + 0.10, x1 - 0.08, y1 - 0.12, stroke=col, lw=0.3); v.circle(cx, y1 - 0.06, 0.03, stroke=col, lw=0.3)
         else:
             v.rect(x0 + 0.10, y0 + 0.08, x1 - 0.12, y1 - 0.08, stroke=col, lw=0.3); v.circle(x1 - 0.06, cy, 0.03, stroke=col, lw=0.3)
+    elif kind == "chair":         # καρέκλα: τετράγωνο + πλάτη (lab = πλευρά πλάτης N/S/E/W) (R12)
+        side = lab or "N"; lab = ""
+        if side == "N": v.line(x0, y0 + 0.06, x1, y0 + 0.06, color=col, lw=0.3)
+        elif side == "S": v.line(x0, y1 - 0.06, x1, y1 - 0.06, color=col, lw=0.3)
+        elif side == "W": v.line(x0 + 0.06, y0, x0 + 0.06, y1, color=col, lw=0.3)
+        else: v.line(x1 - 0.06, y0, x1 - 0.06, y1, color=col, lw=0.3)
+    elif kind == "arm":           # πολυθρόνα: πλάτη 0,15 (lab = πλευρά πλάτης) + μπράτσα 0,12 (R12)
+        side = lab or "E"; lab = ""
+        if side in ("E", "W"):
+            bx = x1 - 0.15 if side == "E" else x0 + 0.15
+            v.line(bx, y0, bx, y1, color=col, lw=0.3)
+            sx0, sx1 = (x0, bx) if side == "E" else (bx, x1)
+            v.line(sx0, y0 + 0.12, sx1, y0 + 0.12, color=col, lw=0.3); v.line(sx0, y1 - 0.12, sx1, y1 - 0.12, color=col, lw=0.3)
+        else:
+            by = y1 - 0.15 if side == "S" else y0 + 0.15
+            v.line(x0, by, x1, by, color=col, lw=0.3)
+            sy0, sy1 = (y0, by) if side == "S" else (by, y1)
+            v.line(x0 + 0.12, sy0, x0 + 0.12, sy1, color=col, lw=0.3); v.line(x1 - 0.12, sy0, x1 - 0.12, sy1, color=col, lw=0.3)
+    elif kind == "tv":            # έπιπλο TV: ορθογώνιο + οθόνη (λεπτή γραμμή στη μέση του μήκους) (R12)
+        horiz = (x1 - x0) >= (y1 - y0)
+        if horiz: v.rect(cx - 0.55, cy - 0.03, cx + 0.55, cy + 0.03, stroke=col, lw=0.3)
+        else: v.rect(cx - 0.03, cy - 0.55, cx + 0.03, cy + 0.55, stroke=col, lw=0.3)
     elif kind == "bed":           # κρεβάτι: κεφαλάρι (lab = πλευρά W/E/N/S) + 2 μαξιλάρια
         side = lab or "W"; lab = ""
         if side in ("W", "E"):
