@@ -299,6 +299,11 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
         # έπιπλα αχνά (εκτός μασκών) + εξοπλισμός EPIPLA
         draw_strokes(v, "(0.8, 0.8, 0.82)|0.30", LIGHT, 0.3, masks=M.FURN_MASKS)
         draw_strokes(v, "(0.72, 0.72, 0.75)|0.35", (0.72, 0.72, 0.75), 0.35, masks=M.FURN_MASKS)
+        for wx0, wy0, wx1, wy1 in getattr(M, "FURN_WHITEOUT", []):   # R22: σβήσιμο τμημάτων των επίπλων του R14 (πάγκος κουζίνας Β1)
+            v.rect(wx0, wy0, wx1, wy1, fill=(1, 1, 1))
+        for ln in getattr(M, "EXTRA_LINES", []):                          # R22: πρόσθετες γραμμές επίπλων (ίσιο κλείσιμο πάγκου)
+            (ax, ay), (bx, by) = ln[0], ln[1]
+            v.line(ax, ay, bx, by, color=(0.72, 0.72, 0.75), lw=0.35, dash=[2, 1.5] if len(ln) > 2 else None)
         draw_core(v)
         draw_furn(v)
         # απλά έπιπλα του μοντέλου (αχνά): πάγκοι κουζίνας, εξοπλισμός
@@ -362,7 +367,14 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
     for poly in M.WINS:
         x0, y0, x1, y1 = M.bbox(poly)
         v.poly(poly, fill=M.WIN_FILL, stroke=(0.55, 0.60, 0.70), lw=0.3)
-        if not highlight:
+        if not highlight and not M.is_rect(poly) and len(poly) == 4:
+            # R22: λοξό κούφωμα (W2.03 στον λοξό νότιο τοίχο του έρκερ Β1): δύο γραμμές παράλληλες στις μακριές πλευρές p0p1 / p3p2
+            (ax, ay), (bx, by), (cx_, cy_), (dx, dy) = poly
+            m0 = ((ax + dx) / 2, (ay + dy) / 2); m1 = ((bx + cx_) / 2, (by + cy_) / 2)
+            L = math.hypot(m1[0] - m0[0], m1[1] - m0[1]); nx, ny = -(m1[1] - m0[1]) / L, (m1[0] - m0[0]) / L
+            for sgn in (-0.03, 0.03):
+                v.line(m0[0] + sgn * nx, m0[1] + sgn * ny, m1[0] + sgn * nx, m1[1] + sgn * ny, color=BLUE, lw=0.6)
+        elif not highlight:
             if (x1 - x0) >= (y1 - y0):
                 ym = (y0 + y1) / 2
                 v.line(x0, ym - 0.03, x1, ym - 0.03, color=BLUE, lw=0.6)
