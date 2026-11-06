@@ -185,13 +185,16 @@ def wardrobe(v, r, washing=False, depth=0.60, joinery=False, poly=None):
 
 
 def equip(v, item, with_text=True):
-    """Εξοπλισμός κουζίνας / κρεβάτι (αχνά, R05): ("rect"|"tall"|"appl"|"hob"|"sink"|"bed", x0, y0, x1, y1[, κείμενο])."""
+    """Εξοπλισμός κουζίνας / κρεβάτι (αχνά, R05): ("rect"|"tall"|"appl"|"hob"|"sink"|"bed"|"seat", x0, y0, x1, y1[, κείμενο])."""
     kind, x0, y0, x1, y1 = item[:5]
     lab = item[5] if len(item) > 5 else ""
     col = (0.72, 0.72, 0.75); tcol = (0.62, 0.62, 0.66)
     cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
-    v.rect(x0, y0, x1, y1, stroke=col, lw=0.45 if kind != "rect" else 0.4)
-    if kind == "tall":            # ψηλό ντουλάπι (ψυγείο / φούρνος): Χ
+    if kind != "seat":
+        v.rect(x0, y0, x1, y1, stroke=col, lw=0.45 if kind != "rect" else 0.4)
+    if kind == "seat":            # σκαμπό / κάθισμα νησίδας: κύκλος (R06)
+        v.circle(cx, cy, min(x1 - x0, y1 - y0) / 2, stroke=col, lw=0.35)
+    elif kind == "tall":            # ψηλό ντουλάπι (ψυγείο / φούρνος): Χ
         v.line(x0, y0, x1, y1, color=col, lw=0.3); v.line(x0, y1, x1, y0, color=col, lw=0.3)
     elif kind == "appl":          # πλυντήριο ρούχων / πιάτων: κύκλος
         v.circle(cx, cy, min(x1 - x0, y1 - y0) * 0.32, stroke=col, lw=0.3)
