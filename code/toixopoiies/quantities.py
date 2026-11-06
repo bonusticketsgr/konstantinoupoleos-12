@@ -21,7 +21,13 @@ def studs(L):
     return math.ceil(L / STUD_STEP) + 1
 
 
-def per_type():
+def per_type(model=None):
+    """R11: model = μοντέλο ορόφου (προεπιλογή το M του module) – για το ενιαίο φύλλο προμέτρησης ισογείου + Β1."""
+    M = model or globals()["M"]
+    H = M.H
+    BATH_SIDES = getattr(M, "BATH_SIDES", globals()["BATH_SIDES"])
+    LINTELS = getattr(M, "LINTELS", globals()["LINTELS"])
+    FRAMES = getattr(M, "FRAMES", globals()["FRAMES"])
     rows = []
     for t in M.TYPE_ORDER:
         ws = M.walls_of(t)
@@ -107,8 +113,11 @@ WIN_SIZES = getattr(M, "WIN_SIZES", [("W2.01", 3.50, 2.40, 10), ("W2.02", 4.75, 
              ("W2.09", 0.50, 1.30, 10)])
 ETICS_H = M.H + 0.20   # ύψος ορόφου με τη μετώπη πλάκας
 
-def etics_summary():
+def etics_summary(model=None):
     """Μήκη από τα πολύγωνα (εμβαδόν / πάχος), καθαρά m² = μήκος × 3,10 − κουφώματα + λαμπάδες (0,11 × περίμετρος)."""
+    M = model or globals()["M"]
+    WIN_SIZES = getattr(M, "WIN_SIZES", globals()["WIN_SIZES"])
+    ETICS_H = M.H + 0.20
     out = []
     for th, polys in ((0.10, M.ETICS), (0.05, M.ETICS5)):
         L = sum(_poly_area(p) for p in polys) / th

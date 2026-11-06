@@ -429,17 +429,19 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
             v.text(x, y, s, size=4.4, color=DIMC, rot=0 if horiz else 90)
 
 
-def sheet_t01(c):
+def sheet_t01(c, sheet_no="Τ-01"):
     v = View(c, OX, OY, PT_PER_M_60)
     draw_plan(v)
     if getattr(M, "SITE", None):      # λευκό κάτω από το υπόμνημα τίτλου (το υπόβαθρο φτάνει ως εκεί)
         c.setFillColorRGB(1, 1, 1); c.rect(20, 20, PAGE_W - 40, 72, stroke=0, fill=1)
     north_arrow(c, 1150, 795)
     SH = getattr(M, "SHEET", B1_SHEET)
-    frame_and_title(c, "Τ-01", "ΚΑΤΟΨΗ ΤΟΙΧΟΠΟΙΙΩΝ – " + SH["floor_short"].upper() if SH["floor_short"] != "Β΄ ΟΡΟΦΟΥ" else "ΚΑΤΟΨΗ ΤΟΙΧΟΠΟΙΙΩΝ – Β΄ ΟΡΟΦΟΣ",
+    frame_and_title(c, sheet_no, "ΚΑΤΟΨΗ ΤΟΙΧΟΠΟΙΙΩΝ – " + SH["floor_short"].upper() if SH["floor_short"] != "Β΄ ΟΡΟΦΟΥ" else "ΚΑΤΟΨΗ ΤΟΙΧΟΠΟΙΙΩΝ – Β΄ ΟΡΟΦΟΣ",
                     "Είδη τοιχοποιιών · διαστάσεις χάραξης · κουφώματα · εξώστες", SH["floor"],
                     SH["base"], "Κλίμακα 1:60 · A3", M.REV, M.DATE)
-    # υπόμνημα αλλαγών R15 (πάνω δεξιά)
+    # υπόμνημα αλλαγών R15 (πάνω δεξιά) – R11/R22: ΔΕΝ τυπώνεται όταν το μοντέλο έχει SHOW_LEGEND = False (Γιάννης 07/11: «τις σημειώσεις δεν τις θέλω στα σχέδια»)
+    if not getattr(M, "SHOW_LEGEND", True):
+        return
     # δεξιά στήλη, μετά τις εξωτερικές αλυσίδες (x 14,9 m ≈ 1013 pt), κάτω από τον βορρά
     x, y, wcol = 1022, 765, 150
     c.setFont("Inter", 5.2)

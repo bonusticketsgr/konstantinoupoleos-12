@@ -122,7 +122,7 @@ def card(c, x, y, w, h, typ, row):
     c.drawString(x + 8, y + 9, ("Μήκος %.2f m · επιφάνεια ≈ %.1f m²" % (row["L"], row["L"] * M.H)).replace(".", ","))
 
 
-def sheet_t02(c):
+def sheet_t02(c, sheet_no="Τ-02"):
     rows = {r["type"]: r for r in Q.per_type()}
     m = 20; top = PAGE_H - m - 12; left = m + 10
     W = (PAGE_W - 2 * m - 20 - 5 * 6) / 6; Hc = 335
@@ -136,6 +136,6 @@ def sheet_t02(c):
                  "Τ3 = επένδυση στην εσωτερική παρειά των Τ1 · Τ9 = περίμετρος υποστυλώματος × ύψος. "
                  "R15: Τ2N = 1 φύλλο στην πλευρά ντουλάπας (Τ2N-01, Τ2N-02) · Τ7-01 1 φύλλο προς Υπν.1.")
     SH = getattr(M, "SHEET", dict(floor="Β΄ ΟΡΟΦΟΣ – Β1", floor_short="Β΄ ΟΡΟΦΟΥ", arch="A-10-2F"))
-    frame_and_title(c, "Τ-02", "ΕΙΔΗ ΤΟΙΧΟΠΟΙΙΩΝ – " + ("Β΄ ΟΡΟΦΟΣ" if SH["floor_short"] == "Β΄ ΟΡΟΦΟΥ" else SH["floor_short"]),
+    frame_and_title(c, sheet_no, "ΕΙΔΗ ΤΟΙΧΟΠΟΙΙΩΝ – " + ("Β΄ ΟΡΟΦΟΣ" if SH["floor_short"] == "Β΄ ΟΡΟΦΟΥ" else SH["floor_short"]),
                     "Είδη τοιχοποιιών · " + SH["floor"], "τομές 1:4 · μήκη – εμβαδά ανά είδος",
                     "Βάση: κάτοψη τοιχοποιιών Τ-01 · κάτοψη " + SH["arch"], "Κλίμακα 1:4 · A3", M.REV, M.DATE)

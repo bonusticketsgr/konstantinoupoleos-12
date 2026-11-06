@@ -83,8 +83,9 @@ def sheet_t03(c):
     c.setFont("Inter-SemiBold", 8); c.drawString(left + 4, y, "Σύνολο ETICS"); c.drawRightString(left + sum(w for _, w in hdr) - 8, y, f2(tot, 1) + " m²")
     # ---- σημειώσεις (δεξιά)
     xr = left + 720; yy = top - 42
-    c.setFont("Inter-Bold", 9); c.setFillColorRGB(*DARK); c.drawString(xr, yy, "ΣΗΜΕΙΩΣΕΙΣ ΚΑΤΟΨΗΣ"); yy -= 13
-    for n in M.NOTES:
+    if getattr(M, "SHOW_NOTES", True):
+        c.setFont("Inter-Bold", 9); c.setFillColorRGB(*DARK); c.drawString(xr, yy, "ΣΗΜΕΙΩΣΕΙΣ ΚΑΤΟΨΗΣ"); yy -= 13
+    for n in (M.NOTES if getattr(M, "SHOW_NOTES", True) else []):
         for ln in wrap(c, "• " + n, "Inter", 6, PAGE_W - m - 12 - xr):
             c.setFont("Inter", 6); c.setFillColorRGB(*DARK); c.drawString(xr, yy, ln); yy -= 7.6
         yy -= 2
