@@ -36,7 +36,7 @@ def section(c, x, y_top, typ):
             c.rect(x0, y_top - H, W, H, stroke=1, fill=1)
             c.setStrokeColorRGB(0.55, 0.30, 0.20); c.setLineWidth(0.25)
             # πλέγμα τούβλου
-            step = 0.019 * s if typ != "T4" else 0.012 * s
+            step = 0.019 * s if typ not in ("T4", "T4A") else 0.012 * s
             yy = y_top - step
             while yy > y_top - H:
                 c.line(x0, yy, x0 + W, yy); yy -= step

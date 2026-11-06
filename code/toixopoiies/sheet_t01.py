@@ -308,6 +308,58 @@ def draw_core(v):
     v.text(dx_ + 0.22, (dy0 + dy1) / 2, "0,90", size=3.8, color=col, rot=90)
 
 
+
+ALU = (0.30, 0.30, 0.34)        # προφίλ αλουμινίου (κάσα / ορθοστάτες φύλλων)
+LEAF = (0.86, 0.86, 0.88)       # σώμα φύλλου
+
+
+def draw_window(v, poly, kind=None):
+    """Κούφωμα αλουμινίου σε κάτοψη (R13/R24/R03): κάσα ≈ 9 cm στον άξονα του τοίχου με λαμπάδες (πλήρεις ορθοστάτες), φύλλα και
+    τζάμι ως λεπτή μπλε γραμμή. Είδη: "S2" συρόμενο δίφυλλο επάλληλο (ELVIAL 6700 – δύο φύλλα σε δύο οδηγούς, επικάλυψη στη μέση),
+    "C1" ανοιγόμενο μονόφυλλο (κλειστό), "F" σταθερό, "D" πόρτα (μόνο κάσα – το φύλλο από τα DOORS). Σύνθετο = λίστα [(είδος, μήκος)].
+    Προεπιλογή: ≥ 1,20 m συρόμενο, αλλιώς ανοιγόμενο. Δουλεύει και σε λοξό κούφωμα (W2.03 Β1): τοπικοί άξονες u (κατά μήκος) / n."""
+    (ax, ay), (bx, by), (cx_, cy_), (dx, dy) = poly[:4]
+    # μακριά πλευρά: p0→p1 ή p1→p2
+    if math.hypot(bx - ax, by - ay) >= math.hypot(cx_ - bx, cy_ - by):
+        o = ((ax + dx) / 2, (ay + dy) / 2); e = ((bx + cx_) / 2, (by + cy_) / 2); t = math.hypot(dx - ax, dy - ay)
+    else:
+        o = ((ax + bx) / 2, (ay + by) / 2); e = ((dx + cx_) / 2, (dy + cy_) / 2); t = math.hypot(bx - ax, by - ay)
+    L = math.hypot(e[0] - o[0], e[1] - o[1]); ux, uy = (e[0] - o[0]) / L, (e[1] - o[1]) / L; nx, ny = -uy, ux
+
+    def P(a, b):
+        return [o[0] + a * ux + b * nx, o[1] + a * uy + b * ny]
+
+    def R(a0, b0, a1, b1, **kw):
+        v.poly([P(a0, b0), P(a1, b0), P(a1, b1), P(a0, b1)], **kw)
+
+    def Ln(a0, b0, a1, b1, **kw):
+        p, q = P(a0, b0), P(a1, b1); v.line(p[0], p[1], q[0], q[1], **kw)
+
+    d = min(0.09, t - 0.02)            # βάθος κάσας
+    v.poly(poly, fill=(1, 1, 1), stroke=None)                      # άνοιγμα στον τοίχο
+    Ln(0, -t / 2, L, -t / 2, color=(0.70, 0.70, 0.72), lw=0.25); Ln(0, t / 2, L, t / 2, color=(0.70, 0.70, 0.72), lw=0.25)   # ποδιά / πρέκι
+    segs = kind if isinstance(kind, list) else [(kind or ("S2" if L >= 1.20 else "C1"), L)]
+    a = 0.0
+    for k, Ls in segs:
+        J = 0.06                                                    # λαμπάς κάσας
+        R(a, -d / 2, a + Ls, d / 2, fill=None, stroke=DARK, lw=0.35)
+        R(a, -d / 2, a + J, d / 2, fill=ALU, stroke=None); R(a + Ls - J, -d / 2, a + Ls, d / 2, fill=ALU, stroke=None)
+        if k == "F":
+            Ln(a + J, 0, a + Ls - J, 0, color=BLUE, lw=0.7)
+        elif k == "C1":
+            R(a + J, -d / 2 + 0.015, a + Ls - J, d / 2 - 0.015, fill=LEAF, stroke=DARK, lw=0.3)
+            R(a + J, -d / 2 + 0.015, a + J + 0.04, d / 2 - 0.015, fill=ALU, stroke=None)
+            R(a + Ls - J - 0.04, -d / 2 + 0.015, a + Ls - J, d / 2 - 0.015, fill=ALU, stroke=None)
+            Ln(a + J + 0.04, 0, a + Ls - J - 0.04, 0, color=BLUE, lw=0.7)
+        elif k == "S2":
+            m = a + Ls / 2; h = d / 2 - 0.012
+            for (s0, s1, b0, b1) in ((a + J, m + 0.03, -h, -0.004), (m - 0.03, a + Ls - J, 0.004, h)):
+                R(s0, b0, s1, b1, fill=LEAF, stroke=DARK, lw=0.3)
+                R(s0, b0, s0 + 0.04, b1, fill=ALU, stroke=None); R(s1 - 0.04, b0, s1, b1, fill=ALU, stroke=None)
+                Ln(s0 + 0.04, (b0 + b1) / 2, s1 - 0.04, (b0 + b1) / 2, color=BLUE, lw=0.7)
+        # "D": μόνο κάσα – το φύλλο και το τόξο από τα DOORS
+        a += Ls
+
 def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_text=True, highlight=None):
     """Η κάτοψη. highlight: τύπος → μόνο αυτός χρωματιστός (για τα mini-plans του Τ-02)."""
     # δάπεδα εξωστών / βεραντών (μπεζ, όπως R14) – κάτω από τη γεωμετρία του περιβάλλοντος χώρου
@@ -397,29 +449,16 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
             v.poly(w["pts"], fill=(0.88, 0.88, 0.90), stroke=(0.70, 0.70, 0.72), lw=0.25)
             continue
         v.poly(w["pts"], fill=t["fill"], stroke=DARK, lw=0.6 if not highlight else 0.4)
-        if not highlight and w["type"] in ("T1", "T4", "T5"):
-            v.brick(w["pts"], course=0.062 if w["type"] != "T4" else 0.05,
-                    brick_len=0.13 if w["type"] != "T4" else 0.10)
-    # κουφώματα
-    for poly in M.WINS:
-        x0, y0, x1, y1 = M.bbox(poly)
-        v.poly(poly, fill=M.WIN_FILL, stroke=(0.55, 0.60, 0.70), lw=0.3)
-        if not highlight and not M.is_rect(poly) and len(poly) == 4:
-            # R22: λοξό κούφωμα (W2.03 στον λοξό νότιο τοίχο του έρκερ Β1): δύο γραμμές παράλληλες στις μακριές πλευρές p0p1 / p3p2
-            (ax, ay), (bx, by), (cx_, cy_), (dx, dy) = poly
-            m0 = ((ax + dx) / 2, (ay + dy) / 2); m1 = ((bx + cx_) / 2, (by + cy_) / 2)
-            L = math.hypot(m1[0] - m0[0], m1[1] - m0[1]); nx, ny = -(m1[1] - m0[1]) / L, (m1[0] - m0[0]) / L
-            for sgn in (-0.03, 0.03):
-                v.line(m0[0] + sgn * nx, m0[1] + sgn * ny, m1[0] + sgn * nx, m1[1] + sgn * ny, color=BLUE, lw=0.6)
-        elif not highlight:
-            if (x1 - x0) >= (y1 - y0):
-                ym = (y0 + y1) / 2
-                v.line(x0, ym - 0.03, x1, ym - 0.03, color=BLUE, lw=0.6)
-                v.line(x0, ym + 0.03, x1, ym + 0.03, color=BLUE, lw=0.6)
-            else:
-                xm = (x0 + x1) / 2
-                v.line(xm - 0.03, y0, xm - 0.03, y1, color=BLUE, lw=0.6)
-                v.line(xm + 0.03, y0, xm + 0.03, y1, color=BLUE, lw=0.6)
+        if not highlight and w["type"] in ("T1", "T4", "T4A", "T5"):
+            v.brick(w["pts"], course=0.062 if w["type"] not in ("T4", "T4A") else 0.05,
+                    brick_len=0.13 if w["type"] not in ("T4", "T4A") else 0.10)
+    # κουφώματα αλουμινίου (R13/R24/R03, Γιάννης 07/11: «να δείχνεις με καλύτερο τρόπο τα αλουμίνια, τώρα είναι σαν τζάμια»)
+    kinds = getattr(M, "WIN_KINDS", {})
+    for i, poly in enumerate(M.WINS, 1):
+        if highlight:
+            v.poly(poly, fill=M.WIN_FILL, stroke=(0.55, 0.60, 0.70), lw=0.3)
+            continue
+        draw_window(v, poly, kinds.get(i))
     if highlight:
         return
     # πόρτες
