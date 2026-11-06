@@ -9,12 +9,12 @@ STUD_STEP = 0.60
 BATH_SIDES = getattr(M, "BATH_SIDES", {"T2-01": 1, "T2-02": 1, "T2-03": 1, "T2-04": 1, "T2-08": 1, "T2A-01": 1,
               "T7-01": 1, "T7-02": 1})
 # υπέρθυρα πορτών (H − 2,20 = 0,70 m) – προστίθενται στο είδος του τοίχου της πόρτας
-LINTELS = getattr(M, "LINTELS", {"T2": 0.70 * (0.80 + 0.70 + 0.70 + 0.80), "T6": 0.70 * 0.97})
+LINTELS = getattr(M, "LINTELS", {"T2": 0.70 * (0.80 + 0.70 + 0.70 + 0.80), "T6A": 0.70 * 1.00})   # R22: Β1 πόρτα εισόδου 1,00 στον Τ6Α
 
 BRICKS = {"T1": (16.7, 0.25, 0.06), "T4": (38.5, 0.11, 0.18), "T5": (16.7, 0.10, 0.06), "T10": (16.7, 0.25, 0.06)}  # τεμ/m², πάχος, συντ. κονιάματος
 FRAMES = getattr(M, "FRAMES", {"T3": ["CW30"], "T2": ["CW50"], "T2N": ["CW50"], "T2A": ["CW100"], "T7": ["CW50", "CW30"],
-          "T6": ["CW30", "CW30"], "T8": ["CW50"]})   # R22: Τ6 διπλός σκελετός CW 30 + κενό 5 + CW 30 (16 cm) σε όλους τους ορόφους
-LAYERS = {"T3": 2, "T9": 1, "T2": 4, "T2N": 3, "T2A": 4, "T7": 4, "T6": 4, "T8": 2}
+          "T6": ["CW30", "CW30"], "T6A": ["CW100"], "T8": ["CW50"]})   # R22: Τ6 διπλός σκελετός CW 30 + κενό 5 + CW 30 (16 cm) σε όλους τους ορόφους
+LAYERS = {"T3": 2, "T9": 1, "T2": 4, "T2N": 3, "T2A": 4, "T7": 4, "T6": 4, "T6A": 4, "T8": 2}
 
 
 def studs(L):
@@ -40,7 +40,7 @@ def per_type(model=None):
             r["bricks"] = area * k; r["mortar"] = area * th * mf
         if t in LAYERS:
             lay = LAYERS[t]
-            if t == "T6":
+            if t in ("T6", "T6A"):
                 r["gyp_f"] = area * lay
             else:
                 h2 = 0.0
@@ -58,7 +58,7 @@ def per_type(model=None):
                 n = sum(studs(M.wall_length(w)) for w in ws)
                 r["cw"][fr] = n * H
                 r["uw"]["UW" + fr[2:]] = 2 * L
-            if t in ("T2A", "T6"):
+            if t in ("T2A", "T6A"):
                 r["rock"] = area
         if t == "T9":
             r["glue"] = area * 4.0
