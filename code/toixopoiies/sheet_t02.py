@@ -23,8 +23,9 @@ def section(c, x, y_top, typ):
             layers.append(("glue", 0.0125))
         elif name.startswith("cw"):
             layers.append(("cw", int(name[2:]) / 1000))
-        elif name == "gap":
-            layers.append(("gap", th - 2 * 4 * GYP - 0.05 - 0.03))
+        elif name.startswith("gap"):
+            # "gap5" = κενό 5 cm · "gap" = υπόλοιπο πάχους μετά 4 γυψοσανίδες + CW 50 + CW 30 (Τ7: 25 − 5 − 5 − 3 = 12)
+            layers.append(("gap", int(name[3:]) / 100 if len(name) > 3 else th - 4 * GYP - 0.05 - 0.03))
     tot = sum(w for _, w in layers)
     x0 = x
     H = SEC_H * s
