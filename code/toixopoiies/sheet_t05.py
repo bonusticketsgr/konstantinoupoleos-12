@@ -18,7 +18,7 @@ def floor_table(c, M, left, top, width):
     c.setFont("Inter-Bold", 12); c.setFillColorRGB(*DARK)
     c.drawString(left, top, SH["floor"] + "  ·  " + M.REV)
     c.setFont("Inter", 6.5); c.setFillColorRGB(*GREY)
-    c.drawString(left, top - 12, "H = " + f2(M.H) + " m · μήκη στον άξονα, χωρίς αφαίρεση κουφωμάτων · υπέρθυρα πορτών στο είδος του τοίχου")
+    c.drawString(left, top - 12, "H = " + f2(M.H) + " m · μήκη στον άξονα, χωρίς αφαίρεση κουφωμάτων" + (" · υπέρθυρα πορτών στο είδος του τοίχου" if width > 440 else ""))
     cols = [("", 22), ("Τύπος", 40), ("Περιγραφή", width - 22 - 40 - 44 - 36 - 52 - 60), ("Πάχος cm", 44), ("Τοίχοι", 36), ("Μήκος m", 52), ("m²", 60)]
     y = top - 32; x = left
     c.setFont("Inter-SemiBold", 7.5); c.setFillColorRGB(*DARK)
@@ -68,16 +68,17 @@ def floor_table(c, M, left, top, width):
     # θερμοπρόσοψη
     c.setFont("Inter-Bold", 8); c.setFillColorRGB(*DARK); c.drawString(left, y, "ΘΕΡΜΟΠΡΟΣΟΨΗ (ETICS) – " + SH["floor_short"]); y -= 10
     c.setFont("Inter", 6); c.setFillColorRGB(*GREY)
-    c.drawString(left, y, "10 cm όψεις διαμερίσματος · 5 cm κλιμακοστάσιο / πυρήνας · ύψος " + f2(M.H + 0.20) + " m (με τη μετώπη πλάκας) · καθαρά = όψη − κουφώματα + λαμπάδες")
+    c.drawString(left, y, "10 cm διαμέρισμα · 5 cm πυρήνας · ύψος " + f2(M.H + 0.20) + " m (με μετώπη πλάκας)" + (" · καθαρά = όψη − κουφώματα + λαμπάδες" if width > 440 else ""))
     y -= 15
-    hdr = [("Ζώνη", width - 5 * 50), ("Μήκος m", 50), ("Μικτά m²", 50), ("Κουφώματα", 50), ("Λαμπάδες", 50), ("Καθαρά m²", 50)]
+    cw = 50 if width > 440 else 44
+    hdr = [("Ζώνη", width - 5 * cw), ("Μήκος m", cw), ("Μικτά m²", cw), ("Κουφώματα", cw), ("Λαμπάδες", cw), ("Καθαρά m²", cw)]
     x = left; c.setFont("Inter-SemiBold", 7); c.setFillColorRGB(*DARK)
     for n, w in hdr:
         c.drawString(x + 4, y, n); x += w
     c.setLineWidth(0.5); c.line(left, y - 5, left + width, y - 5); y -= 15
     tot = 0
     for e in Q.etics_summary(M):
-        vals = ["ETICS %d cm – %s" % (round(e["th"] * 100), "διαμέρισμα" if e["th"] > 0.07 else "κλιμακοστάσιο / πυρήνας"),
+        vals = ["ETICS %d cm – %s" % (round(e["th"] * 100), "διαμέρισμα" if e["th"] > 0.07 else ("κλιμακοστάσιο / πυρήνας" if width > 440 else "πυρήνας")),
                 f2(e["L"]), f2(e["gross"], 1), "−" + f2(e["wins"], 1), "+" + f2(e["rev"], 1), f2(e["net"], 1)]
         x = left
         for i, ((n, w), val) in enumerate(zip(hdr, vals)):
@@ -88,8 +89,10 @@ def floor_table(c, M, left, top, width):
     return y - 20, grand, tot
 
 
-def sheet_t05(c, models, sheet_no="Τ-05", rev="", date="", K=1.32):
-    """K: μεγέθυνση των πινάκων (μεγάλα γράμματα – το φύλλο αλλιώς μένει μισοάδειο)."""
+def sheet_t05(c, models, sheet_no="Τ-05", rev="", date="", K=None):
+    """K: μεγέθυνση των πινάκων (μεγάλα γράμματα – το φύλλο αλλιώς μένει μισοάδειο)· με 3 ορόφους 1,05 ώστε να χωράνε οι στήλες."""
+    if K is None:
+        K = 1.32 if len(models) <= 2 else 1.05
     m = 20
     c.saveState(); c.scale(K, K)
     left = (m + 14) / K; top = (PAGE_H - m - 26) / K
@@ -110,10 +113,12 @@ def sheet_t05(c, models, sheet_no="Τ-05", rev="", date="", K=1.32):
     for M, g, e in totals:
         SH = getattr(M, "SHEET", dict(apt="Β1"))
         c.setFont("Inter-SemiBold", 9); c.drawString(x, y, SH["apt"] + ": τοιχοποιίες " + f2(g, 1) + " m²  ·  ETICS " + f2(e, 1) + " m²")
-        x += 260
+        x += min(260, width + gap)
     c.setFont("Inter-Bold", 10)
     c.drawString(left + 130, y - 16, "ΟΛΟΙ ΟΙ ΟΡΟΦΟΙ ΤΟΥ ΤΕΥΧΟΥΣ: τοιχοποιίες " + f2(sum(g for _, g, _ in totals), 1) + " m²  ·  ETICS " + f2(sum(e for _, _, e in totals), 1) + " m²")
     c.restoreState()
-    frame_and_title(c, sheet_no, "ΠΡΟΜΕΤΡΗΣΗ ΤΟΙΧΟΠΟΙΙΩΝ – ΙΣΟΓΕΙΟ & Β΄ ΟΡΟΦΟΣ",
+    names = " · ".join(getattr(M, "SHEET", dict(apt="Β1"))["apt"].upper() for M in models)
+    plans = " / ".join("Τ-%02d" % (2 * i + 1) for i in range(len(models))); kinds = " / ".join("Τ-%02d" % (2 * i + 2) for i in range(len(models)))
+    frame_and_title(c, sheet_no, "ΠΡΟΜΕΤΡΗΣΗ ΤΟΙΧΟΠΟΙΙΩΝ – " + names,
                     "Τετραγωνικά ανά τυπολογία τοίχου, χωριστά ανά όροφο", "θερμοπρόσοψη 10 / 5 cm",
-                    "Βάση: κατόψεις τοιχοποιιών Τ-01 / Τ-03 · είδη Τ-02 / Τ-04", "— · A3", rev, date)
+                    "Βάση: κατόψεις τοιχοποιιών " + plans + " · είδη " + kinds, "— · A3", rev, date)

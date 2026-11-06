@@ -194,10 +194,22 @@ def equip(v, item, with_text=True):
         v.rect(x0, y0, x1, y1, stroke=col, lw=0.5 if kind != "rect" else 0.45)
     if kind == "seat":            # σκαμπό / κάθισμα νησίδας: κύκλος (R06)
         v.circle(cx, cy, min(x1 - x0, y1 - y0) / 2, stroke=col, lw=0.35)
-    elif kind == "sofa":          # καναπές: πλάτη 0,20 στη βόρεια πλευρά + μπράτσα 0,15 + διαχωριστικό μαξιλαριών (R06)
-        v.line(x0, y0 + 0.20, x1, y0 + 0.20, color=col, lw=0.3)
-        v.line(x0 + 0.15, y0 + 0.20, x0 + 0.15, y1, color=col, lw=0.3); v.line(x1 - 0.15, y0 + 0.20, x1 - 0.15, y1, color=col, lw=0.3)
-        v.line(cx, y0 + 0.20, cx, y1, color=col, lw=0.3)
+    elif kind == "sofa":          # καναπές: πλάτη 0,20 (item[6] = πλευρά πλάτης N/W/E/S, προεπιλογή N) + μπράτσα 0,15 + διαχωριστικό μαξιλαριών (R06)
+        back = item[6] if len(item) > 6 else "N"
+        if back == "N":
+            v.line(x0, y0 + 0.20, x1, y0 + 0.20, color=col, lw=0.3)
+            v.line(x0 + 0.15, y0 + 0.20, x0 + 0.15, y1, color=col, lw=0.3); v.line(x1 - 0.15, y0 + 0.20, x1 - 0.15, y1, color=col, lw=0.3)
+            v.line(cx, y0 + 0.20, cx, y1, color=col, lw=0.3)
+        elif back == "S":
+            v.line(x0, y1 - 0.20, x1, y1 - 0.20, color=col, lw=0.3)
+            v.line(x0 + 0.15, y0, x0 + 0.15, y1 - 0.20, color=col, lw=0.3); v.line(x1 - 0.15, y0, x1 - 0.15, y1 - 0.20, color=col, lw=0.3)
+            v.line(cx, y0, cx, y1 - 0.20, color=col, lw=0.3)
+        else:
+            bx = x0 + 0.20 if back == "W" else x1 - 0.20
+            sx0, sx1 = (bx, x1) if back == "W" else (x0, bx)
+            v.line(bx, y0, bx, y1, color=col, lw=0.3)
+            v.line(sx0, y0 + 0.15, sx1, y0 + 0.15, color=col, lw=0.3); v.line(sx0, y1 - 0.15, sx1, y1 - 0.15, color=col, lw=0.3)
+            v.line(sx0, cy, sx1, cy, color=col, lw=0.3)
     elif kind == "tall":            # ψηλό ντουλάπι (ψυγείο / φούρνος): Χ
         v.line(x0, y0, x1, y1, color=col, lw=0.3); v.line(x0, y1, x1, y0, color=col, lw=0.3)
     elif kind == "appl":          # πλυντήριο ρούχων / πιάτων: κύκλος
@@ -256,14 +268,17 @@ def draw_core(v):
     col = (0.70, 0.70, 0.74); lw = 0.35
     S = M.STAIR; x0, y0, x1, y1 = S["hall"]; lx = S["landing_x"]; wy = S["well_y"]; tr = S["tread"]
     cx, cy = S["fan_center"]
-    v.line(lx, y0, lx, y1, color=col, lw=lw)                      # άκρη πλατύσκαλου
-    v.line(lx, wy, x1, wy, color=col, lw=lw)                      # διαχωριστική σκελών
+    lx0 = S.get("lower_x0", lx)                                   # σοφίτα: το κάτω σκέλος ξεκινά ανατολικά του καμπύλου τοίχου
+    up_dash = None if S.get("top") else [1.5, 1.2]                # σοφίτα: όλα τα σκαλοπάτια κάτω από την τομή (η σκάλα φτάνει)
+    if not S.get("no_landing_line"):
+        v.line(lx, y0, lx, y1, color=col, lw=lw)                  # άκρη πλατύσκαλου
+    v.line(lx0, wy, x1, wy, color=col, lw=lw)                     # διαχωριστική σκελών
     for i in range(1, S["n_lower"]):                              # κάτω σκέλος (ανεβαίνει ανατολικά)
-        x = lx + tr * i
+        x = lx0 + tr * i
         if x < cx: v.line(x, wy, x, y1, color=col, lw=lw)
     for i in range(1, S["n_upper"]):                              # πάνω σκέλος (επιστρέφει δυτικά) – διακεκομμένο πάνω από την τομή
         x = cx - tr * i
-        if x > lx: v.line(x, y0, x, wy, color=col, lw=lw, dash=[1.5, 1.2])
+        if x > lx: v.line(x, y0, x, wy, color=col, lw=lw, dash=up_dash)
     n = S["fan_steps"] + 1                                        # σφηνοειδή: ακτίνες από το κέντρο στην περίμετρο
     for k in range(n):
         a = math.radians(90 - 180 * k / (n - 1))                  # 90 = νότος … −90 = βορράς (μέσω ανατολής)
@@ -273,7 +288,7 @@ def draw_core(v):
         if dy > 1e-6: ts.append((y1 - cy) / dy)
         if dy < -1e-6: ts.append((y0 - cy) / dy)
         tmin = min(ts)
-        v.line(cx, cy, cx + dx * tmin, cy + dy * tmin, color=col, lw=lw, dash=None if k < 4 else [1.5, 1.2])
+        v.line(cx, cy, cx + dx * tmin, cy + dy * tmin, color=col, lw=lw, dash=None if (k < 4 or S.get("top")) else [1.5, 1.2])
     # γραμμή ανόδου με βέλος
     ya = (wy + y1) / 2
     v.line(lx - 0.5, ya, cx + 0.3, ya, color=col, lw=0.5)
