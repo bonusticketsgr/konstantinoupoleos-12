@@ -4,7 +4,7 @@
 Χρήση: python3 check_dims.py [gf|b1]"""
 import sys, importlib
 name = sys.argv[1] if len(sys.argv) > 1 else "gf"
-M = importlib.import_module({"gf": "gf_model", "b1": "b1_model", "s": "s_model"}[name])
+M = importlib.import_module({"gf": "gf_model", "b1": "b1_model", "s": "s_model", "f4": "f4_model"}[name])
 xs, ys = {}, {}
 
 

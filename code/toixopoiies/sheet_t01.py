@@ -270,15 +270,17 @@ def draw_core(v):
     cx, cy = S["fan_center"]
     lx0 = S.get("lower_x0", lx)                                   # σοφίτα: το κάτω σκέλος ξεκινά ανατολικά του καμπύλου τοίχου
     up_dash = None if S.get("top") else [1.5, 1.2]                # σοφίτα: όλα τα σκαλοπάτια κάτω από την τομή (η σκάλα φτάνει)
+    wyu = S.get("well_y_upper", wy)                               # Δ΄: τοίχος ανάμεσα στα σκέλη (Τ6Α-02) – άλλη παρειά για το πάνω σκέλος
     if not S.get("no_landing_line"):
         v.line(lx, y0, lx, y1, color=col, lw=lw)                  # άκρη πλατύσκαλου
-    v.line(lx0, wy, x1, wy, color=col, lw=lw)                     # διαχωριστική σκελών
+    if not S.get("no_well_line"):
+        v.line(lx0, wy, x1, wy, color=col, lw=lw)                 # διαχωριστική σκελών
     for i in range(1, S["n_lower"]):                              # κάτω σκέλος (ανεβαίνει ανατολικά)
         x = lx0 + tr * i
         if x < cx: v.line(x, wy, x, y1, color=col, lw=lw)
     for i in range(1, S["n_upper"]):                              # πάνω σκέλος (επιστρέφει δυτικά) – διακεκομμένο πάνω από την τομή
         x = cx - tr * i
-        if x > lx: v.line(x, y0, x, wy, color=col, lw=lw, dash=up_dash)
+        if x > lx: v.line(x, y0, x, wyu, color=col, lw=lw, dash=up_dash)
     n = S["fan_steps"] + 1                                        # σφηνοειδή: ακτίνες από το κέντρο στην περίμετρο
     for k in range(n):
         a = math.radians(90 - 180 * k / (n - 1))                  # 90 = νότος … −90 = βορράς (μέσω ανατολής)
@@ -292,10 +294,11 @@ def draw_core(v):
     # γραμμή ανόδου με βέλος
     ya = (wy + y1) / 2
     v.line(lx - 0.5, ya, cx + 0.3, ya, color=col, lw=0.5)
-    v.line(cx + 0.3, ya, cx + 0.3, (y0 + wy) / 2, color=col, lw=0.5, dash=[1.5, 1.2])
-    v.line(cx + 0.3, (y0 + wy) / 2, lx + 0.4, (y0 + wy) / 2, color=col, lw=0.5, dash=[1.5, 1.2])
-    v.line(lx + 0.4, (y0 + wy) / 2, lx + 0.55, (y0 + wy) / 2 - 0.08, color=col, lw=0.5)
-    v.line(lx + 0.4, (y0 + wy) / 2, lx + 0.55, (y0 + wy) / 2 + 0.08, color=col, lw=0.5)
+    yu = (y0 + wyu) / 2
+    v.line(cx + 0.3, ya, cx + 0.3, yu, color=col, lw=0.5, dash=[1.5, 1.2])
+    v.line(cx + 0.3, yu, lx + 0.4, yu, color=col, lw=0.5, dash=[1.5, 1.2])
+    v.line(lx + 0.4, yu, lx + 0.55, yu - 0.08, color=col, lw=0.5)
+    v.line(lx + 0.4, yu, lx + 0.55, yu + 0.08, color=col, lw=0.5)
     v.circle(lx - 0.5, ya, 0.05, stroke=col, lw=0.5)
     v.text(lx - 0.25, ya - 0.15, "ΑΝΟΔΟΣ", size=3.8, color=col)
     # ανελκυστήρας: θάλαμος + συρόμενη πόρτα στη δυτική παρειά

@@ -92,7 +92,7 @@ def floor_table(c, M, left, top, width):
 def sheet_t05(c, models, sheet_no="Τ-05", rev="", date="", K=None):
     """K: μεγέθυνση των πινάκων (μεγάλα γράμματα – το φύλλο αλλιώς μένει μισοάδειο)· με 3 ορόφους 1,05 ώστε να χωράνε οι στήλες."""
     if K is None:
-        K = 1.32 if len(models) <= 2 else 1.05
+        K = 1.32 if len(models) <= 2 else (1.05 if len(models) == 3 else 0.80)
     m = 20
     c.saveState(); c.scale(K, K)
     left = (m + 14) / K; top = (PAGE_H - m - 26) / K
@@ -118,7 +118,8 @@ def sheet_t05(c, models, sheet_no="Τ-05", rev="", date="", K=None):
     c.drawString(left + 130, y - 16, "ΟΛΟΙ ΟΙ ΟΡΟΦΟΙ ΤΟΥ ΤΕΥΧΟΥΣ: τοιχοποιίες " + f2(sum(g for _, g, _ in totals), 1) + " m²  ·  ETICS " + f2(sum(e for _, _, e in totals), 1) + " m²")
     c.restoreState()
     names = " · ".join(getattr(M, "SHEET", dict(apt="Β1"))["apt"].upper() for M in models)
-    plans = " / ".join("Τ-%02d" % (2 * i + 1) for i in range(len(models))); kinds = " / ".join("Τ-%02d" % (2 * i + 2) for i in range(len(models)))
-    frame_and_title(c, sheet_no, "ΠΡΟΜΕΤΡΗΣΗ ΤΟΙΧΟΠΟΙΙΩΝ – " + names,
+    n = len(models)
+    plans = "/".join("%02d" % (2 * i + 1) for i in range(n)); kinds = "/".join("%02d" % (2 * i + 2) for i in range(n))
+    frame_and_title(c, sheet_no, ("ΠΡΟΜΕΤΡΗΣΗ ΤΟΙΧΟΠΟΙΙΩΝ – " if n <= 3 else "ΠΡΟΜΕΤΡΗΣΗ – ") + names,
                     "Τετραγωνικά ανά τυπολογία τοίχου, χωριστά ανά όροφο", "θερμοπρόσοψη 10 / 5 cm",
-                    "Βάση: κατόψεις τοιχοποιιών " + plans + " · είδη " + kinds, "— · A3", rev, date)
+                    "Βάση: κατόψεις Τ-" + plans + " · είδη Τ-" + kinds, "— · A3", rev, date)

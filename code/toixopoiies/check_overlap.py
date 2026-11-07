@@ -7,7 +7,7 @@
 Χρήση: python3 check_overlap.py [gf|b1|s]   → πρέπει να βγάζει 0."""
 import sys, importlib
 name = sys.argv[1] if len(sys.argv) > 1 else "gf"
-M = importlib.import_module({"gf": "gf_model", "b1": "b1_model", "s": "s_model"}[name])
+M = importlib.import_module({"gf": "gf_model", "b1": "b1_model", "s": "s_model", "f4": "f4_model"}[name])
 EPS = 0.003
 
 

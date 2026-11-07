@@ -7,6 +7,7 @@ import sys, os
 import b1_model as B
 import gf_model as G
 import s_model as S
+import f4_model as F
 from draw import new_canvas
 import sheet_t01, sheet_t02, quantities
 from sheet_t05 import sheet_t05
@@ -22,8 +23,8 @@ def use(model):
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
     HERE, "..", "..", "ΚΩΝΣΤΑΝΤΙΝΟΥΠΟΛΕΩΣ_12_ΑΡΓΥΡΟΥΠΟΛΗ", "ΤΟΙΧΟΠΟΙΙΕΣ",
-    "ΤΟΙΧΟΠΟΙΙΕΣ_ΙΣΟΓΕΙΟ_%s_Β1_%s_ΣΟΦΙΤΑ_%s.pdf" % (G.REV, B.REV, S.REV))
-c = new_canvas(OUT, "Τοιχοποιίες ισογείου %s + Β1 %s + σοφίτας %s" % (G.REV, B.REV, S.REV))
+    "ΤΟΙΧΟΠΟΙΙΕΣ_ΙΣΟΓΕΙΟ_%s_Β1_%s_Δ_%s_ΣΟΦΙΤΑ_%s.pdf" % (G.REV, B.REV, F.REV, S.REV))
+c = new_canvas(OUT, "Τοιχοποιίες ισογείου %s + Β1 %s + Δ΄ %s + σοφίτας %s" % (G.REV, B.REV, F.REV, S.REV))
 c.setPageCompression(1)
 use(G)
 sheet_t01.sheet_t01(c, "Τ-01"); c.showPage()
@@ -31,9 +32,12 @@ sheet_t02.sheet_t02(c, "Τ-02"); c.showPage()
 use(B)
 sheet_t01.sheet_t01(c, "Τ-03"); c.showPage()
 sheet_t02.sheet_t02(c, "Τ-04"); c.showPage()
-use(S)
+use(F)
 sheet_t01.sheet_t01(c, "Τ-05"); c.showPage()
 sheet_t02.sheet_t02(c, "Τ-06"); c.showPage()
-sheet_t05(c, [G, B, S], "Τ-07", "ΙΣ %s · Β1 %s · ΣΟΦ %s" % (G.REV, B.REV, S.REV), G.DATE); c.showPage()
+use(S)
+sheet_t01.sheet_t01(c, "Τ-07"); c.showPage()
+sheet_t02.sheet_t02(c, "Τ-08"); c.showPage()
+sheet_t05(c, [G, B, F, S], "Τ-09", "ΙΣ %s · Β1 %s · Δ %s · ΣΟΦ %s" % (G.REV, B.REV, F.REV, S.REV), G.DATE); c.showPage()
 c.save()
 print("OK", os.path.abspath(OUT))
