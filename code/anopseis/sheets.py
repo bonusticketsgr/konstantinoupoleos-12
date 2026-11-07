@@ -1,32 +1,46 @@
-"""Φύλλα ανόψης οροφής Β1 (Α΄·Β΄·Γ΄) – A3, 1:50 · ΑΝ-01 στάθμες · ΑΝ-02 κλιματισμός · ΑΝ-03 φωτισμός/πυρανίχνευση · ΑΝ-04 έλεγχος."""
+"""Φύλλα ανόψης οροφής – A3, 1:50 – για κάθε όροφο (μοντέλο *_anopsi.py):
+ΑΝ-01 στάθμες · ΑΝ-02 κλιματισμός · ΑΝ-03 φωτισμός/πυρανίχνευση · ΑΝ-04 έλεγχος.
+Χρήση: sheets.bind(μοντέλο) και μετά sheet_an01(c, no) … (οι αριθμοί φύλλων δίνονται από το build)."""
 import math
-import b1_anopsi as A
 import checks
-import sheet_t01                                   # code/toixopoiies (το b1_anopsi βάζει τη διαδρομή)
+import sheet_t01                                   # code/toixopoiies (το μοντέλο βάζει τη διαδρομή)
 from draw import View, PAGE_W, PAGE_H, DARK, GREY, LIGHT, DIMC, frame_and_title, north_arrow
 from reportlab.pdfbase import pdfmetrics
 
 S = 72 / 25.4 * 1000 / 50          # 1:50 → 56,693 pt/m
 OX, OY = 215.43, 87.87              # ίδια θέση με το R10
-BASE_TXT = "Βάση: τοιχοποιίες Β1 R25 · ξυλότυπος Σ5 (+9,85) · ανόψη R10"
-SHEET_FLOOR = "Α΄ · Β΄ · Γ΄ ΟΡΟΦΟΣ – Β1 (τυπικός όροφος)"
 
 ORANGE = (0.80, 0.47, 0.05)
 RED = (0.78, 0.10, 0.12)
 BLUE = (0.05, 0.36, 0.66)
+BLUE2 = (0.25, 0.55, 0.75)
 BLUE_F = (0.86, 0.92, 0.98)
 GREEN = (0.05, 0.52, 0.42)
 GREEN_F = (0.86, 0.95, 0.91)
 MAG = (0.80, 0.10, 0.50)
 BEAM = (0.62, 0.30, 0.16)
-LEVEL_FILL = {2.67: (0.985, 0.98, 0.97), 2.65: (0.985, 0.98, 0.97), 2.60: (0.965, 0.955, 0.93), 2.55: (0.94, 0.91, 0.85), 2.45: (0.91, 0.87, 0.79),
-              2.40: (0.86, 0.81, 0.71)}
+COLORS = dict(MAG=MAG, BLUE=BLUE, BLUE2=BLUE2, GREEN=GREEN, ORANGE=ORANGE, RED=RED, GREY=GREY, DARK=DARK, BEAM=BEAM)
+FILLS = [(0.985, 0.98, 0.97), (0.965, 0.955, 0.93), (0.94, 0.91, 0.85), (0.91, 0.87, 0.79), (0.86, 0.81, 0.71), (0.82, 0.76, 0.65)]
 NEUTRAL = (0.965, 0.96, 0.95)
+EXPOSED_F = (0.93, 0.93, 0.94)
 POCKET_F = (0.88, 0.93, 0.98)
+THROW = {"Ν": "νότια", "Β": "βόρεια", "Α": "ανατολικά", "Δ": "δυτικά"}
+THROW_V = {"Ν": (0, 1), "Β": (0, -1), "Α": (1, 0), "Δ": (-1, 0)}
 
-ZONE_LABEL_AT = {"Ζ1": (5.20, 7.95), "Ζ2": (3.10, 5.62), "Ζ3": (11.45, 8.95), "Ζ4": (4.00, 4.12), "Ζ5": (5.72, 1.62),
-                 "Ζ6": (1.95, 4.62), "Ζ7": (2.75, 2.05), "Ζ8": (3.55, 0.40), "Ζ9": (4.50, 2.75), "Ζ10": (7.90, 2.95),
-                 "Ζ11": (7.90, 4.95)}
+A = None
+LEVEL_FILL = {}
+
+
+def bind(model):
+    global A, LEVEL_FILL
+    A = model
+    checks.bind(model)
+    if hasattr(A, "LEVEL_FILL"):
+        LEVEL_FILL = dict(A.LEVEL_FILL)
+    else:   # ψηλότερη στάθμη = ανοιχτότερη
+        lv = sorted({z["level"] for z in A.ZONES if not z.get("exposed")}, reverse=True)
+        LEVEL_FILL = {l: FILLS[min(i, len(FILLS) - 1)] for i, l in enumerate(lv)}
+    return model
 
 
 def _wrap(s, font, size, w):
@@ -44,52 +58,64 @@ def fmt(v):
     return ("%+.2f" % v).replace(".", ",")
 
 
+def lfmt(v):
+    return A.LEVEL_FMT(v) if hasattr(A, "LEVEL_FMT") else fmt(v)
+
+
 def view(c):
     return View(c, OX, OY, S)
 
 
 def zones_fill(v, colored=True):
     for z in A.ZONES:
-        col = LEVEL_FILL[z["level"]] if colored else NEUTRAL
+        if z.get("exposed"):
+            col = EXPOSED_F if colored else NEUTRAL
+        else:
+            col = LEVEL_FILL[z["level"]] if colored else NEUTRAL
         for r in z["rects"]:
             v.rect(*r, fill=col)
         if z.get("box"):
             for r in z["rects"]:
                 v.hatch([[r[0], r[1]], [r[2], r[1]], [r[2], r[3]], [r[0], r[3]]], 0.10, 45, (0.70, 0.62, 0.50), 0.3)
-
-
-KITCHEN_MASK = (9.42, 7.62, 13.80, 10.12)
+    for r in getattr(A, "VOIDS", []):      # ανοίγματα πλάκας (διπλό ύψος) – χωρίς ψευδοροφή
+        v.rect(*r, fill=(1, 1, 1))
+        v.hatch([[r[0], r[1]], [r[2], r[1]], [r[2], r[3]], [r[0], r[3]]], 0.15, -45, (0.75, 0.75, 0.78), 0.3)
 
 
 def plan(v):
-    """Τοιχοποιίες Β1 R25 ως υπόβαθρο· η κουζίνα του EPIPLA αντικαθίσταται από τη διάταξη του μοντέλου οροφής (επάνω ντουλάπια)."""
+    """Τοιχοποιίες του ορόφου ως υπόβαθρο (χωρίς περιβάλλοντα χώρο)· στο Β1 η κουζίνα του EPIPLA αντικαθίσταται από τη διάταξη του μοντέλου."""
     W = A.W
-    saved = (W.FURN_MASKS, getattr(W, "EXTRA_LINES", []), getattr(W, "FURN_WHITEOUT", []))
-    W.FURN_MASKS = list(W.FURN_MASKS) + [KITCHEN_MASK]
-    W.EXTRA_LINES, W.FURN_WHITEOUT = [], []
+    keys = ("FURN_MASKS", "EXTRA_LINES", "FURN_WHITEOUT", "SITE")
+    saved = {k: getattr(W, k) for k in keys if hasattr(W, k)}
+    W.FURN_MASKS = list(getattr(W, "FURN_MASKS", [])) + list(getattr(A, "PLAN_MASKS", []))
+    if getattr(A, "PLAN_CLEAR_EXTRA", False):
+        W.EXTRA_LINES, W.FURN_WHITEOUT = [], []
+    if hasattr(W, "SITE"):
+        W.SITE = None
     sheet_t01.M = W
     try:
         sheet_t01.draw_plan(v, with_labels=False, with_dims=False, with_furniture=True, with_text=False)
     finally:
-        W.FURN_MASKS, W.EXTRA_LINES, W.FURN_WHITEOUT = saved
-    for item in A.KITCHEN:
+        for k, val in saved.items():
+            setattr(W, k, val)
+    for item in getattr(A, "KITCHEN", []):
         sheet_t01.equip(v, item, False)
     v.c.setDash([3, 1.5])
-    for r in A.UPPER_CAB:
+    for r in getattr(A, "UPPER_CAB", []):
         v.rect(*r, stroke=(0.45, 0.45, 0.50), lw=0.5)
     v.c.setDash([])
 
 
 def tall_marks(v):
     for name, (x0, y0, x1, y1) in A.TALL:
-        v.text((x0 + x1) / 2, (y0 + y1) / 2 + (0.0 if (x1 - x0) > 1 else 0), "έως οροφή", size=3.8, color=GREY, font="Inter-Medium", bg=True)
+        v.text((x0 + x1) / 2, (y0 + y1) / 2, "έως οροφή", size=3.8, color=GREY, font="Inter-Medium", bg=True)
 
 
 def level_tag(v, x, y, lvl, size=6.2, sub=None):
-    s = "▼ " + fmt(lvl)
-    v.text(x, y, fmt(lvl), size=size, font="Inter-Bold", color=DARK, bg=True)
+    s = lfmt(lvl)
+    v.text(x, y, s, size=size, font="Inter-Bold", color=DARK, bg=True)
     X, Y = v.p(x, y)
-    w = pdfmetrics.stringWidth(fmt(lvl), "Inter-Bold", size)
+    w = pdfmetrics.stringWidth(s, "Inter-Bold", size)
     c = v.c
     c.setFillColorRGB(*DARK)
     p = c.beginPath(); tx = X - w / 2 - 6; ty = Y - 1.5
@@ -158,11 +184,27 @@ def side_notes(c, lines, x=1010, y=740, w=150, title="ΣΗΜΕΙΩΣΕΙΣ", siz
 
 def title(c, no, theme, sub, scale="Κλίμακα 1:50 · A3"):
     north_arrow(c, 1150, 795)
-    frame_and_title(c, no, theme, sub, SHEET_FLOOR, BASE_TXT, scale, A.REV, A.DATE)
+    frame_and_title(c, no, theme, sub, A.SHEET_FLOOR, A.BASE_TXT, scale, A.REV, A.DATE)
+
+
+def texts(v, items):
+    """Ελεύθερα κείμενα του μοντέλου: (x, y, κείμενο, {size, color, font, rot, anchor, bg})."""
+    for it in items:
+        x, y, s = it[:3]
+        kw = dict(it[3]) if len(it) > 3 else {}
+        if isinstance(kw.get("color"), str):
+            kw["color"] = COLORS[kw["color"]]
+        kw.setdefault("size", 4.4)
+        v.text(x, y, s, **kw)
+
+
+def dims(v, chains, size=4.4):
+    for o, p, pts in chains:
+        v.dim_chain(o, p, pts, size=size, side=-1)
 
 
 # ======================================================================== ΑΝ-01 στάθμες
-def sheet_an01(c):
+def sheet_an01(c, no="ΑΝ-01"):
     v = view(c)
     clip_on(c)
     zones_fill(v, colored=True)
@@ -176,17 +218,21 @@ def sheet_an01(c):
         v.rect(x0, y0, x1, y1, stroke=(0.35, 0.42, 0.50), lw=0.6)
         vert = (y1 - y0) > (x1 - x0)
         offs = (0.07, 0.14) if cu["width"] < 0.21 else (0.10, 0.17)
+        glass = cu.get("glass") or ("W" if (vert and x0 < 5) else ("E" if vert else "S"))
         for o in offs:
             if vert:
-                xx = x0 + o if x0 < 5 else x1 - o
+                xx = x0 + o if glass == "W" else x1 - o
                 v.line(xx, y0 + 0.02, xx, y1 - 0.02, color=(0.35, 0.42, 0.50), lw=0.5, dash=[4, 1.2, 1, 1.2])
             else:
-                yy = y1 - o
+                yy = y1 - o if glass == "S" else y0 + o
                 v.line(x0 + 0.02, yy, x1 - 0.02, yy, color=(0.35, 0.42, 0.50), lw=0.5, dash=[4, 1.2, 1, 1.2])
         cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
         lab = "%s · %s · %d×%d" % (cu["id"], cu["win"], round(cu["width"] * 100), round(cu["depth"] * 100))
-        if vert:
-            v.text(x0 - 0.14 if x0 < 5 else x1 + 0.14, cy + 0.6, lab, size=4.6, rot=90, color=(0.25, 0.35, 0.50), font="Inter-Medium", bg=True)
+        if "lab_at" in cu:
+            lx, ly, lr = cu["lab_at"]
+            v.text(lx, ly, lab, size=4.6, rot=lr, color=(0.25, 0.35, 0.50), font="Inter-Medium", bg=True)
+        elif vert:
+            v.text(x0 - 0.14 if glass == "W" else x1 + 0.14, cy + 0.6, lab, size=4.6, rot=90, color=(0.25, 0.35, 0.50), font="Inter-Medium", bg=True)
         else:
             v.text(cx - 1.2, y0 - 0.12, lab, size=4.6, color=(0.25, 0.35, 0.50), font="Inter-Medium", bg=True)
     # δοκοί
@@ -197,45 +243,42 @@ def sheet_an01(c):
     for name, sec, x0, y0, x1, y1 in A.BEAMS:
         v.rect(x0, y0, x1, y1, stroke=BEAM, lw=0.55)
     c.setDash([])
-    BL = {"Δ1.1": (1.95, 0.66, 0), "Δ1.4": (8.00, 0.62, 0), "Δ9.5": (9.88, 1.90, 90), "Δ6.1": (0.95, 3.95, 90),
-          "Δ3.1": (2.55, 5.00, 0), "Δ9.1": (9.55, 6.95, 90), "Δ7.1": (1.55, 7.20, 90), "Δ4.4": (6.20, 9.32, 0),
-          "Δ4.6": (11.10, 9.32, 0), "Δ12.2": (11.40, 7.72, 0), "Δ10.2": (13.48, 6.40, 90), "Δ10.1": (13.22, 8.50, 90)}
     for name, sec, *_ in A.BEAMS:
-        x, y, r = BL[name]
-        v.text(x, y, "%s %s · Κ.Π. %s" % (name, sec, fmt(A.beam_soffit(sec))), size=4.4, rot=r, color=BEAM, font="Inter-Medium", bg=True)
+        if name in A.BEAM_LABELS:
+            x, y, r = A.BEAM_LABELS[name]
+            v.text(x, y, "%s %s · Κ.Π. %s" % (name, sec, lfmt(A.beam_soffit(sec))), size=4.4, rot=r, color=BEAM, font="Inter-Medium", bg=True)
     # ετικέτες στάθμης
     for z in A.ZONES:
-        x, y = ZONE_LABEL_AT[z["id"]]
-        void = round((A.SLABS[z["slab"]] - z["level"]) * 100)
-        level_tag(v, x, y, z["level"], sub="%s · κενό %d cm" % (z["id"], void) if not z.get("box") else "κουτί ντουλάπας")
-    v.text(3.10, 5.87, "ΧΑΜΗΛΩΣΗ ΚΑΝΑΛΑΤΟΥ ΚΜ1", size=4.6, color=GREY, font="Inter-Medium")
-    v.text(7.90, 4.80, "σανίδα κάτω από Δ3.1", size=4.0, color=GREY)
-    # διαστάσεις ζωνών
-    for o, p, pts in [("V", 8.30, [5.15, 6.30]), ("V", 4.40, [0.165, 0.80]), ("H", 1.30, [4.20, 4.80]),
-                      ("V", 6.80, [4.85, 5.05]), ("H", 8.70, [1.705, 1.905, 9.40]), ("V", 1.60, [0.80, 3.25]),
-                      ("H", 0.95, [9.145, 9.365])]:
-        v.dim_chain(o, p, pts, size=4.4, side=-1)
+        if z["id"] not in A.ZONE_LABEL_AT:
+            continue
+        x, y = A.ZONE_LABEL_AT[z["id"]]
+        if z.get("exposed"):
+            sub = "%s · εμφανής πλάκα" % z["id"]
+        elif z.get("box"):
+            sub = "κουτί ντουλάπας"
+        else:
+            sub = "%s · κενό %d cm" % (z["id"], round((A.SLABS[z["slab"]] - z["level"]) * 100))
+        level_tag(v, x, y, z["level"], sub=z.get("tag_sub", sub))
+    texts(v, getattr(A, "TEXTS_AN01", []))
+    dims(v, getattr(A, "DIMS_AN01", []))
     clip_off(c)
-    yl = side_notes(c, [
-        "Στάθμες από το τελικό δάπεδο του ορόφου (Β΄ +6,90). Πάνω παρειά πλάκας +2,95· κάτω παρειά Π3 h18 +2,77 · Π8 h20 +2,75 · Π10 h15 +2,80.",
-        "Κανόνας: πουθενά ψευδοροφή κάτω από κάτω παρειά δοκού· όπου «περασιά» η γυψοσανίδα στη δοκό προσθέτει ≈ 1,5 cm.",
-        "Αλλαγές στάθμης ΜΟΝΟ: χαμήλωση ΚΜ1 · γραμμή δοκού Δ9.1 (καθιστικό → κουζίνα) · γραμμή Δ1.1 (κεφαλάρι) · μετώπη ντουλάπας Υπν.1 (Π3) · σανίδα κάτω από Δ3.1 στο Υπν.2.",
-        "Κουρτινόθηκες: 20 × 10 cm (ΚΡ4 22 cm για το ανοιγοανακλινόμενο W2.06), σε όλο το μήκος του τοίχου, δίπλα (όχι κάτω) από τις δοκούς όψης.",
-        "R12: ΜΟΝΟ η χαμήλωση της ΚΜ1 −5 cm → +2,40 (κενό 35 cm): η Δ3.1 κρύβεται 5 cm και τα ψυκτικά της ΚΜ1 περνούν από κάτω της προς τη ντουλάπα του χωλ (ιδιοκτήτης 07/11). Το καθιστικό μένει +2,65. Στο άνοιγμα χωλ – καθιστικού: χωλ +2,45 (περασιά Δ3.1) / χαμήλωση +2,40.",
-    ], y=770)
-    legend(c, [
-        (_sw(LEVEL_FILL[2.67], (0.6, 0.6, 0.6)), "+2,65 / +2,67 βασική = 10 cm κάτω από την πλάκα (spot σώμα ≤ 75 mm)"),
-        (_sw(LEVEL_FILL[2.55], (0.6, 0.6, 0.6)), "+2,55 περασιά με δοκό 40 (κεφαλάρι Υπν.1)"),
-        (_sw(LEVEL_FILL[2.45], (0.6, 0.6, 0.6)), "+2,45 περασιά με δοκό 50: χωλ · λουτρό · κουζίνα"),
-        (_sw(LEVEL_FILL[2.40], (0.6, 0.6, 0.6)), "+2,40 χαμήλωση ΚΜ1 (5 cm κάτω από Δ3.1 – ψυκτικά) · λουτρό γονέων (περασιά Δ6.1)"),
-        (_sw(POCKET_F, (0.35, 0.42, 0.50)), "ΚΡ εσοχή κουρτίνας ανοιχτή ως την πλάκα · 2 οδηγοί"),
-        (lambda c_, x, y: (c_.setStrokeColorRGB(*BEAM), c_.setDash([5, 2]), c_.rect(x - 5, y - 3, 10, 6), c_.setDash([])), "δοκός (Σ5) · Κ.Π. = κάτω παρειά από Τ.Δ."),
-    ], y=yl)
-    title(c, "ΑΝ-01", "ΑΝΟΨΗ – ΣΤΑΘΜΕΣ · ΔΟΚΟΙ · ΚΟΥΡΤΙΝΕΣ", "Στάθμες ψευδοροφής · δοκοί Σ5 · εσοχές κουρτινών")
+    yl = side_notes(c, A.NOTES_AN01, y=770)
+    items = []
+    for key, txt in A.LEGEND_AN01:
+        if key == "pocket":
+            items.append((_sw(POCKET_F, (0.35, 0.42, 0.50)), txt))
+        elif key == "beam":
+            items.append((lambda c_, x, y: (c_.setStrokeColorRGB(*BEAM), c_.setDash([5, 2]), c_.rect(x - 5, y - 3, 10, 6), c_.setDash([])), txt))
+        elif key == "exposed":
+            items.append((_sw(EXPOSED_F, (0.6, 0.6, 0.6)), txt))
+        else:
+            items.append((_sw(LEVEL_FILL[key], (0.6, 0.6, 0.6)), txt))
+    legend(c, items, y=yl)
+    title(c, no, "ΑΝΟΨΗ – ΣΤΑΘΜΕΣ · ΔΟΚΟΙ · ΚΟΥΡΤΙΝΕΣ", A.SUB_AN01)
 
 
 # ======================================================================== ΑΝ-02 κλιματισμός
-def sheet_an02(c):
+def sheet_an02(c, no="ΑΝ-02"):
     v = view(c)
     clip_on(c)
     zones_fill(v, colored=False)
@@ -247,41 +290,66 @@ def sheet_an02(c):
         v.rect(*r, fill=GREEN_F, stroke=GREEN, lw=0.5)
     for u in A.UNITS:
         x0, y0, x1, y1 = u["rect"]
+        if u.get("concealed"):
+            c.setDash([3, 1.5])
         v.rect(x0, y0, x1, y1, fill=(0.80, 0.88, 0.97), stroke=BLUE, lw=0.8)
+        c.setDash([])
         v.line(x0, y0, x1, y1, color=BLUE, lw=0.4); v.line(x0, y1, x1, y0, color=BLUE, lw=0.4)
         v.text((x0 + x1) / 2, (y0 + y1) / 2 - 0.08, u["id"], size=5.6, font="Inter-Bold", color=BLUE, bg=True)
         v.text((x0 + x1) / 2, (y0 + y1) / 2 + 0.10, u["btu"].replace(".000 Btu/h", "k"), size=4.4, color=BLUE, bg=True)
     for d in A.DIFFUSERS:
         x0, y0, x1, y1 = d["rect"]
-        if d["kind"] == "slot":
-            v.rect(x0, y0, x1, y1, fill=(0.30, 0.45, 0.75), stroke=BLUE, lw=0.6)
-            v.line(x0, (y0 + y1) / 2, x1, (y0 + y1) / 2, color=(1, 1, 1), lw=0.5)
-            for k in range(5):
-                xx = x0 + 0.20 + k * (x1 - x0 - 0.40) / 4
-                arrow(v, xx, y1 + 0.02, xx, y1 + 0.40)
-            v.text((x0 + x1) / 2, y1 + 0.70, "%s · %s · ρίψη νότια" % (d["id"], d["size"]), size=4.6, color=BLUE, font="Inter-Medium", bg=True)
-        elif d["kind"] == "wall":
-            v.rect(x0, y0, x1, y1, fill=BLUE, stroke=BLUE, lw=1.0)
-            sgn = -1 if d["throw"] == "Δ" else 1
-            xs = x0 if sgn < 0 else x1
-            for yy in (y0 + 0.25, y1 - 0.25):
-                arrow(v, xs, yy, xs + sgn * 0.42, yy)
-            v.text(xs + sgn * 0.30, (y0 + y1) / 2, "%s 1000×150" % d["id"], size=4.6, rot=90, color=BLUE, font="Inter-Medium", bg=True)
+        horiz = (x1 - x0) >= (y1 - y0)
+        if d["kind"] in ("slot", "wall"):
+            tx, ty = THROW_V[d["throw"]]
+            if d["kind"] == "slot":
+                v.rect(x0, y0, x1, y1, fill=(0.30, 0.45, 0.75), stroke=BLUE, lw=0.6)
+                if horiz:
+                    v.line(x0, (y0 + y1) / 2, x1, (y0 + y1) / 2, color=(1, 1, 1), lw=0.5)
+                else:
+                    v.line((x0 + x1) / 2, y0, (x0 + x1) / 2, y1, color=(1, 1, 1), lw=0.5)
+            else:
+                v.rect(x0, y0, x1, y1, fill=BLUE, stroke=BLUE, lw=1.0)
+            n = 5 if max(x1 - x0, y1 - y0) > 1.5 else 2
+            for k in range(n):
+                if n > 2:
+                    t_ = 0.20 + k * ((x1 - x0 if horiz else y1 - y0) - 0.40) / (n - 1)
+                else:
+                    t_ = 0.25 if k == 0 else (x1 - x0 if horiz else y1 - y0) - 0.25
+                if d["kind"] == "slot":     # από την ακμή + 0,02 ως ακμή + 0,40
+                    if horiz:
+                        e = y1 if ty > 0 else y0
+                        arrow(v, x0 + t_, e + ty * 0.02, x0 + t_, e + ty * 0.40)
+                    else:
+                        e = x1 if tx > 0 else x0
+                        arrow(v, e + tx * 0.02, y0 + t_, e + tx * 0.40, y0 + t_)
+                else:                       # στόμιο τοίχου: από την παρειά, μήκος 0,42
+                    if horiz:
+                        e = y1 if ty > 0 else y0
+                        arrow(v, x0 + t_, e, x0 + t_, e + ty * 0.42)
+                    else:
+                        e = x1 if tx > 0 else x0
+                        arrow(v, e, y0 + t_, e + tx * 0.42, y0 + t_)
+            lab = d.get("label", "%s · %s · ρίψη %s" % (d["id"], d["size"], THROW[d["throw"]]))
+            if "lab_at" in d:
+                lx, ly, lr = d["lab_at"]
+            elif horiz:
+                lx, ly, lr = (x0 + x1) / 2, (y1 + 0.70) if ty > 0 else (y0 - 0.62), 0
+            else:
+                lx, ly, lr = (x1 + 0.55) if tx > 0 else (x0 - 0.55), (y0 + y1) / 2, 90
+            v.text(lx, ly, lab, size=4.6, rot=lr, color=BLUE, font="Inter-Medium", bg=True)
         else:
             v.rect(x0, y0, x1, y1, fill=None if d.get("access") else GREEN_F, stroke=GREEN, lw=0.8)
-            if (x1 - x0) > (y1 - y0):
+            if horiz:
                 for k in range(1, 6):
                     xx = x0 + k * (x1 - x0) / 6
                     v.line(xx, y0, xx, y1, color=GREEN, lw=0.3)
-    v.text(7.28, 5.20, "Ε1 1350×300 ανοιγόμενη = θυρίδα ΚΜ1", size=4.4, color=GREEN, font="Inter-Medium", bg=True)
-    v.text(3.75, 3.12, "Ε2 600×150", size=4.2, color=GREEN, font="Inter-Medium", bg=True)
-    v.text(6.70, 3.85, "Ε3 600×150", size=4.2, color=GREEN, font="Inter-Medium", rot=90, bg=True)
     for h in A.HATCHES:
         x0, y0, x1, y1 = h["rect"]
         c.setDash([2, 1.2]); v.rect(x0, y0, x1, y1, stroke=DARK, lw=0.6); c.setDash([])
         v.line(x0, y0, x1, y1, color=DARK, lw=0.3); v.line(x0, y1, x1, y0, color=DARK, lw=0.3)
-        v.text((x0 + x1) / 2, y0 - 0.08 if h["id"] in ("ΘΕ4", "ΘΕ5") else (y0 + y1) / 2 + 0.36, "%s %s" % (h["id"], h["size"]), size=4.4,
-               font="Inter-SemiBold", bg=True)
+        lx, ly = h.get("lab_at", ((x0 + x1) / 2, (y0 + y1) / 2 + 0.36))
+        v.text(lx, ly, "%s %s" % (h["id"], h["size"]), size=4.4, font="Inter-SemiBold", bg=True)
     for r in A.ROUTES:
         x, y = r["at"]
         X, Y = v.p(x, y)
@@ -289,41 +357,24 @@ def sheet_an02(c):
         p = c.beginPath(); p.moveTo(X, Y + 5); p.lineTo(X + 5, Y); p.lineTo(X, Y - 5); p.lineTo(X - 5, Y); p.close()
         c.drawPath(p, stroke=1, fill=1)
         c.setFont("Inter-SemiBold", 4.4); c.setFillColorRGB(*MAG); c.drawCentredString(X, Y - 1.5, r["id"])
-    for (a, b) in zip(A.KM1_ROUTE, A.KM1_ROUTE[1:]):
-        v.line(*a, *b, color=MAG, lw=0.9, dash=[4, 1.2, 1, 1.2])
-    v.text(5.80, 5.36, "ψυκτικά ΚΜ1 στο κενό", size=4.0, color=MAG, bg=True)
-    v.text(4.95, 5.55, "Χ1 διέλευση κάτω από Δ3.1 → ντουλάπα χωλ → κενό χωλ", size=4.2, color=MAG, font="Inter-SemiBold", anchor="r", bg=True)
-    v.text(10.10, 0.35, "Χ3 πεσσός Τ1-05 → εξωτ. μονάδα ΒΑ εξώστη", size=4.4, color=MAG, font="Inter-Medium", anchor="l", bg=True)
-    # διαδρομές ψυκτικών ΚΜ2 / ΚΜ3 (ενδεικτικά, στο κενό)
-    for (a, b) in [((4.60, 3.42), (4.60, 3.30)), ((5.83, 3.42), (5.83, 3.20)), ((5.83, 3.20), (6.30, 3.20)), ((6.30, 3.20), (6.30, 0.92)),
-                   ((6.30, 0.92), (9.30, 0.92)), ((9.30, 0.92), (9.57, 0.65))]:
-        v.line(*a, *b, color=(0.25, 0.55, 0.75), lw=0.5, dash=[4, 1.2, 1, 1.2])
-    v.text(7.80, 1.05, "2 ζεύγη ψυκτικών ΚΜ2 / ΚΜ3 (στο κενό χωλ → λουτρού → πάνω από τη ντουλάπα Υπν.2)", size=4.0, color=(0.25, 0.55, 0.75), bg=True)
-    for o, p, pts in [("H", 6.62, [1.905, 2.70, 4.70, 5.30, 7.30, 9.40]), ("H", 5.08, [6.60, 7.80, 7.95, 9.40]),
-                      ("H", 4.22, [3.30, 4.295, 4.895, 5.525, 6.125, 6.40]), ("V", 3.95, [0.80, 1.20, 2.20, 3.25]),
-                      ("V", 6.80, [1.35, 2.00, 3.00]), ("H", 2.62, [5.05, 5.90, 6.30, 6.40])]:
-        v.dim_chain(o, p, pts, size=4.4, side=-1)
+    for rd in A.REFR_DRAW:
+        col = COLORS[rd.get("color", "MAG")]
+        for (a, b) in zip(rd["pts"], rd["pts"][1:]):
+            v.line(*a, *b, color=col, lw=rd.get("lw", 0.9), dash=[4, 1.2, 1, 1.2])
+    texts(v, getattr(A, "TEXTS_AN02", []))
+    dims(v, getattr(A, "DIMS_AN02", []))
     clip_off(c)
-    yl = side_notes(c, [
-        "Χώρος μονάδων (προδ. 1): χαμήλωση ΚΜ1 +2,40 κάτω από Π8 +2,75 = 35 cm (R12)· χωλ +2,45 κάτω από Π3 +2,77 = 32 cm.",
-        "ΚΜ1: μονάδα ≤ 245 mm + στηρίγματα 10 mm + σκελετός/γυψοσανίδα 40 mm = 295 ≤ 350 → περιθώριο 55 mm.",
-        "ΚΜ2 / ΚΜ3: 200 + 10 + 40 = 250 ≤ 320 → περιθώριο 70 mm (κλίση συμπυκνωμάτων / αντλία).",
-        "Πρόσβαση: ΚΜ1 από την ανοιγόμενη Ε1 · ΚΜ2 / ΚΜ3 από ΘΕ2 / ΘΕ3 60×60 ακριβώς κάτω από τις μονάδες.",
-        "Ψυκτικά ΚΜ1 (R12, ιδιοκτήτης: «μέσω οροφής και ντουλάπας χωλ»): συνδέσεις ΚΜ1 δυτικά → βόρεια ακμή της χαμήλωσης → Χ1: κάτω από τη Δ3.1 μέσα από τον Τ2N-01 στο επάνω μέρος της ντουλάπας χωλ (x ≈ 5,10) → άνοδος στο κενό του χωλ ανάμεσα στις ΚΜ2 / ΚΜ3 → μαζί με ΚΜ2 / ΚΜ3 → κενό λουτρού → πάνω από τη ντουλάπα Υπν.2 → πεσσός Τ1-05. Καμία οπή σε δοκό.",
-        "Χ1 – ΟΡΙΑΚΟ: καθαρό κάτω από τη Δ3.1 = 2,45 − 2,40 − 12,5 = 37,5 mm → σωλήνας αερίου 5/8″ με μόνωση 9 mm (Ø ≈ 34) χωράει, με 13 mm όχι. Χωρίς UD στο σημείο, σωλήνες δίπλα-δίπλα· ντουλάπα χωλ με επάνω καπάκι ≤ +2,40 στα νότια 0,25.",
-        "R11: αεραγωγός ΚΜ2 4,25–4,75 και Π3 στο μέτωπο της ντουλάπας 4,20 (ντουλάπα R18 4,20–4,80) · ΘΕ4 έξω από το ντους.",
-        "Συμπυκνώματα με αντλία μονάδας μαζί με τα ψυκτικά → σιφώνι / υδρορροή εξώστη (επιβεβαίωση υδραυλικού).",
-    ], y=770)
+    yl = side_notes(c, A.NOTES_AN02, y=770)
     legend(c, [
-        (lambda c_, x, y: (c_.setFillColorRGB(0.80, 0.88, 0.97), c_.setStrokeColorRGB(*BLUE), c_.rect(x - 5, y - 3, 10, 6, stroke=1, fill=1)), "ΚΜ καναλάτη μονάδα (slim: ΚΜ1 ≤ 245 mm · ΚΜ2/ΚΜ3 ≤ 200 mm)"),
+        (lambda c_, x, y: (c_.setFillColorRGB(0.80, 0.88, 0.97), c_.setStrokeColorRGB(*BLUE), c_.rect(x - 5, y - 3, 10, 6, stroke=1, fill=1)), A.LEG_UNIT),
         (_sw(BLUE_F, BLUE), "αεραγωγός / plenum προσαγωγής (μονωμένος, στο κενό)"),
-        (_sw((0.30, 0.45, 0.75), BLUE), "Π1 / Π2 γραμμικό slot οροφής 2 σχισμών, ρυθμιζόμενη ρίψη"),
-        (_sw(BLUE, BLUE), "Π3 / Π4 γραμμικό στόμιο 1000×150 σε μετώπη / τοίχο (εγκεκριμένο)"),
+        (_sw((0.30, 0.45, 0.75), BLUE), A.LEG_SLOT),
+        (_sw(BLUE, BLUE), A.LEG_WALL),
         (_sw(GREEN_F, GREEN), "Ε στόμιο / κιβώτιο επιστροφής με φίλτρο"),
         (lambda c_, x, y: (c_.setStrokeColorRGB(*DARK), c_.setDash([2, 1.2]), c_.rect(x - 4, y - 4, 8, 8), c_.setDash([])), "ΘΕ θυρίδα επίσκεψης (αφανής, βαφόμενη)"),
         (lambda c_, x, y: (c_.setStrokeColorRGB(*MAG), c_.rect(x - 3, y - 3, 6, 6)), "Χ κατέβασμα / έξοδος σωληνώσεων – καμία οπή σε σκυρόδεμα"),
     ], y=yl)
-    title(c, "ΑΝ-02", "ΑΝΟΨΗ – ΚΛΙΜΑΤΙΣΜΟΣ · ΘΥΡΙΔΕΣ", "Καναλάτες μονάδες · αεραγωγοί · στόμια · θυρίδες επίσκεψης · ψυκτικά")
+    title(c, no, "ΑΝΟΨΗ – ΚΛΙΜΑΤΙΣΜΟΣ · ΘΥΡΙΔΕΣ", A.SUB_AN02)
 
 
 # ======================================================================== ΑΝ-03 φωτισμός / πυρανίχνευση
@@ -339,7 +390,7 @@ def spot_sym(v, kind, x, y):
         v.line(x - d, y - d, x + d, y + d, color=ORANGE, lw=0.6); v.line(x - d, y + d, x + d, y - d, color=ORANGE, lw=0.6)
 
 
-def sheet_an03(c):
+def sheet_an03(c, no="ΑΝ-03"):
     v = view(c)
     clip_on(c)
     zones_fill(v, colored=False)
@@ -352,7 +403,7 @@ def sheet_an03(c):
         x0, y0, x1, y1 = h["rect"]
         c.setDash([2, 1.2]); v.rect(x0, y0, x1, y1, stroke=GREY, lw=0.4); c.setDash([])
     for d in A.DIFFUSERS:
-        if d["kind"] in ("slot", "ret") and (d["rect"][2] - d["rect"][0]) > 0.5:
+        if d["kind"] == "slot" or (d["kind"] == "ret" and (d["rect"][2] - d["rect"][0]) > 0.5):
             v.rect(*d["rect"], stroke=(0.55, 0.65, 0.80), lw=0.4)
     for sid, kind, x, y, circ in A.SPOTS:
         spot_sym(v, kind, x, y)
@@ -378,40 +429,25 @@ def sheet_an03(c):
         v.circle(x, y, 0.07, fill=(1, 1, 1), stroke=(0.20, 0.22, 0.55), lw=0.7); v.circle(x, y, 0.035, stroke=(0.20, 0.22, 0.55), lw=0.5)
         v.text(x, y + 0.16, "WiFi", size=4.0, color=(0.20, 0.22, 0.55))
     # κυκλώματα
-    for txt, x, y in [("α", 4.30, 7.85), ("β", 9.15, 5.75), ("γ", 7.95, 7.25), ("ε", 12.30, 8.80), ("ζ", 2.75, 1.85), ("η", 4.45, 4.65),
-                      ("θ", 4.40, 0.42), ("κ", 7.83, 2.30), ("μ", 6.05, 1.25), ("ν", 2.05, 4.75)]:
+    for txt, x, y in A.CIRCUITS:
         X, Y = v.p(x, y)
         c.setFillColorRGB(*ORANGE); c.roundRect(X - 3.6, Y - 3.6, 7.2, 7.2, 1.5, stroke=0, fill=1)
         c.setFillColorRGB(1, 1, 1); c.setFont("Inter-SemiBold", 5.2); c.drawCentredString(X, Y - 1.8, txt)
-    v.text(5.20, 8.35, "ΚΑΘΙΣΤΙΚΟ – ΤΡΑΠΕΖΑΡΙΑ: χωρίς spots – παροχές ΚΡΕΜ0 / ΚΡΕΜ1 (απόφαση ιδιοκτήτη R02, επιβεβαίωση 07/11)",
-           size=4.6, color=GREY, font="Inter-Medium", bg=True)
-    for o, p, pts in [("H", 2.10, [1.335, 1.765, 3.77, 4.20]), ("V", 2.30, [0.80, 1.55, 2.65, 3.25]),
-                      ("H", 3.05, [6.50, 7.13, 8.53, 9.145]), ("V", 8.90, [1.35, 1.85, 4.25, 4.85]),
-                      ("H", 3.62, [3.30, 3.65, 5.21, 6.40]), ("V", 6.25, [4.35, 4.70, 5.05]), ("V", 3.40, [3.35, 3.85, 4.35]),
-                      ("V", 5.25, [0.80, 1.25, 2.05, 2.85, 3.25]), ("H", 4.42, [0.11, 0.47, 1.60, 2.50, 3.15]),
-                      ("V", 9.12, [5.15, 5.50, 6.05, 6.30]), ("H", 9.25, [9.70, 10.28, 11.43, 12.58, 13.159]),
-                      ("V", 12.95, [8.26, 8.86, 9.46]), ("H", 7.45, [1.905, 4.30, 7.60, 9.40]), ("V", 7.60, [6.30, 7.25, 8.915])]:
-        v.dim_chain(o, p, pts, size=4.2, side=-1)
+    texts(v, getattr(A, "TEXTS_AN03", []))
+    dims(v, getattr(A, "DIMS_AN03", []), size=4.2)
     clip_off(c)
-    yl = side_notes(c, [
-        "Κατανομή: Υπν. 2 × 2 spots συμμετρικά στην ελεύθερη οροφή · λουτρά 3 (IP65 στο ντους) · κουζίνα 3 στον άξονα του διαδρόμου (γενικός) + LED κάτω από τα ντουλάπια (πάγκος) · χωλ / είσοδος στον άξονα της διαδρομής. Σύνολο 21 spots + 2 παροχές + LED3 + LED4.",
-        "Πυρανίχνευση (προδ. 4): σε κάθε κύριο χώρο και στο χωλ· ≥ 0,50 από τοίχους / δοκούς / φωτιστικά, ≥ 1,00 από στόμια προσαγωγής· λουτρά χωρίς ανιχνευτή καπνού (υδρατμοί).",
-        "R11 χωλ: ΑΚ4 στον άξονα του διαδρόμου 1,00 (0,50 από τους δύο τοίχους, ανάμεσα στις ΘΕ2 / ΘΕ3)· Χ1 στον άξονα, Χ2 στο κέντρο του περάσματος. Στο R10 ο ΑΚ4 ήταν 0,29 από την ακμή και ≈ 0,30 από spot.",
-        "R11: Υ1–Υ4 0,43 από ΚΡ3 / μέτωπο ντουλάπας 4,20 · ΚΡΕΜ1 στο κέντρο της τραπεζαρίας R23.",
-        "R12 κουζίνα (ιδιοκτήτης 07/11): επάνω ντουλάπια περασιά με την οροφή (διακεκομμένα) με LED4 από κάτω για τον πάγκο· τα spots Μ1–Μ3 είναι γενικός φωτισμός στον άξονα του διαδρόμου (y 8,86), 0,60 από τη στήλη / τους πάγκους, κανένα πάνω από ντουλάπι. ΑΘ5 ανάμεσα στα Μ1 / Μ2, 1,4 m από τις εστίες. Χωρίς Wi-Fi.",
-        "Οπή spot Ø 75–80 ανάμεσα στα προφίλ CD (όχι πάνω τους)· όπου πέφτει σε προφίλ, μετατόπιση του προφίλ – όχι του spot.",
-    ], y=770)
+    yl = side_notes(c, A.NOTES_AN03, y=770)
     legend(c, [
-        (lambda c_, x, y: (c_.setStrokeColorRGB(*ORANGE), c_.circle(x, y, 2.8), c_.setFillColorRGB(*ORANGE), c_.circle(x, y, 1, fill=1)), "χωνευτό spot LED 7–9 W, 2700 K, CRI ≥ 90, UGR < 19, σώμα ≤ 75 mm"),
+        (lambda c_, x, y: (c_.setStrokeColorRGB(*ORANGE), c_.circle(x, y, 2.8), c_.setFillColorRGB(*ORANGE), c_.circle(x, y, 1, fill=1)), A.LEG_SPOT),
         (lambda c_, x, y: (c_.setStrokeColorRGB(*ORANGE), c_.circle(x, y, 2.8), c_.line(x - 2.8, y, x + 2.8, y)), "χωνευτό spot IP44 (λουτρά)"),
         (lambda c_, x, y: (c_.setStrokeColorRGB(*ORANGE), c_.circle(x, y, 2.8), c_.line(x - 2, y - 2, x + 2, y + 2), c_.line(x - 2, y + 2, x + 2, y - 2)), "χωνευτό spot IP65 (πάνω από ντους)"),
         (lambda c_, x, y: (c_.setStrokeColorRGB(*ORANGE), c_.circle(x, y, 4), c_.setFillColorRGB(*ORANGE), c_.circle(x, y, 1.6, fill=1)), "ΚΡΕΜ παροχή οροφής (κουτί + ενίσχυση ανάρτησης)"),
         (lambda c_, x, y: (c_.setStrokeColorRGB(*RED), c_.rect(x - 3, y - 3, 6, 6), c_.line(x - 3, y - 3, x + 3, y + 3), c_.line(x - 3, y + 3, x + 3, y - 3)), "ΑΚ ανιχνευτής καπνού (ΕΠ04 · EN 54-7)"),
         (lambda c_, x, y: (c_.setStrokeColorRGB(*RED), c_.rect(x - 3, y - 3, 6, 6), c_.setFillColorRGB(*RED), c_.circle(x, y, 1.1, fill=1)), "ΑΘ θερμοδιαφορικός ανιχνευτής (κουζίνα · EN 54-5)"),
         (lambda c_, x, y: (c_.setStrokeColorRGB(0.9, 0.55, 0.55), c_.setDash([1.5, 1.5]), c_.circle(x, y, 4), c_.setDash([])), "ακτίνα 0,50 m γύρω από ανιχνευτή – κανένας τοίχος / φωτιστικό μέσα"),
-        (lambda c_, x, y: (c_.setStrokeColorRGB(*ORANGE), c_.setDash([4, 2]), c_.line(x - 5, y, x + 5, y), c_.setDash([])), "LED κρυφό γραμμικό 3000 K – LED3 κεφαλάρι · LED4 κάτω από τα ντουλάπια κουζίνας"),
+        (lambda c_, x, y: (c_.setStrokeColorRGB(*ORANGE), c_.setDash([4, 2]), c_.line(x - 5, y, x + 5, y), c_.setDash([])), A.LEG_LED),
     ], y=yl)
-    title(c, "ΑΝ-03", "ΑΝΟΨΗ – ΦΩΤΙΣΜΟΣ · ΠΥΡΑΝΙΧΝΕΥΣΗ", "Χωνευτά spots · παροχές · κρυφό LED · ανιχνευτές")
+    title(c, no, "ΑΝΟΨΗ – ΦΩΤΙΣΜΟΣ · ΠΥΡΑΝΙΧΝΕΥΣΗ", A.SUB_AN03)
 
 
 # ======================================================================== ΑΝ-04 έλεγχος
@@ -433,43 +469,29 @@ def block(c, x, y, w, head, lines, size=5.6, bullet="· "):
     return y - 4
 
 
-def sheet_an04(c):
+def sheet_an04(c, no="ΑΝ-04"):
     rows = checks.run()
     from collections import Counter
     cnt = Counter(r[5] for r in rows)
     # ---- αριστερή στήλη: προδιαγραφές
     x, y, w = 40, 805, 360
-    spec = [
-        ("1 Κλιματισμός", "Καναλάτη σε καθιστικό (ΚΜ1 24k), Υπν.1 (ΚΜ2 12k), Υπν.2 (ΚΜ3 9k) · κουζίνα από την ΚΜ1 (ΕΓΚΕΚΡ.) · slot Π1/Π2 στο καθιστικό, "
-         "γραμμικά Π3/Π4 στα υπνοδωμάτια (ΕΓΚΕΚΡ.) · χώρος 35 / 32 cm (ΚΜ1 περιθώριο 55 mm) · θυρίδες Ε1 / ΘΕ2 / ΘΕ3 · ψυκτικά ΚΜ1 κάτω από τη Δ3.1 (οριακό 3,6 mm)."),
-        ("2 Κουρτίνες", "ΚΡ1–ΚΡ4 σε όλα τα ανοίγματα καθιστικού / υπνοδωματίων, 20 (22) × 10 cm, 2 οδηγοί, ανοιχτές ως την πλάκα, δίπλα στις δοκούς όψης."),
-        ("3 Φωτισμός", "21 χωνευτά spots σε υπνοδωμάτια, λουτρά, χωλ, είσοδο, κουζίνα (γενικός) + LED κάτω από τα ντουλάπια κουζίνας (IP44/IP65 στα λουτρά) · καθιστικό με ΚΡΕΜ0/ΚΡΕΜ1 (ΕΓΚΕΚΡ.) · κανένα "
-         "spot κάτω από μονάδα / αεραγωγό / σε θυρίδα / πάνω από ντουλάπι · κενό ≥ 88 mm πάνω από κάθε spot."),
-        ("4 Πυρανίχνευση", "ΑΚ1–ΑΚ4 καπνού + ΑΘ5 θερμοδιαφορικός κουζίνας · όλοι ≥ 0,50 από τοίχους / δοκούς / φωτιστικά και ≥ 1,00 από στόμια προσαγωγής."),
-        ("5 Κατασκευή", "Βασική 10 cm κάτω από την πλάκα · μεγαλύτερη καταβίβαση μόνο στις καναλάτες (+2,40 / +2,45) · περασιά με τις δοκούς · μία σανίδα κάτω "
-         "από τη Δ3.1 στο Υπν.2 (εξαίρεση) · κανένα δόντι."),
-        ("6 Γενική αρχή", "5 στάθμες σε όλο το διαμέρισμα, κάθε αλλαγή πάνω σε γραμμή δοκού ή μετώπη ντουλάπας."),
-    ]
     c.setFont("Inter-Bold", 9); c.setFillColorRGB(*DARK); c.drawString(x, y, "ΣΥΜΜΟΡΦΩΣΗ ΜΕ ΤΙΣ ΠΡΟΔΙΑΓΡΑΦΕΣ (ιδιοκτήτης 07/11/2026)")
     y -= 14
-    for head, txt in spec:
+    fs = getattr(A, "AN04_SIZE", 5.6)
+    for head, txt in A.SPEC_AN04:
         c.setFont("Inter-SemiBold", 6.4); c.drawString(x, y, head)
-        for j, l in enumerate(_wrap(txt, "Inter", 5.6, w - 70)):
-            c.setFont("Inter", 5.6); c.drawString(x + 70, y - j * 7.3, l)
-        y -= 7.3 * len(_wrap(txt, "Inter", 5.6, w - 70)) + 4
+        for j, l in enumerate(_wrap(txt, "Inter", fs, w - 70)):
+            c.setFont("Inter", fs); c.drawString(x + 70, y - j * (fs + 1.7), l)
+        y -= (fs + 1.7) * len(_wrap(txt, "Inter", fs, w - 70)) + 4
     y -= 4
-    y = block(c, x, y, w, "ΕΓΚΕΚΡΙΜΕΝΕΣ ΑΠΟΚΛΙΣΕΙΣ (ιδιοκτήτης 07/11/2026)", [
-        "Καθιστικό – τραπεζαρία χωρίς spots (απόφαση R02· «η νέα προδιαγραφή δεν υπερισχύει»).",
-        "Κουζίνα χωρίς δική της καναλάτη – καλύπτεται από την ΚΜ1 24k.",
-        "Π3 / Π4 υπνοδωματίων: γραμμικά στόμια 1000×150 σε μετώπη / τοίχο, όχι slot.",
-        "Μονάδες slim ≤ 245 mm (ΚΜ1) / ≤ 200 mm (ΚΜ2, ΚΜ3) ως παραδοχή μέχρι την επιλογή μοντέλου.",
-    ])
-    y = block(c, x, y, w, "ΑΛΛΑΓΕΣ R11 → R12 (ιδιοκτήτης 07/11/2026)", A.CHANGES)
-    y = block(c, x, y, w, "ΠΡΟΗΓΟΥΜΕΝΗ ΑΝΑΘΕΩΡΗΣΗ", A.CHANGES_PREV, size=5.2)
+    y = block(c, x, y, w, getattr(A, "APPROVED_TITLE", "ΕΓΚΕΚΡΙΜΕΝΕΣ ΑΠΟΚΛΙΣΕΙΣ (ιδιοκτήτης 07/11/2026)"), A.APPROVED, size=fs)
+    y = block(c, x, y, w, A.CHANGES_TITLE, A.CHANGES, size=fs)
+    if A.CHANGES_PREV:
+        y = block(c, x, y, w, "ΠΡΟΗΓΟΥΜΕΝΗ ΑΝΑΘΕΩΡΗΣΗ", A.CHANGES_PREV, size=5.2)
     ol = []
     for code, kind, txt in A.OPEN:
         ol.append(("%s [%s] %s" % (code, kind, txt), RED if kind == "ΑΠΟΦΑΣΗ" else DARK))
-    y = block(c, x, y, w, "ΑΝΟΙΚΤΑ ΣΗΜΕΙΑ", ol)
+    y = block(c, x, y, w, "ΑΝΟΙΚΤΑ ΣΗΜΕΙΑ", ol, size=getattr(A, "AN04_OPEN_SIZE", fs))
     # ---- δεξιά: πίνακας ελέγχων σε 2 στήλες
     X0, Y0 = 420, 805
     c.setFont("Inter-Bold", 9); c.setFillColorRGB(*DARK)
@@ -478,7 +500,7 @@ def sheet_an04(c):
     c.setFont("Inter", 5.4); c.setFillColorRGB(*GREY)
     c.drawString(X0, Y0 - 9, "Αυτόματος έλεγχος από το μοντέλο (code/anopseis/checks.py): στάθμες ↔ δοκοί · κενό μονάδων · θυρίδες · spots ↔ ζώνες / θυρίδες / μονάδες / "
                  "αεραγωγοί / κουρτινόθηκες · ανιχνευτές ↔ τοίχοι / φωτιστικά / στόμια · κουρτινόθηκες ↔ κουφώματα / δοκοί.")
-    colw = 362; lh = 8.2; fs = 5.2
+    colw = 362; lh = 8.2 if len(rows) <= 150 else 7.6; fs_t = 5.2
     xs = [X0, X0 + colw + 12]
     half = (len(rows) + 1) // 2
     for ci, chunk in enumerate((rows[:half], rows[half:])):
@@ -488,14 +510,17 @@ def sheet_an04(c):
         c.setStrokeColorRGB(*LIGHT); c.setLineWidth(0.4); c.line(xx, yy - 2, xx + colw, yy - 2)
         yy -= lh + 1
         for code, grp, item, crit, val, st in chunk:
-            c.setFont("Inter", fs); c.setFillColorRGB(*DARK); c.drawString(xx, yy, code)
-            c.setFont("Inter-SemiBold", fs); c.setFillColorRGB(*STC[st]); c.drawString(xx + 38, yy, st)
-            c.setFont("Inter", fs); c.setFillColorRGB(*DARK)
+            c.setFont("Inter", fs_t); c.setFillColorRGB(*DARK); c.drawString(xx, yy, code)
+            c.setFont("Inter-SemiBold", fs_t); c.setFillColorRGB(*STC[st]); c.drawString(xx + 38, yy, st)
+            c.setFont("Inter", fs_t); c.setFillColorRGB(*DARK)
             it = item
-            while pdfmetrics.stringWidth(it, "Inter", fs) > 165: it = it[:-2]
+            while pdfmetrics.stringWidth(it, "Inter", fs_t) > 165: it = it[:-2]
             c.drawString(xx + 80, yy, it if it == item else it + "…")
             vv = val
-            while pdfmetrics.stringWidth(vv, "Inter", fs) > colw - 252: vv = vv[:-2]
+            while pdfmetrics.stringWidth(vv, "Inter", fs_t) > colw - 252: vv = vv[:-2]
             c.drawString(xx + 250, yy, vv if vv == val else vv + "…")
             yy -= lh
-    title(c, "ΑΝ-04", "ΑΝΟΨΗ – ΕΛΕΓΧΟΣ ΠΡΟΔΙΑΓΡΑΦΩΝ", "Συμμόρφωση · έλεγχος συγκρούσεων · αλλαγές R12 · ανοικτά σημεία", scale="—")
+    title(c, no, "ΑΝΟΨΗ – ΕΛΕΓΧΟΣ ΠΡΟΔΙΑΓΡΑΦΩΝ", "Συμμόρφωση · έλεγχος συγκρούσεων · αλλαγές %s · ανοικτά σημεία" % A.REV, scale="—")
+
+
+SHEETS = (sheet_an01, sheet_an02, sheet_an03, sheet_an04)
