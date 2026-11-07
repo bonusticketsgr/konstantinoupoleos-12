@@ -108,7 +108,7 @@ def floor_table(c, M, left, top, width):
 def sheet_t05(c, models, sheet_no="Τ-05", rev="", date="", K=None):
     """K: μεγέθυνση των πινάκων (μεγάλα γράμματα – το φύλλο αλλιώς μένει μισοάδειο)· με 3 ορόφους 1,05 ώστε να χωράνε οι στήλες."""
     if K is None:
-        K = 1.32 if len(models) <= 2 else (1.05 if len(models) == 3 else 0.80)
+        K = 1.32 if len(models) <= 2 else (1.05 if len(models) == 3 else (0.80 if len(models) == 4 else 0.66))
     m = 20
     c.saveState(); c.scale(K, K)
     left = (m + 14) / K; top = (PAGE_H - m - 26) / K
@@ -135,7 +135,7 @@ def sheet_t05(c, models, sheet_no="Τ-05", rev="", date="", K=None):
     c.setFont("Inter", 8); c.setFillColorRGB(*GREY)
     c.drawString(left + 130, y - 30, "Εξωτερικό φύλλο MDF (αντί γυψοσανίδας) στην πλευρά της κουζίνας, όλο το κτήριο: " + f2(mdf_tot, 1) + " m² – ΙΣ Τ2-06 / Τ6-01 · Α΄Β΄Γ΄ Τ6Α-02 · Δ΄ Τ2-10 · σοφίτα Τ2-07 (kitchenette)")
     c.setFont("Inter-Bold", 10); c.setFillColorRGB(*DARK)
-    c.drawString(left + 130, y - 16, "ΟΛΟ ΤΟ ΚΤΗΡΙΟ (ΙΣ + Α΄ + Β΄ + Γ΄ + Δ΄ + σοφίτα): τοιχοποιίες " + f2(sum(g for _, g, _ in totals), 1) + " m²  ·  ETICS " + f2(sum(e for _, _, e in totals), 1) + " m²")
+    c.drawString(left + 130, y - 16, "ΟΛΟ ΤΟ ΚΤΗΡΙΟ (υπόγειο + ΙΣ + Α΄ + Β΄ + Γ΄ + Δ΄ + σοφίτα): τοιχοποιίες " + f2(sum(g for _, g, _ in totals), 1) + " m²  ·  ETICS " + f2(sum(e for _, _, e in totals), 1) + " m²")
     c.restoreState()
     names = " · ".join(getattr(M, "SHEET", dict(apt="Β1"))["apt"].upper() for M in models)
     n = len(models)

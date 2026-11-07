@@ -5,7 +5,7 @@ Raster 1 cm των τοίχων + υποστυλωμάτων + κουφωμάτ�
 Χρήση: python3 check_corners.py [gf|b1]"""
 import sys, importlib
 name = sys.argv[1] if len(sys.argv) > 1 else "gf"
-M = importlib.import_module({"gf": "gf_model", "b1": "b1_model", "s": "s_model", "f4": "f4_model"}[name])
+M = importlib.import_module({"gf": "gf_model", "b1": "b1_model", "s": "s_model", "f4": "f4_model", "b": "b_model"}[name])
 R = 100  # κελιά / m
 rects = [M.bbox(w["pts"]) for w in M.WALLS if M.is_rect(w["pts"])] + [M.bbox(p) for p in M.COLS] + [M.bbox(p) for p in M.WINS]
 x0 = min(r[0] for r in rects) - 0.2; y0 = min(r[1] for r in rects) - 0.2

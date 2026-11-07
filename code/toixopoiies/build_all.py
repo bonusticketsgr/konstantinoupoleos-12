@@ -8,6 +8,7 @@ import b1_model as B
 import gf_model as G
 import s_model as S
 import f4_model as F
+import b_model as Y
 from draw import new_canvas
 import sheet_t01, sheet_t02, quantities
 from sheet_t05 import sheet_t05
@@ -23,16 +24,18 @@ def use(model):
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
     HERE, "..", "..", "ΚΩΝΣΤΑΝΤΙΝΟΥΠΟΛΕΩΣ_12_ΑΡΓΥΡΟΥΠΟΛΗ", "ΤΟΙΧΟΠΟΙΙΕΣ",
-    "ΤΟΙΧΟΠΟΙΙΕΣ_ΙΣΟΓΕΙΟ_%s_Β1_%s_Δ_%s_ΣΟΦΙΤΑ_%s.pdf" % (G.REV, B.REV, F.REV, S.REV))
-c = new_canvas(OUT, "Τοιχοποιίες ισογείου %s + Β1 %s + Δ΄ %s + σοφίτας %s" % (G.REV, B.REV, F.REV, S.REV))
+    "ΤΟΙΧΟΠΟΙΙΕΣ_ΥΠΟΓΕΙΟ_%s_ΙΣΟΓΕΙΟ_%s_Β1_%s_Δ_%s_ΣΟΦΙΤΑ_%s.pdf" % (Y.REV, G.REV, B.REV, F.REV, S.REV))
+c = new_canvas(OUT, "Τοιχοποιίες υπογείου %s + ισογείου %s + Β1 %s + Δ΄ %s + σοφίτας %s" % (Y.REV, G.REV, B.REV, F.REV, S.REV))
 c.setPageCompression(1)
 # R25 / Δ R02 (Γιάννης 07/11): «κατόψεις στις πρώτες σελίδες, μετά είδη τοιχοποιιών μία σελίδα και μετά η προμέτρηση»
-use(G); sheet_t01.sheet_t01(c, "Τ-01"); c.showPage()
-use(B); sheet_t01.sheet_t01(c, "Τ-02"); c.showPage()
-use(F); sheet_t01.sheet_t01(c, "Τ-03"); c.showPage()
-use(S); sheet_t01.sheet_t01(c, "Τ-04"); c.showPage()
-REVS = "ΙΣ %s · Β1 %s · Δ %s · ΣΟΦ %s" % (G.REV, B.REV, F.REV, S.REV)
-use(B); sheet_t02.sheet_t02_all(c, [G, B, F, S], "Τ-05", REVS, G.DATE); c.showPage()
-sheet_t05(c, [G, B, F, S], "Τ-06", REVS, G.DATE); c.showPage()
+# 07/11 βράδυ: + ΥΠΟΓΕΙΟ (b_model) ως πρώτο φύλλο
+use(Y); sheet_t01.sheet_t01(c, "Τ-01"); c.showPage()
+use(G); sheet_t01.sheet_t01(c, "Τ-02"); c.showPage()
+use(B); sheet_t01.sheet_t01(c, "Τ-03"); c.showPage()
+use(F); sheet_t01.sheet_t01(c, "Τ-04"); c.showPage()
+use(S); sheet_t01.sheet_t01(c, "Τ-05"); c.showPage()
+REVS = "ΥΠ %s · ΙΣ %s · Β1 %s · Δ %s · ΣΟΦ %s" % (Y.REV, G.REV, B.REV, F.REV, S.REV)
+use(B); sheet_t02.sheet_t02_all(c, [Y, G, B, F, S], "Τ-06", REVS, G.DATE); c.showPage()
+sheet_t05(c, [Y, G, B, F, S], "Τ-07", REVS, G.DATE); c.showPage()
 c.save()
 print("OK", os.path.abspath(OUT))
