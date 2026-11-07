@@ -15,6 +15,7 @@ def floor_table(c, M, left, top, width):
     """Πίνακας ενός ορόφου. Επιστρέφει (y τέλους, σύνολο τοιχοποιιών, σύνολο ETICS)."""
     SH = getattr(M, "SHEET", dict(floor="Β΄ ΟΡΟΦΟΣ – Β1", floor_short="Β΄ ΟΡΟΦΟΥ", apt="Β1"))
     rows = {r["type"]: r for r in Q.per_type(M)}
+    mult = getattr(M, "MULT", 1)
     c.setFont("Inter-Bold", 12); c.setFillColorRGB(*DARK)
     c.drawString(left, top, SH["floor"] + "  ·  " + M.REV)
     c.setFont("Inter", 6.5); c.setFillColorRGB(*GREY)
@@ -62,8 +63,12 @@ def floor_table(c, M, left, top, width):
         c.drawString(left + 26, y, "Σύνολο " + gname.lower())
         grand += gsum; y -= 17
     c.setStrokeColorRGB(*DARK); c.setLineWidth(0.6); c.line(left, y + 8, left + width, y + 8)
-    c.setFont("Inter-Bold", 9); c.drawString(left + 26, y - 4, "ΣΥΝΟΛΟ ΤΟΙΧΟΠΟΙΙΩΝ " + SH["apt"])
+    c.setFont("Inter-Bold", 9); c.drawString(left + 26, y - 4, "ΣΥΝΟΛΟ ΤΟΙΧΟΠΟΙΙΩΝ " + SH["apt"] + (" (ανά όροφο)" if mult > 1 else ""))
     c.drawRightString(left + width - 6, y - 4, f2(grand, 1) + " m²")
+    if mult > 1:   # R25: τυπικός όροφος × 3 (Α΄/Β΄/Γ΄)
+        y -= 14
+        c.setFont("Inter-Bold", 9); c.drawString(left + 26, y - 4, "× %d ΟΡΟΦΟΙ (Α΄ · Β΄ · Γ΄)" % mult)
+        c.drawRightString(left + width - 6, y - 4, f2(grand * mult, 1) + " m²")
     y -= 30
     # θερμοπρόσοψη
     c.setFont("Inter-Bold", 8); c.setFillColorRGB(*DARK); c.drawString(left, y, "ΘΕΡΜΟΠΡΟΣΟΨΗ (ETICS) – " + SH["floor_short"]); y -= 10
@@ -85,8 +90,11 @@ def floor_table(c, M, left, top, width):
             c.setFont("Inter-SemiBold" if i in (0, 5) else "Inter", 7.5); c.setFillColorRGB(*DARK)
             (c.drawString(x + 4, y, val) if i == 0 else c.drawRightString(x + w - 6, y, val)); x += w
         tot += e["net"]; y -= 13.5
-    c.setFont("Inter-SemiBold", 7.5); c.drawString(left + 4, y, "Σύνολο ETICS " + SH["apt"]); c.drawRightString(left + width - 6, y, f2(tot, 1) + " m²")
-    return y - 20, grand, tot
+    c.setFont("Inter-SemiBold", 7.5); c.drawString(left + 4, y, "Σύνολο ETICS " + SH["apt"] + (" (ανά όροφο)" if mult > 1 else "")); c.drawRightString(left + width - 6, y, f2(tot, 1) + " m²")
+    if mult > 1:
+        y -= 13.5
+        c.setFont("Inter-Bold", 7.5); c.drawString(left + 4, y, "× %d όροφοι (Α΄ · Β΄ · Γ΄)" % mult); c.drawRightString(left + width - 6, y, f2(tot * mult, 1) + " m²")
+    return y - 20, grand * mult, tot * mult
 
 
 def sheet_t05(c, models, sheet_no="Τ-05", rev="", date="", K=None):
@@ -112,10 +120,11 @@ def sheet_t05(c, models, sheet_no="Τ-05", rev="", date="", K=None):
     x = left + 130
     for M, g, e in totals:
         SH = getattr(M, "SHEET", dict(apt="Β1"))
-        c.setFont("Inter-SemiBold", 9); c.drawString(x, y, SH["apt"] + ": τοιχοποιίες " + f2(g, 1) + " m²  ·  ETICS " + f2(e, 1) + " m²")
+        lbl = SH["apt"] + (" ×%d" % M.MULT if getattr(M, "MULT", 1) > 1 else "")
+        c.setFont("Inter-SemiBold", 9); c.drawString(x, y, lbl + ": τοιχοποιίες " + f2(g, 1) + " m²  ·  ETICS " + f2(e, 1) + " m²")
         x += min(260, width + gap)
     c.setFont("Inter-Bold", 10)
-    c.drawString(left + 130, y - 16, "ΟΛΟΙ ΟΙ ΟΡΟΦΟΙ ΤΟΥ ΤΕΥΧΟΥΣ: τοιχοποιίες " + f2(sum(g for _, g, _ in totals), 1) + " m²  ·  ETICS " + f2(sum(e for _, _, e in totals), 1) + " m²")
+    c.drawString(left + 130, y - 16, "ΟΛΟ ΤΟ ΚΤΗΡΙΟ (ΙΣ + Α΄ + Β΄ + Γ΄ + Δ΄ + σοφίτα): τοιχοποιίες " + f2(sum(g for _, g, _ in totals), 1) + " m²  ·  ETICS " + f2(sum(e for _, _, e in totals), 1) + " m²")
     c.restoreState()
     names = " · ".join(getattr(M, "SHEET", dict(apt="Β1"))["apt"].upper() for M in models)
     n = len(models)
