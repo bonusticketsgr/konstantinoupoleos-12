@@ -61,7 +61,15 @@ def floor_table(c, M, left, top, width):
         c.setFont("Inter-SemiBold", 7.5); c.setFillColorRGB(*DARK)
         c.drawRightString(left + width - 6, y, f2(gsum, 1) + " m²")
         c.drawString(left + 26, y, "Σύνολο " + gname.lower())
-        grand += gsum; y -= 17
+        grand += gsum; y -= 13
+        mdf = [(t, rows[t]) for t in present if rows[t]["mdf"] > 0]
+        if mdf:   # 07/11: εξωτερικό φύλλο MDF στην πλευρά της κουζίνας
+            c.setFont("Inter", 6.5); c.setFillColorRGB(*GREY)
+            c.drawString(left + 26, y, "από αυτά, εξωτ. φύλλο MDF προς κουζίνα: " + " · ".join(", ".join(r["mdf_ids"]) for _, r in mdf))
+            c.setFont("Inter-SemiBold", 7); c.setFillColorRGB(*DARK)
+            c.drawRightString(left + width - 6, y, f2(sum(r["mdf"] for _, r in mdf), 1) + " m² MDF")
+            y -= 13
+        y -= 4
     c.setStrokeColorRGB(*DARK); c.setLineWidth(0.6); c.line(left, y + 8, left + width, y + 8)
     c.setFont("Inter-Bold", 9); c.drawString(left + 26, y - 4, "ΣΥΝΟΛΟ ΤΟΙΧΟΠΟΙΙΩΝ " + SH["apt"] + (" (ανά όροφο)" if mult > 1 else ""))
     c.drawRightString(left + width - 6, y - 4, f2(grand, 1) + " m²")
@@ -123,7 +131,10 @@ def sheet_t05(c, models, sheet_no="Τ-05", rev="", date="", K=None):
         lbl = SH["apt"] + (" ×%d" % M.MULT if getattr(M, "MULT", 1) > 1 else "")
         c.setFont("Inter-SemiBold", 9); c.drawString(x, y, lbl + ": τοιχοποιίες " + f2(g, 1) + " m²  ·  ETICS " + f2(e, 1) + " m²")
         x += min(260, width + gap)
-    c.setFont("Inter-Bold", 10)
+    mdf_tot = sum(sum(r["mdf"] for r in Q.per_type(M)) * getattr(M, "MULT", 1) for M, _, _ in totals)
+    c.setFont("Inter", 8); c.setFillColorRGB(*GREY)
+    c.drawString(left + 130, y - 30, "Εξωτερικό φύλλο MDF (αντί γυψοσανίδας) στην πλευρά της κουζίνας, όλο το κτήριο: " + f2(mdf_tot, 1) + " m² – ΙΣ Τ2-06 / Τ6-01 · Α΄Β΄Γ΄ Τ6Α-02 · Δ΄ Τ2-10 · σοφίτα Τ2-07 (kitchenette)")
+    c.setFont("Inter-Bold", 10); c.setFillColorRGB(*DARK)
     c.drawString(left + 130, y - 16, "ΟΛΟ ΤΟ ΚΤΗΡΙΟ (ΙΣ + Α΄ + Β΄ + Γ΄ + Δ΄ + σοφίτα): τοιχοποιίες " + f2(sum(g for _, g, _ in totals), 1) + " m²  ·  ETICS " + f2(sum(e for _, _, e in totals), 1) + " m²")
     c.restoreState()
     names = " · ".join(getattr(M, "SHEET", dict(apt="Β1"))["apt"].upper() for M in models)

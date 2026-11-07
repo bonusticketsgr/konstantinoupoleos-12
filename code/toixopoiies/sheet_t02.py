@@ -145,7 +145,7 @@ def sheet_t02(c, sheet_no="Τ-02"):
 ALL_ORDER = ["T1", "T4", "T4A", "T5", "T10", "T3", "T9", "T2", "T2N", "T2A", "T7", "T7A", "T6", "T6A", "T8"]
 
 
-def card_all(c, x, y, w, h, typ, per_floor):
+def card_all(c, x, y, w, h, typ, per_floor, mdf=None):
     """Κάρτα είδους για το ενιαίο φύλλο: τομή 1:4 + περιγραφή + μήκη / m² ανά όροφο (χωρίς mini-κάτοψη)."""
     t = M.TYPES[typ]
     c.setStrokeColorRGB(0.75, 0.75, 0.78); c.setLineWidth(0.4); c.rect(x, y, w, h, stroke=1, fill=0)
@@ -164,6 +164,9 @@ def card_all(c, x, y, w, h, typ, per_floor):
         c.drawString(x + 8, yy, ln); yy -= 6.4
     # μήκη / εμβαδά ανά όροφο
     yy = y + 8 + 6.6 * (len(per_floor) + 1) - 2
+    if mdf:   # 07/11: εξωτερικό φύλλο MDF προς την κουζίνα
+        c.setFont("Inter", 5.4); c.setFillColorRGB(0.55, 0.30, 0.10)
+        c.drawString(x + 8, yy + 12, ("εξωτ. φύλλο MDF προς κουζίνα: " + " · ".join("%s %s %.1f m²" % (a, ids, m) for a, m, ids in mdf)).replace(".", ","))
     c.setStrokeColorRGB(0.75, 0.75, 0.78); c.line(x + 8, yy + 7, x + w - 8, yy + 7)
     tot_L = tot_A = 0.0
     for apt, L, A in per_floor:
@@ -180,11 +183,14 @@ def sheet_t02_all(c, models, sheet_no, rev, date):
     """Όλα τα είδη του τεύχους σε ΜΙΑ σελίδα (3 × 5 κάρτες), με μήκη / m² ανά όροφο."""
     global M
     rows = {}   # typ → [(apt, L, area)]
+    mdf = {}    # typ → [(apt, m² MDF, ids)]
     for mdl in models:
         mult = getattr(mdl, "MULT", 1)
         apt = getattr(mdl, "SHEET", dict(apt="Β1"))["apt"] + (" ×%d" % mult if mult > 1 else "")
         for r in Q.per_type(mdl):
             rows.setdefault(r["type"], []).append((apt, r["L"] * mult, r["L"] * mdl.H * mult))
+            if r["mdf"] > 0:
+                mdf.setdefault(r["type"], []).append((apt, r["mdf"] * mult, ", ".join(r["mdf_ids"])))
     order = [t for t in ALL_ORDER if t in rows] + sorted(t for t in rows if t not in ALL_ORDER)
     M = models[0]
     m = 20; top = PAGE_H - m - 12; left = m + 10
@@ -193,11 +199,12 @@ def sheet_t02_all(c, models, sheet_no, rev, date):
     Hc = (top - 106 - (nrow - 1) * 6) / nrow
     for i, typ in enumerate(order):
         r, k = divmod(i, ncol)
-        card_all(c, left + k * (W + 6), top - (r + 1) * Hc - r * 6, W, Hc, typ, rows[typ])
+        card_all(c, left + k * (W + 6), top - (r + 1) * Hc - r * 6, W, Hc, typ, rows[typ], mdf.get(typ))
     c.setFont("Inter", 5.6); c.setFillColorRGB(*GREY)
     c.drawString(left, 100, "Επιφάνειες ενδεικτικές: μήκος × ύψος ορόφου (ισόγειο 3,00 · όροφοι 2,90 · σοφίτα 2,65) – οι τοίχοι ορίζονται μεταξύ ανοιγμάτων, "
                  "χωρίς αφαίρεση κασών. Τ3 = επένδυση στην εσωτερική παρειά των Τ1 · Τ9 = περίμετρος υποστυλώματος × ύψος. "
-                 "Β1 ×3 = ο τυπικός όροφος επί τρεις (Α΄ · Β΄ · Γ΄). Σύνολο = όλο το κτήριο.")
+                 "Β1 ×3 = ο τυπικός όροφος επί τρεις (Α΄ · Β΄ · Γ΄). Σύνολο = όλο το κτήριο. "
+                 "Όπου πάγκος / κρεμαστά κουζίνας σε γυψοσανιδότοιχο, το εξωτερικό φύλλο της πλευράς της κουζίνας είναι MDF αντί γυψοσανίδας (ΙΣ Τ2-06 / Τ6-01 · Α΄Β΄Γ΄ Τ6Α-02 · Δ΄ Τ2-10 · σοφίτα Τ2-07).")
     names = " · ".join(getattr(mdl, "SHEET", dict(apt="Β1"))["apt"].upper() for mdl in models)
     frame_and_title(c, sheet_no, "ΕΙΔΗ ΤΟΙΧΟΠΟΙΙΩΝ – ΟΛΟΙ ΟΙ ΟΡΟΦΟΙ", "Είδη τοιχοποιιών · " + names,
                     "τομές 1:4 · μήκη – εμβαδά ανά είδος και όροφο",

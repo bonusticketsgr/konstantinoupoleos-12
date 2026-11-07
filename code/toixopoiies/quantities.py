@@ -34,7 +34,13 @@ def per_type(model=None):
         L = sum(M.wall_length(w) for w in ws)
         area = L * H + LINTELS.get(t, 0)
         r = dict(type=t, n=len(ws), ids=[w["id"] for w in ws], L=L, area=area,
-                 gyp=0, gyp_h2=0, gyp_f=0, cw={}, uw={}, rock=0, bricks=0, mortar=0, glue=0)
+                 gyp=0, gyp_h2=0, gyp_f=0, cw={}, uw={}, rock=0, bricks=0, mortar=0, glue=0, mdf=0.0, mdf_ids=[])
+        # 07/11 (Γιάννης): όπου πάγκος / κρεμαστά κουζίνας σε γυψοσανιδότοιχο, το ΕΞΩΤΕΡΙΚΟ φύλλο της πλευράς της κουζίνας = MDF
+        KS = getattr(M, "KITCHEN_SIDES", {})
+        for w in ws:
+            k = KS.get(w["id"], 0)
+            if k:
+                r["mdf"] += M.wall_length(w) * H * k; r["mdf_ids"].append(w["id"])
         if t in BRICKS:
             k, th, mf = BRICKS[t]
             r["bricks"] = area * k; r["mortar"] = area * th * mf
