@@ -5,7 +5,7 @@
 Χρήση: python3 checks.py [b1|f4|s|gf]  → τυπώνει όλους τους ελέγχους και το σύνολο αποκλίσεων (πρέπει 0).
 Από κώδικα: checks.bind(μοντέλο); checks.run()
 """
-import importlib, sys
+import importlib, math, sys
 from shapely.geometry import Point, Polygon, box, LineString
 from shapely.ops import unary_union
 
@@ -37,6 +37,8 @@ def zone_at(x, y):
 
 
 def slab_at(z, x, y):
+    if hasattr(A, "SLAB_FN"):                      # κεκλιμένη πλάκα (σοφίτα: στέγη με κλίση)
+        return A.SLAB_FN(x, y)
     s = A.SLABS[z["slab"]]
     for r, sl in z.get("slab_parts", []):          # τμήματα ζώνης κάτω από άλλη πλάκα (π.χ. νότιος έρκερ κουζίνας Β1: Π14)
         if r[0] <= x <= r[2] and r[1] <= y <= r[3]:
@@ -45,6 +47,14 @@ def slab_at(z, x, y):
         if x0 <= x <= x1 and y0 <= y <= y1:
             s = min(s, A.beam_soffit(sec))
     return s
+
+
+def ceil_at(x, y, z=None):
+    """Τελική οροφή στο σημείο: η στάθμη της ζώνης ή (εμφανής πλάκα) η κάτω παρειά της πλάκας εκεί."""
+    z = z or zone_at(x, y)
+    if z is None:
+        return None
+    return slab_at(z, x, y) if z.get("exposed") else z["level"]
 
 
 def edge_dist(z, x, y):
@@ -57,11 +67,15 @@ def lower_edges(z):
     """Ακμές της ζώνης όπου συνορεύει με χαμηλότερη ζώνη (λειτουργούν σαν «δοκός» για τους ανιχνευτές)."""
     out = []
     for o in ZONES.values():
-        if o is z or o["level"] >= z["level"] - 1e-6:
+        if o is z:
             continue
         inter = z["geom"].boundary.intersection(o["geom"].buffer(0.005))
-        if not inter.is_empty and inter.length > 0.05:
-            out.append((o, inter))
+        if inter.is_empty or inter.length <= 0.05:
+            continue
+        q = inter.interpolate(0.5, normalized=True)
+        if ceil_at(q.x, q.y, o) >= ceil_at(q.x, q.y, z) - 1e-6:
+            continue
+        out.append((o, inter))
     return out
 
 
@@ -94,7 +108,7 @@ def run():
                 "οροφή ≤ κάτω παρειά δοκού", "οροφή %+.2f · %s" % (z["level"], v), st)
     for z in A.ZONES:
         if z.get("exposed"):
-            add("ΣΤ-%s" % z["id"], "Στάθμες–δοκοί", "%s %s – εμφανής πλάκα %s" % (z["id"], z["room"], L(z["level"])),
+            add("ΣΤ-%s" % z["id"], "Στάθμες–δοκοί", "%s %s – εμφανής πλάκα %s" % (z["id"], z["room"], z.get("tag_txt", L(z["level"]))),
                 "οροφή χωρίς δοκούς κάτω από την πλάκα", z.get("exposed_txt", "ανεστραμμένες δοκοί – επίπεδη κάτω παρειά"), "OK")
 
     # ------------------------------------------------ 2. κλιματισμός (προδ. 1)
@@ -125,6 +139,29 @@ def run():
               [d for d in A.DIFFUSERS if d.get("access") and _box(d["rect"]).intersects(_box(u["rect"]))]
         add("ΘΕ-%s" % u["id"], "Κλιματισμός", "%s – πρόσβαση συντήρησης" % u["id"], "θυρίδα κάτω από τη μονάδα",
             ", ".join(a["id"] for a in acc) or "καμία", "OK" if acc else "ΑΠΟΚΛΙΣΗ")
+    # split τοίχου (ιδιοκτήτης 07/11/2026: στα δωμάτια split αντί καναλάτου)
+    for u in getattr(A, "SPLITS", []):
+        x0, y0, x1, y1 = u["rect"]
+        z = zone_at((x0 + x1) / 2, (y0 + y1) / 2)
+        ceil = min(ceil_at(x, y, z) for x in (x0, x1) for y in (y0, y1))
+        top, bot = u["bottom"] + u["h"], u["bottom"]
+        gap = ceil - top
+        st = "OK" if gap >= 0.06 - 1e-6 else ("ΟΡΙΑΚΟ" if gap >= 0.05 - 1e-6 else "ΑΠΟΚΛΙΣΗ")
+        txt = "οροφή %s · μονάδα %s…%s · πάνω %d mm" % (L(ceil), L(bot), L(top), round(gap * 1000))
+        crit = "απόσταση από την οροφή ≥ 50 mm"
+        if u.get("door_head") is not None:
+            gd = bot - u["door_head"]
+            txt += " · πάνω από την πόρτα %d mm" % round(gd * 1000)
+            crit += " · πάνω από την κάσα ≥ 30 mm"
+            if gd < 0.03 - 1e-6:
+                st = "ΑΠΟΚΛΙΣΗ"
+        add("ΚΛ-%s" % u["id"], "Κλιματισμός", "%s split τοίχου %s – %s (%s)" % (u["id"], u["btu"], u["room"], u["where"]), crit, txt, st)
+        sp = _box(u["rect"])
+        hit = [n_ for n_, r in A.TALL if _box(r).intersects(sp.buffer(-0.001))]
+        add("ΚΡ-%s" % u["id"], "Κλιματισμός", "%s – ρίψη %s" % (u["id"], u["throw_txt"]), "όχι πάνω στο προσκέφαλο · ελεύθερος τοίχος",
+            "πάνω σε ντουλάπα: " + ", ".join(hit) if hit else u["throw_why"], "ΑΠΟΚΛΙΣΗ" if hit else "OK")
+        add("ΨΣ-%s" % u["id"], "Κλιματισμός", "%s – ψυκτικά / συμπυκνώματα" % u["id"], "όδευση χωρίς οπή σε σκυρόδεμα · συμπυκνώματα με ροή",
+            u["pipes"], "OK")
     # οδεύσεις ψυκτικών στο κενό της οροφής: δέσμη ψυκτικών + συμπυκνωμάτων με μόνωση ≈ 50 mm πάνω από τον σκελετό
     beams = [box(*b[2:]) for b in A.BEAMS]
     for rt in getattr(A, "REFR_CHECK", []):
@@ -164,7 +201,8 @@ def run():
     obstacles = [(h["id"], _box(h["rect"]), C["spot_hatch"]) for h in A.HATCHES] + \
                 [(c_["id"], _box(c_["rect"]), C["spot_edge"]) for c_ in A.CURTAINS] + \
                 [(n_, _box(r), C["spot_tall"]) for n_, r in A.TALL] + \
-                [(d["id"], _box(d["rect"]), C["spot_hatch"]) for d in A.DIFFUSERS if d["kind"] in ("slot", "ret")]
+                [(d["id"], _box(d["rect"]), C["spot_hatch"]) for d in A.DIFFUSERS if d["kind"] in ("slot", "ret")] + \
+                [(u["id"], _box(u["rect"]), C["spot_hatch"]) for u in getattr(A, "SPLITS", [])]
     void_occ = [(u["id"], _box(u["rect"])) for u in A.UNITS if not u.get("concealed")] + [(n_, _box(r)) for n_, r in A.DUCTS] + \
                [("επιστρ. " + n_, _box(r)) for n_, r in A.RETURN_BOX]
     for sid, kind, x, y, circ in A.SPOTS:
@@ -207,6 +245,61 @@ def run():
             "; ".join(probs) if probs else void_txt, "ΑΠΟΚΛΙΣΗ" if probs else "OK")
     for code, item, crit, val, st in getattr(A, "LIGHT_ROWS", []):
         add(code, "Φωτισμός", item, crit, val, st)
+    # ράγες φωτισμού (εμφανής πλάκα χωρίς κουτιά – σοφίτα)
+    for t in getattr(A, "TRACKS", []):
+        ln = LineString([t["a"], t["b"]])
+        probs = []
+        fa = WALLS.distance(Point(*t["a"]))
+        if fa > (0.45 if t.get("lintel") else 0.03):
+            probs.append("τροφοδοσία %.2f από τοίχο" % fa)
+        far = Point(*t["b"])
+        if WALLS.distance(far) < 0.10:
+            probs.append("άκρο %.2f από τοίχο" % WALLS.distance(far))
+        if A.TALL and TALL.distance(ln) < C["spot_tall"] - 1e-6:
+            probs.append("%.2f από ντουλάπα" % TALL.distance(ln))
+        for u in getattr(A, "SPLITS", []):
+            if _box(u["rect"]).distance(ln) < 0.30:
+                probs.append("%.2f από %s" % (_box(u["rect"]).distance(ln), u["id"]))
+        ha, hb = ceil_at(*t["a"]), ceil_at(*t["b"])
+        if ha is None or hb is None:
+            probs.append("εκτός ζώνης")
+        elif abs(ha - hb) > 0.005:
+            probs.append("όχι οριζόντια (%s → %s)" % (L(ha), L(hb)))
+        txt = "μήκος %.2f · οροφή %s · κεφαλές ≈ %s · %d τεμ.%s" % (ln.length, L(ha) if ha else "?", L(ha - t.get("drop", 0.12)) if ha else "?",
+                                                                   t["n"], " · από υπέρθυρο" if t.get("lintel") else "") if not probs else "; ".join(probs)
+        add("ΡΓ-%s" % t["id"], "Φωτισμός", "%s ράγα – %s" % (t["id"], t["room"]),
+            "τροφοδοσία από τοίχο · οριζόντια (ισοϋψής) · ≥ 0,20 από ντουλάπα · ≥ 0,30 από split", txt, "ΑΠΟΚΛΙΣΗ" if probs else "OK")
+    for wid, kind, x, y, circ, txt_ in getattr(A, "WALL_LIGHTS", []):
+        p = Point(x, y)
+        inshower = any(g.buffer(0.02).contains(p) for g in SHOWERS)
+        ok = (not inshower) or kind == "w65"
+        add("ΑΠ-%s" % wid, "Φωτισμός", "%s απλίκα %s – %s" % (wid, {"w": "τοίχου", "w44": "IP44", "w65": "IP65"}[kind], txt_),
+            "στον τοίχο · IP65 μέσα στο ντους", "μέσα στο ντους" if inshower else "τοίχος %.2f" % WALLS.distance(p),
+            "OK" if ok and WALLS.distance(p) < 0.05 else "ΑΠΟΚΛΙΣΗ")
+    TV = {"Ν": (0, 1), "Β": (0, -1), "Α": (1, 0), "Δ": (-1, 0)}
+    slots = [(d["id"], _box(d["rect"]), d["throw"]) for d in A.DIFFUSERS if d["kind"] in ("slot", "wall")] + \
+            [(u["id"], _box(u["rect"]), u["throw"]) for u in getattr(A, "SPLITS", [])]
+    for pid, x, y, circ, txt_ in A.PENDANTS:
+        over = getattr(A, "PENDANT_OVER", {}).get(pid)
+        if over is None:
+            continue
+        p = Point(x, y)
+        # μόνο στόμια που ρίχνουν ΠΡΟΣ το κρεμαστό (όχι όταν το κρεμαστό είναι πίσω από το στόμιο)
+        front = [(g.distance(p), n_) for n_, g, th in slots
+                 if (x - g.centroid.x) * TV[th][0] + (y - g.centroid.y) * TV[th][1] > 0
+                 and not LineString([g.centroid.coords[0], (x, y)]).intersects(WALLS.buffer(-0.01))]
+        ds, ns = min(front) if front else (9, "—")
+        cx, cy = (over[1] + over[3]) / 2, (over[2] + over[4]) / 2
+        off = math.hypot(x - cx, y - cy)
+        probs = []
+        if off > 0.05:
+            probs.append("%.2f από το κέντρο" % off)
+        if ds < 0.50:
+            probs.append("%.2f από %s" % (ds, ns))
+        add("ΚΜΣ-%s" % pid, "Φωτισμός", "%s κρεμαστό – %s" % (pid, over[0]), "στο κέντρο του επίπλου · ≥ 0,50 από στόμιο προσαγωγής",
+            "; ".join(probs) if probs else "κέντρο (%.2f · %.2f) · %s" % (cx, cy, ("%s %.2f" % (ns, ds)) if front else
+                                                                             "κανένα στόμιο δεν ρίχνει προς αυτό"),
+            "ΑΠΟΚΛΙΣΗ" if probs else "OK")
     # IP σε λουτρά
     for sid, kind, x, y, circ in A.SPOTS:
         for g in SHOWERS:
@@ -214,8 +307,10 @@ def run():
                 add("IP-%s" % sid, "Φωτισμός", sid, "IP65 πάνω από ντους", kind, "ΑΠΟΚΛΙΣΗ")
 
     # ------------------------------------------------ 4. πυρανίχνευση (προδ. 4)
-    lights = [(s[0], Point(s[2], s[3])) for s in A.SPOTS] + [(p_[0], Point(p_[1], p_[2])) for p_ in A.PENDANTS]
-    supplies = [(d["id"], _box(d["rect"])) for d in A.DIFFUSERS if d["kind"] in ("slot", "wall")]
+    lights = [(s[0], Point(s[2], s[3])) for s in A.SPOTS] + [(p_[0], Point(p_[1], p_[2])) for p_ in A.PENDANTS] + \
+             [(t["id"], LineString([t["a"], t["b"]])) for t in getattr(A, "TRACKS", [])]
+    supplies = [(d["id"], _box(d["rect"])) for d in A.DIFFUSERS if d["kind"] in ("slot", "wall")] + \
+               [(u["id"], _box(u["rect"])) for u in getattr(A, "SPLITS", [])]
     for did, kind, x, y, room in A.DETECTORS:
         p = Point(x, y)
         z = zone_at(x, y)
