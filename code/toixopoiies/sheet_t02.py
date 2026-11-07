@@ -139,3 +139,65 @@ def sheet_t02(c, sheet_no="Τ-02"):
     frame_and_title(c, sheet_no, "ΕΙΔΗ ΤΟΙΧΟΠΟΙΙΩΝ – " + ("Β΄ ΟΡΟΦΟΣ" if SH["floor_short"] == "Β΄ ΟΡΟΦΟΥ" else SH["floor_short"]),
                     "Είδη τοιχοποιιών · " + SH["floor"], "τομές 1:4 · μήκη – εμβαδά ανά είδος",
                     "Βάση: κάτοψη τοιχοποιιών Τ-01 · κάτοψη " + SH["arch"], "Κλίμακα 1:4 · A3", M.REV, M.DATE)
+
+
+# ---------------------------------------------------------------- R25 / Δ R02 (Γιάννης 07/11): ΕΝΑ φύλλο ειδών για όλο το τεύχος
+ALL_ORDER = ["T1", "T4", "T4A", "T5", "T10", "T3", "T9", "T2", "T2N", "T2A", "T7", "T7A", "T6", "T6A", "T8"]
+
+
+def card_all(c, x, y, w, h, typ, per_floor):
+    """Κάρτα είδους για το ενιαίο φύλλο: τομή 1:4 + περιγραφή + μήκη / m² ανά όροφο (χωρίς mini-κάτοψη)."""
+    t = M.TYPES[typ]
+    c.setStrokeColorRGB(0.75, 0.75, 0.78); c.setLineWidth(0.4); c.rect(x, y, w, h, stroke=1, fill=0)
+    c.setFillColorRGB(*t["fill"]); c.setStrokeColorRGB(*DARK); c.setLineWidth(0.4)
+    c.rect(x + 8, y + h - 20, 12, 9, stroke=1, fill=1)
+    c.setFont("Inter-Bold", 9); c.setFillColorRGB(*DARK); c.drawString(x + 24, y + h - 19, typ)
+    c.setFont("Inter-Medium", 6); c.drawString(x + 24 + len(typ) * 6.5 + 4, y + h - 18.5, t["name"])
+    c.setFont("Inter", 5.5); c.setFillColorRGB(*GREY); c.drawRightString(x + w - 8, y + h - 18.5, "1:4")
+    c.setFont("Inter-SemiBold", 6.5); c.setFillColorRGB(*DARK)
+    c.drawString(x + 8, y + h - 31, ("πάχος %g cm" % round(t["thick"] * 100, 2)).replace(".", ","))
+    sec_w = t["thick"] * PT_PER_M_4
+    section(c, x + (w - sec_w) / 2, y + h - 40, typ)
+    c.setFont("Inter", 5.2); c.setFillColorRGB(*DARK)
+    yy = y + h - 40 - SEC_H * PT_PER_M_4 - 24
+    for ln in wrap(c, t["desc"], "Inter", 5.2, w - 16)[:5]:
+        c.drawString(x + 8, yy, ln); yy -= 6.4
+    # μήκη / εμβαδά ανά όροφο
+    yy = y + 8 + 6.6 * (len(per_floor) + 1) - 2
+    c.setStrokeColorRGB(0.75, 0.75, 0.78); c.line(x + 8, yy + 7, x + w - 8, yy + 7)
+    tot_L = tot_A = 0.0
+    for apt, L, A in per_floor:
+        c.setFont("Inter", 5.6); c.setFillColorRGB(*GREY); c.drawString(x + 8, yy, apt)
+        c.setFont("Inter-Medium", 5.6); c.setFillColorRGB(*DARK)
+        c.drawRightString(x + w - 8, yy, ("%.2f m · %.1f m²" % (L, A)).replace(".", ","))
+        tot_L += L; tot_A += A; yy -= 6.6
+    c.setFont("Inter-SemiBold", 6.2); c.setFillColorRGB(*DARK)
+    c.drawString(x + 8, yy, "Σύνολο τεύχους")
+    c.drawRightString(x + w - 8, yy, ("%.2f m · %.1f m²" % (tot_L, tot_A)).replace(".", ","))
+
+
+def sheet_t02_all(c, models, sheet_no, rev, date):
+    """Όλα τα είδη του τεύχους σε ΜΙΑ σελίδα (3 × 5 κάρτες), με μήκη / m² ανά όροφο."""
+    global M
+    rows = {}   # typ → [(apt, L, area)]
+    for mdl in models:
+        apt = getattr(mdl, "SHEET", dict(apt="Β1"))["apt"]
+        for r in Q.per_type(mdl):
+            rows.setdefault(r["type"], []).append((apt, r["L"], r["L"] * mdl.H))
+    order = [t for t in ALL_ORDER if t in rows] + sorted(t for t in rows if t not in ALL_ORDER)
+    M = models[0]
+    m = 20; top = PAGE_H - m - 12; left = m + 10
+    ncol = 5; nrow = (len(order) + ncol - 1) // ncol
+    W = (PAGE_W - 2 * m - 20 - (ncol - 1) * 6) / ncol
+    Hc = (top - 106 - (nrow - 1) * 6) / nrow
+    for i, typ in enumerate(order):
+        r, k = divmod(i, ncol)
+        card_all(c, left + k * (W + 6), top - (r + 1) * Hc - r * 6, W, Hc, typ, rows[typ])
+    c.setFont("Inter", 5.6); c.setFillColorRGB(*GREY)
+    c.drawString(left, 100, "Επιφάνειες ενδεικτικές: μήκος × ύψος ορόφου (ισόγειο 3,00 · όροφοι 2,90 · σοφίτα 2,65) – οι τοίχοι ορίζονται μεταξύ ανοιγμάτων, "
+                 "χωρίς αφαίρεση κασών. Τ3 = επένδυση στην εσωτερική παρειά των Τ1 · Τ9 = περίμετρος υποστυλώματος × ύψος. "
+                 "Το Β1 μετράται μία φορά (τυπικός όροφος Α΄/Β΄/Γ΄ – ×3 για όλο το κτήριο).")
+    names = " · ".join(getattr(mdl, "SHEET", dict(apt="Β1"))["apt"].upper() for mdl in models)
+    frame_and_title(c, sheet_no, "ΕΙΔΗ ΤΟΙΧΟΠΟΙΙΩΝ – ΟΛΟΙ ΟΙ ΟΡΟΦΟΙ", "Είδη τοιχοποιιών · " + names,
+                    "τομές 1:4 · μήκη – εμβαδά ανά είδος και όροφο",
+                    "Βάση: κατόψεις Τ-01…Τ-%02d" % len(models), "Κλίμακα 1:4 · A3", rev, date)

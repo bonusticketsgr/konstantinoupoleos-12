@@ -119,7 +119,8 @@ def sheet_t05(c, models, sheet_no="Τ-05", rev="", date="", K=None):
     c.restoreState()
     names = " · ".join(getattr(M, "SHEET", dict(apt="Β1"))["apt"].upper() for M in models)
     n = len(models)
-    plans = "/".join("%02d" % (2 * i + 1) for i in range(n)); kinds = "/".join("%02d" % (2 * i + 2) for i in range(n))
+    # R25/Δ R02 (Γιάννης 07/11): κατόψεις Τ-01…Τ-0n · είδη ένα φύλλο Τ-0(n+1) · προμέτρηση Τ-0(n+2)
+    base = "Βάση: κατόψεις Τ-01…Τ-%02d · είδη Τ-%02d" % (n, n + 1)
     frame_and_title(c, sheet_no, ("ΠΡΟΜΕΤΡΗΣΗ ΤΟΙΧΟΠΟΙΙΩΝ – " if n <= 3 else "ΠΡΟΜΕΤΡΗΣΗ – ") + names,
                     "Τετραγωνικά ανά τυπολογία τοίχου, χωριστά ανά όροφο", "θερμοπρόσοψη 10 / 5 cm",
-                    "Βάση: κατόψεις Τ-" + plans + " · είδη Τ-" + kinds, "— · A3", rev, date)
+                    base, "— · A3", rev, date)
