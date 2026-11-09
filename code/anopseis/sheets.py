@@ -18,6 +18,7 @@ BLUE_F = (0.86, 0.92, 0.98)
 GREEN = (0.05, 0.52, 0.42)
 GREEN_F = (0.86, 0.95, 0.91)
 MAG = (0.80, 0.10, 0.50)
+CABLE_C = (0.10, 0.45, 0.30)
 BEAM = (0.62, 0.30, 0.16)
 COLORS = dict(MAG=MAG, BLUE=BLUE, BLUE2=BLUE2, GREEN=GREEN, ORANGE=ORANGE, RED=RED, GREY=GREY, DARK=DARK, BEAM=BEAM)
 FILLS = [(0.985, 0.98, 0.97), (0.965, 0.955, 0.93), (0.94, 0.91, 0.85), (0.91, 0.87, 0.79), (0.86, 0.81, 0.71), (0.82, 0.76, 0.65)]
@@ -263,6 +264,30 @@ def wall_unit_block(v, detailed=False):
         v.text((hx0 + hx1) / 2 + 0.30, fy + 0.13, "ΘΕ %s" % u["hatch"]["size"], size=4.0, font="Inter-SemiBold", bg=True)
 
 
+def roof_hatch(v, detailed=False):
+    """Καταπακτή πρόσβασης στη στέγη μέσα στην ψευδοροφή (Δ΄ – lobby ανελκυστήρα, κατά αρχιτέκτονα)."""
+    c = v.c
+    for rh in getattr(A, "ROOF_HATCH", []):
+        x0, y0, x1, y1 = rh["opening"]
+        c.setDash([1.5, 1.5]); v.rect(x0, y0, x1, y1, stroke=GREY, lw=0.4); c.setDash([])
+        x0, y0, x1, y1 = rh["rect"]
+        v.rect(x0, y0, x1, y1, fill=(1, 1, 1), stroke=DARK, lw=0.7)
+        v.line(x0, y0, x1, y1, color=DARK, lw=0.3); v.line(x0, y1, x1, y0, color=DARK, lw=0.3)
+        lx, ly, lr = rh["lab_at"]
+        v.text(lx, ly, rh["label"], size=4.0, rot=lr, font="Inter-SemiBold", bg=True)
+
+
+def cables(v):
+    """Όδευση καλωδίων shaft → διαμέρισμα μέσα στην ψευδοροφή του κλιμακοστασίου."""
+    for cb in getattr(A, "CABLE_DRAW", []):
+        for a_, b_ in zip(cb["pts"], cb["pts"][1:]):
+            v.line(*a_, *b_, color=CABLE_C, lw=1.6, dash=[6, 1.5, 1.5, 1.5])
+        X, Y = v.p(*cb["pts"][0])
+        v.c.setFillColorRGB(*CABLE_C); v.c.rect(X - 2.6, Y - 2.6, 5.2, 5.2, stroke=0, fill=1)
+        lx, ly, lr = cb["lab_at"]
+        v.text(lx, ly, cb["label"], size=4.2, rot=lr, color=CABLE_C, font="Inter-SemiBold", bg=True)
+
+
 def _vchain(c, x, ys, labels=True, size=4.6, side=-1):
     """Κατακόρυφη αλυσίδα διαστάσεων σε pt σελίδας: ys = [(Y pt, τιμή m)]."""
     c.setStrokeColorRGB(*DIMC); c.setLineWidth(0.4)
@@ -365,6 +390,7 @@ def sheet_an01(c, no="ΑΝ-01"):
     slope_lines(v, labels=False)
     plan(v)
     wall_unit_block(v)
+    roof_hatch(v)
     tall_marks(v)
     slope_lines(v, labels=True)
     # κουρτινόθηκες: οδηγοί
@@ -602,6 +628,8 @@ def sheet_an03(c, no="ΑΝ-03"):
     slope_lines(v, labels=False)
     plan(v)
     wall_unit_block(v)
+    roof_hatch(v)
+    cables(v)
     tall_marks(v)
     # ζώνες κάλυψης / απόστασης ανιχνευτών 0,50
     for did, kind, x, y, room in A.DETECTORS:
@@ -692,6 +720,13 @@ def sheet_an03(c, no="ΑΝ-03"):
                       "ΤΚ τοίχος καναλάτης – στόμιο προσαγωγής (για συντονισμό – βλ. φύλλο κλιματισμού)"))
     if A.PENDANTS:
         items.append((lambda c_, x, y: (c_.setStrokeColorRGB(*ORANGE), c_.circle(x, y, 4), c_.setFillColorRGB(*ORANGE), c_.circle(x, y, 1.6, fill=1)), "ΚΡΕΜ παροχή οροφής (κουτί + ενίσχυση ανάρτησης)"))
+    if getattr(A, "CABLE_DRAW", []):
+        items.append((lambda c_, x, y: (c_.setStrokeColorRGB(*CABLE_C), c_.setLineWidth(1.6), c_.setDash([6, 1.5, 1.5, 1.5]), c_.line(x - 7, y, x + 7, y),
+                                        c_.setDash([]), c_.setLineWidth(0.5), c_.setFillColorRGB(*CABLE_C), c_.rect(x - 9, y - 2, 4, 4, stroke=0, fill=1)),
+                      "καλώδια από το shaft Η/Μ (■ έξοδος πάνω από το μέτωπο-ντουλάπα Τ8-01) → ψευδοροφή κλιμακοστασίου → διαμέρισμα"))
+    if getattr(A, "ROOF_HATCH", []):
+        items.append((lambda c_, x, y: (c_.setStrokeColorRGB(*DARK), c_.rect(x - 4, y - 4, 8, 8), c_.line(x - 4, y - 4, x + 4, y + 4), c_.line(x - 4, y + 4, x + 4, y - 4)),
+                      "καταπακτή πρόσβασης στη στέγη στο επίπεδο της ψευδοροφής (αρχιτέκτονας)"))
     led_item = [(lambda c_, x, y: (c_.setStrokeColorRGB(*ORANGE), c_.setDash([4, 2]), c_.line(x - 5, y, x + 5, y), c_.setDash([])), A.LEG_LED)] if A.LED else []
     legend(c, items + [
         (lambda c_, x, y: (c_.setStrokeColorRGB(*RED), c_.rect(x - 3, y - 3, 6, 6), c_.line(x - 3, y - 3, x + 3, y + 3), c_.line(x - 3, y + 3, x + 3, y - 3)), "ΑΚ ανιχνευτής καπνού (ΕΠ04 · EN 54-7)"),

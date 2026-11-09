@@ -215,13 +215,15 @@ def run():
             if z is None or any(bb.buffer(0.01).contains(pt) for bb in beams):
                 continue        # τοίχοι / διέλευση κάτω από δοκό: χωριστά
             worst = min(worst, slab_at(z, pt.x, pt.y) - z["level"] - A.SYSTEM)
-        add(rt["id"], "Κλιματισμός", rt["text"], "καθαρό κενό πάνω από τον σκελετό ≥ 50 mm",
+        add(rt["id"], rt.get("grp", "Κλιματισμός"), rt["text"], "καθαρό κενό πάνω από τον σκελετό ≥ 50 mm",
             "ελάχιστο %d mm" % round(worst * 1000), "OK" if worst >= 0.05 + 0.01 else ("ΟΡΙΑΚΟ" if worst >= 0.05 else "ΑΠΟΚΛΙΣΗ"))
     for cr in getattr(A, "CROSSINGS", []):
         bsec = [b for b in A.BEAMS if b[0] == cr["beam"]][0][1]
         clear = A.beam_soffit(bsec) - ZONES[cr["zone"]]["level"] - C["board"]
         marg = clear - cr["pipe_od"]
-        add(cr.get("code", "ΨΥ-ΔΟΚ"), "Κλιματισμός", "Διέλευση ψυκτικών %s κάτω από τη %s (x ≈ %.2f%s)" % (cr["unit"], cr["beam"], cr["x"], cr.get("via", "")),
+        add(cr.get("code", "ΨΥ-ΔΟΚ"), cr.get("grp", "Κλιματισμός"),
+            "Διέλευση %s %s κάτω από τη %s (%s%s)" % (cr.get("what", "ψυκτικών"), cr["unit"], cr["beam"],
+                                                     cr.get("at_txt", "x ≈ %.2f" % cr.get("x", 0)), cr.get("via", "")),
             "καθαρό κάτω από τη δοκό ≥ σωλήνας %s" % cr["pipe_txt"], "καθαρό %.1f mm · περιθώριο %+.1f mm" % (clear * 1000, marg * 1000),
             "OK" if marg > 0.010 else ("ΟΡΙΑΚΟ" if marg >= 0 else "ΑΠΟΚΛΙΣΗ"))
     # καναλάτο σε κάθε δωμάτιο
@@ -245,6 +247,7 @@ def run():
                 [(n_, _box(r), C["spot_tall"]) for n_, r in A.TALL] + \
                 [(d["id"], _box(d["rect"]), C["spot_hatch"]) for d in A.DIFFUSERS if d["kind"] in ("slot", "ret")] + \
                 [(u["id"], _box(u["rect"]), C["spot_hatch"]) for u in getattr(A, "SPLITS", [])]
+    obstacles += [(rh["id"], _box(rh["rect"]), C["spot_hatch"]) for rh in getattr(A, "ROOF_HATCH", [])]
     void_occ = [(u["id"], _box(u["rect"])) for u in A.UNITS if not u.get("concealed")] + [(n_, _box(r)) for n_, r in A.DUCTS] + \
                [("επιστρ. " + n_, _box(r)) for n_, r in A.RETURN_BOX]
     for sid, kind, x, y, circ in A.SPOTS:
@@ -415,6 +418,14 @@ def run():
         add("ΘΕ-%s" % h["id"], "Θυρίδες", "%s %s – %s" % (h["id"], h["size"], h["serves"]),
             "μόνο στην καναλάτη · τετράγωνη · όχι πάνω από ντουλάπα / ντους", "; ".join(probs) if probs else "ελεύθερη",
             "ΑΠΟΚΛΙΣΗ" if probs else "OK")
+    for rh in getattr(A, "ROOF_HATCH", []):
+        g = _box(rh["rect"])
+        op = _box(rh["opening"])
+        ok = op.buffer(1e-6).contains(g)
+        add("ΘΕ-%s" % rh["id"], "Θυρίδες", "%s – %s" % (rh["id"], rh["txt"]), "μέσα στο άνοιγμα της πλάκας · στο επίπεδο της ψευδοροφής",
+            "άνοιγμα %s × %s" % (("%.2f" % (rh["opening"][2] - rh["opening"][0])).replace(".", ","),
+                                 ("%.2f" % (rh["opening"][3] - rh["opening"][1])).replace(".", ",")) if ok else "εκτός ανοίγματος",
+            "OK" if ok else "ΑΠΟΚΛΙΣΗ")
     if hasattr(A, "HATCH_RULE"):
         add("ΘΕ-ΚΑΝ", "Θυρίδες", "Θυρίδες επίσκεψης – κανόνας ιδιοκτήτη 09/11", "μόνο στις καναλάτες, μία τετράγωνη στην πλευρά του ηλεκτρικού κουτιού",
             A.HATCH_RULE, "ΕΓΚΕΚΡ.")
