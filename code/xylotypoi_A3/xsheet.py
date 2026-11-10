@@ -1,7 +1,8 @@
 """Σχεδίαση «εργοταξιακού» φύλλου ξυλοτύπου Α3 (χωρίς οπλισμούς): γεωμετρία + διαστάσεις μελετητή + ετικέτες + στάθμες."""
 import sys, os, math, json, re, datetime
 import pymupdf
-from shapely.geometry import box, LineString, Polygon
+from shapely.geometry import box, LineString, Polygon, Point
+from shapely.ops import unary_union
 from shapely.strtree import STRtree
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "xylotypoi_S1_S2"))
@@ -14,8 +15,11 @@ A3W, A3H = 420.0, 297.0
 SCALES = [50, 60, 75, 80, 100]
 COLFILL = (0.80, 0.80, 0.80)
 # μεγέθη κειμένων στο χαρτί (pt): (στόχος, ελάχιστο)
-SZ = dict(col=(11.5, 8.6), beam=(9.2, 7.0), ez=(8.4, 6.6), dim=(8.8, 6.8), slab=(8.6, 6.8), h=(7.4, 6.0), level=(10.5, 8.0),
-          other=(7.6, 6.0), cutmark=(9.0, 7.0))
+# R01 (Γιάννης 10/11/2026: «μίκρυνε λίγο τις γραμματοσειρές, μάζεψέ το λίγο») – περίπου 10–12 % μικρότερα από το R00
+SZ = dict(col=(10.0, 7.6), beam=(8.0, 6.2), ez=(7.4, 6.0), dim=(7.8, 6.2), slab=(7.8, 6.4), h=(6.6, 5.6), level=(9.2, 7.2),
+          other=(6.8, 5.6), cutmark=(8.4, 6.6), hole=(7.0, 6.0), fill=(7.6, 6.2))
+FILLC = dict(hatch=(0.97, 0.93, 0.80), seed=(0.95, 0.85, 0.66))      # γέμισμα (διαγραμμισμένο του μελετητή) · μπάζωμα («φελιζόλ» του μελετητή)
+HOLEC = (0.80, 0.0, 0.50)
 
 
 class Placer:
@@ -234,6 +238,198 @@ def draw_cum(sh, pts, pos, horiz, inner, datum_v):
             sh.otext(xb, yo - 1.6, s, size=sz, bold=True, color=RED, mask=True)
 
 
+# ====================================================================================================================
+# R01 (10/11/2026): ζώνες Ε.Ζ. εκτός, μπάζωμα / γέμισμα, μήκη δοκών, οπές αποχέτευσης / υδρορροών
+# ====================================================================================================================
+def _runs(lines, gap=8.0):
+    """ένωση συγγραμμικών κομματιών (οριζόντιων / κατακόρυφων) σε διαδρομές: [dict(tag, k, a, b, idx)]"""
+    H = {}; V = {}
+    for i, l in lines:
+        if abs(l["y0"] - l["y1"]) < 0.3: H.setdefault(round(l["y0"], 1), []).append((min(l["x0"], l["x1"]), max(l["x0"], l["x1"]), i))
+        elif abs(l["x0"] - l["x1"]) < 0.3: V.setdefault(round(l["x0"], 1), []).append((min(l["y0"], l["y1"]), max(l["y0"], l["y1"]), i))
+    out = []
+    for D_, tag in ((H, "H"), (V, "V")):
+        for k, iv in D_.items():
+            iv.sort(); cur = [iv[0]]
+            for it in iv[1:]:
+                if it[0] <= max(c[1] for c in cur) + gap: cur.append(it)
+                else: out.append(dict(tag=tag, k=k, a=cur[0][0], b=max(c[1] for c in cur), idx=[c[2] for c in cur])); cur = [it]
+            out.append(dict(tag=tag, k=k, a=cur[0][0], b=max(c[1] for c in cur), idx=[c[2] for c in cur]))
+    return out
+
+
+def remove_ez(G, T, log, all_=False):
+    """Ο Γιάννης (10/11/2026): «δεν με νοιάζει να φαίνονται ζώνες». Φεύγουν οι ετικέτες Ε.Ζ. και οι διακεκομμένες 0.85 που τις ορίζουν
+    (διαδρομές δίπλα σε ετικέτα Ε.Ζ. + τα κλεισίματά τους). Ό,τι διακεκομμένο 0.85 μένει γράφεται στο log (KEPT DASHED)."""
+    cand = [(i, l) for i, l in enumerate(G["lines"]) if l["w"] == 0.85 and l.get("dashed") and not l.get("band") and not l["blue"]]
+    runs = _runs(cand) if cand else []
+    ez = [t for t in T if t["kind"] == "ez"]
+    for r in runs:
+        if r["tag"] == "H": r["ez"] = all_ or any(abs(t["cy"] - r["k"]) <= 48 and r["a"] - 30 <= t["cx"] <= r["b"] + 30 for t in ez)
+        else: r["ez"] = all_ or any(abs(t["cx"] - r["k"]) <= 48 and r["a"] - 30 <= t["cy"] <= r["b"] + 30 for t in ez)
+    changed = True
+    while changed:
+        changed = False
+        for r in runs:
+            if r["ez"]: continue
+            def on(v): return any(q["ez"] and q["tag"] != r["tag"] and abs(q["k"] - v) < 2.5 and q["a"] - 2.5 <= r["k"] <= q["b"] + 2.5 for q in runs)
+            if on(r["a"]) and on(r["b"]): r["ez"] = True; changed = True
+    kill = set(i for r in runs if r["ez"] for i in r["idx"])
+    for r in runs:
+        if not r["ez"]: log.append("KEPT DASHED %s %.0f [%.0f-%.0f]" % (r["tag"], r["k"], r["a"], r["b"]))
+    G["lines"] = [l for i, l in enumerate(G["lines"]) if i not in kill]
+    for t in T:
+        if t["kind"] == "ez": t["kind"] = "drop"
+
+
+def fill_regions(G, cfg):
+    """Περιοχές γεμίσματος: (α) οι διαγραμμισμένες ζώνες του μελετητή («Γέμισμα μέχρι τη στ. …») = ένωση των μεγάλων γραμμών διαγράμμισης
+    εκτός υποστυλωμάτων / τοιχείων, (β) ρητά πολύγωνα cfg["fills"] (π.χ. «φελιζόλ» του Σ2 = ΜΠΑΖΩΜΑ, οριοθετημένο από τα κρυφά τοιχία)."""
+    out = []
+    if cfg.get("fill_hatch", True):
+        cb = [(min(p[0] for p in c), min(p[1] for p in c), max(p[0] for p in c), max(p[1] for p in c), Polygon(c)) for c in G["columns"]]
+        hl = []
+        for l in G["lines"]:
+            if not l.get("hatch") or math.hypot(l["x1"] - l["x0"], l["y1"] - l["y0"]) <= cfg.get("fill_hatch_min", 20): continue
+            mx, my = (l["x0"] + l["x1"]) / 2, (l["y0"] + l["y1"]) / 2
+            if any(b[0] <= mx <= b[2] and b[1] <= my <= b[3] and b[4].contains(Point(mx, my)) for b in cb): continue
+            hl.append(LineString([(l["x0"], l["y0"]), (l["x1"], l["y1"])]).buffer(5.6, cap_style=2))        # διαγράμμιση γεμίσματος ανά ~9 pt
+        if hl:
+            u = unary_union(hl).buffer(-4.6).buffer(-9.5).buffer(9.5)        # άνοιγμα: φεύγουν λωρίδες στενότερες από ~0,33 m (τοιχεία, τοιχία)
+            for g in (u.geoms if hasattr(u, "geoms") else [u]):
+                if g.area > cfg.get("fill_min_m2", 0.6) * S * S: out.append(dict(poly=g.simplify(0.8), kind="hatch", label=cfg.get("fill_label")))
+    for f in cfg.get("fills", []): out.append(dict(poly=Polygon(f["poly"]), kind="seed", label=f.get("label"), at=f.get("at")))
+    return out
+
+
+def beam_lengths(G, T, log):
+    """Καθαρό μήκος κάθε δοκού (Γιάννης 10/11/2026: «παντού θέλω και τα μήκη δοκαριών»): από την ετικέτα βρίσκεται η λωρίδα της δοκού
+    (δύο παράλληλες δομικές γραμμές σε απόσταση = πλάτος) και ο άξονάς της προεκτείνεται ως την πρώτη παρειά υποστυλώματος / τοιχείου ή
+    την πρώτη δομική γραμμή που τον κόβει (παρειά δοκού στήριξης), προς τις δύο μεριές. t["L"] σε m."""
+    cols = [Polygon(c) for c in G["columns"]] + [Point(cx, cy).buffer(r) for cx, cy, r in G["rcols"]]
+    seen = {}
+    for t in T:
+        if t["kind"] != "beam": continue
+        m = re.search(r"(\d+)/(\d+)", t["text"])
+        if not m: continue
+        blue = t.get("color", 0) != 0
+        segs = [(l["x0"], l["y0"], l["x1"], l["y1"]) for l in G["lines"] if l["w"] >= 0.85 and not l.get("dashed") and (blue or not l["blue"])]
+        for c in G["columns"]: segs += [(a[0], a[1], b[0], b[1]) for a, b in zip(c, c[1:] + c[:1])]
+        bw = int(m.group(1)) / 100.0 * S
+        ux, uy = t["dir"]; n_ = math.hypot(ux, uy) or 1.0; ux, uy = ux / n_, uy / n_; nx, ny = -uy, ux
+        cx, cy = t["cx"], t["cy"]
+        offs = []; offs_all = []
+        for x0, y0, x1, y1 in segs:
+            dx, dy = x1 - x0, y1 - y0; L = math.hypot(dx, dy)
+            if L < 6 or abs(dx * nx + dy * ny) / L > 0.035: continue
+            a0 = (x0 - cx) * ux + (y0 - cy) * uy; a1 = (x1 - cx) * ux + (y1 - cy) * uy
+            if min(a0, a1) > 14 or max(a0, a1) < -14: continue
+            offs.append((x0 - cx) * nx + (y0 - cy) * ny); offs_all.append(offs[-1])
+        offs = sorted(set(round(o, 1) for o in offs if abs(o) <= bw + 16))
+        far = sorted(set(round(o, 1) for o in offs_all if abs(o) <= bw + 50))
+        best = None
+        for lst in (offs, far):                      # πρώτα κοντά στην ετικέτα, μετά (ετικέτα δίπλα στη δοκό) έως 0,9 m μακριά
+            for i, o1 in enumerate(lst):
+                for o2 in lst[i + 1:]:
+                    if abs((o2 - o1) - bw) <= 2.6:
+                        d = 0 if o1 <= 0 <= o2 else min(abs(o1), abs(o2))
+                        if best is None or d < best[0]: best = (d, o1, o2)
+            if best is not None: break
+        if best is not None and best[0] > 16: log.append("BEAM FAR STRIP |%s| %.2f m από την ετικέτα" % (t["text"], best[0] / S))
+        if best is None: log.append("BEAM NO STRIP |%s| (%.0f,%.0f)" % (t["text"], cx, cy)); continue
+        om = (best[1] + best[2]) / 2; px, py = cx + nx * om, cy + ny * om; hw = (best[2] - best[1]) / 2
+        touch = {1: [], -1: []}                    # άκρα κάθετων γραμμών πάνω στις δύο ακμές της λωρίδας: {πλευρά: [s κατά μήκος]}
+        for x0, y0, x1, y1 in segs:
+            dx, dy = x1 - x0, y1 - y0; L = math.hypot(dx, dy)
+            if L < 3 or abs(dx * ux + dy * uy) / L > 0.5: continue
+            for ex_, ey_ in ((x0, y0), (x1, y1)):
+                oe = (ex_ - px) * nx + (ey_ - py) * ny
+                for sd_ in (1, -1):
+                    if abs(oe - sd_ * hw) < 1.6: touch[sd_].append((ex_ - px) * ux + (ey_ - py) * uy)
+        both = [a_ for a_ in touch[1] if any(abs(a_ - b_) < 2.0 for b_ in touch[-1])]
+        ends = []
+        for sgn in (1, -1):
+            R = 16 * S; ex, ey = px + sgn * ux * R, py + sgn * uy * R; ray = LineString([(px, py), (ex, ey)]); dmin = None
+            for c in cols:
+                g = ray.intersection(c)
+                if not g.is_empty:
+                    d = Point(px, py).distance(g)
+                    if dmin is None or d < dmin: dmin = d
+            dcol = dmin
+            for x0, y0, x1, y1 in segs:
+                dx, dy = x1 - x0, y1 - y0; L = math.hypot(dx, dy)
+                if L < 3: continue
+                den = dx * (sgn * uy) - dy * (sgn * ux)
+                if abs(den) / L < 0.5: continue                       # σχεδόν παράλληλη με τον άξονα
+                # px + s*u = x0 + q*(dx,dy)
+                s_ = ((x0 - px) * (-dy) + (y0 - py) * dx) / (sgn * ux * (-dy) + sgn * uy * dx)
+                qx, qy = px + s_ * sgn * ux, py + s_ * sgn * uy
+                on = min(x0, x1) - 0.6 <= qx <= max(x0, x1) + 0.6 and min(y0, y1) - 0.6 <= qy <= max(y0, y1) + 0.6
+                if on and s_ > 1.0 and (dmin is None or s_ < dmin): dmin = s_
+            for a_ in both:
+                if sgn * a_ > 1.0 and (dmin is None or sgn * a_ < dmin): dmin = sgn * a_
+            if dmin is not None and (dcol is None or dmin < dcol - 1.0):      # όχι όταν η δοκός τελειώνει σε υποστύλωμα / τοιχείο
+                one = [sgn * a_ for sd_ in (1, -1) for a_ in touch[sd_] if 1.0 < sgn * a_ < dmin - 6 and dmin - sgn * a_ <= 0.65 * S]
+                if one:
+                    inner = min(one)                 # μόνο αν ανάμεσα στην ετικέτα και στο σημείο δεν υπάρχει άλλη συμβολή (δευτερεύουσα δοκός)
+                    if not any(1.0 < sgn * a_ < inner - 3 for sd_ in (1, -1) for a_ in touch[sd_]): dmin = inner
+            ends.append(dmin)
+        if None in ends or min(ends) < 0.5: log.append("BEAM NO END |%s| (%.0f,%.0f) %s" % (t["text"], cx, cy, ends)); continue
+        L = (ends[0] + ends[1]) / S
+        if not (0.25 <= L <= 14.0): log.append("BEAM ODD L=%.2f |%s|" % (L, t["text"])); continue
+        key = (round(px + ux * ends[0]), round(py + uy * ends[0]), round(px - ux * ends[1]), round(py - uy * ends[1]))
+        if key in seen: log.append("BEAM SAME SPAN |%s| = |%s| L=%.2f" % (t["text"], seen[key], L))
+        seen[key] = t["text"]
+        t["L"] = L; t["span"] = key
+
+
+def calibrate(G):
+    """Αρχή του κοινού συστήματος συντεταγμένων των κατόψεων (m· βλ. CLAUDE.md §10Γ) σε pt πηγής, από τα Κ2 200/30 (4,60–6,60 × 0,50–0,80)
+    και Κ3 30/215 (9,40–9,70 × 3,00–5,15) που υπάρχουν σε όλους τους ξυλοτύπους."""
+    k2 = []; k3 = []
+    for c in G["columns"]:
+        xs = [p[0] for p in c]; ys = [p[1] for p in c]; w = (max(xs) - min(xs)) / S; h = (max(ys) - min(ys)) / S
+        if abs(w - 2.0) < 0.03 and abs(h - 0.30) < 0.03: k2.append((min(xs) - 4.60 * S, min(ys) - 0.50 * S))
+        if abs(w - 0.30) < 0.03 and abs(h - 2.15) < 0.03: k3.append((min(xs) - 9.40 * S, min(ys) - 3.00 * S))
+    for a in k2:
+        for b in k3:
+            if abs(a[0] - b[0]) < 1.5 and abs(a[1] - b[1]) < 1.5: return ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
+    return None
+
+
+def prep_holes(G, T, cfg, log):
+    """Οπές (χιτώνια) αποχέτευσης / υδρορροών: cfg["holes"] = [(όνομα, x, y, Ø mm, περιγραφή)] σε m του κοινού συστήματος.
+    Για καθεμία: θέση σε pt πηγής, κοντινότερη ΓΩΝΙΑ υποστυλώματος ως αναφορά (dx, dy) και έλεγχος απόστασης από δομικές γραμμές."""
+    hs = cfg.get("holes")
+    if not hs: return []
+    cal = calibrate(G)
+    if cal is None: log.append("HOLES: NO CALIBRATION (Κ2 / Κ3)"); return []
+    labs = [t for t in T if t["kind"] == "col"]
+    cols = [(Polygon(c), c) for c in G["columns"]]
+    struct = [LineString([(l["x0"], l["y0"]), (l["x1"], l["y1"])]) for l in G["lines"] if l["w"] >= 0.85 and not l.get("dashed") and not l["blue"]]
+    out = []
+    for name, mx, my, dia, desc in hs:
+        x = cal[0] + mx * S; y = cal[1] + my * S; r = dia / 2000.0 * S; pt = Point(x, y)
+        dmin = min([pt.distance(g) for g in struct] + [pt.distance(p_) for p_, _ in cols]) - r
+        best = None
+        for p_, c in cols:
+            for (vx, vy) in c:
+                d = math.hypot(vx - x, vy - y)
+                if best is None or d < best[0]: best = (d, vx, vy, p_)
+        d, vx, vy, p_ = best
+        t = min(labs, key=lambda t: p_.distance(box(t["x0"], t["y0"], t["x1"], t["y1"]))) if labs else None
+        cn = t["text"].split()[0] if t else ";"
+        bx = p_.bounds; corner = ("πάνω" if vy < (bx[1] + bx[3]) / 2 else "κάτω") + "-" + ("αριστ." if vx < (bx[0] + bx[2]) / 2 else "δεξιά")
+        out.append(dict(name=name, x=x, y=y, r=r, dia=dia, desc=desc, ref=(vx, vy), col=cn, corner=corner, dx=(x - vx) / S, dy=(y - vy) / S, clear=dmin / S))
+        log.append("HOLE %-10s Ø%d  %+.2f / %+.2f από %s γωνία %s · καθαρό από δομική γραμμή %.1f cm%s" % (name, dia, (x - vx) / S, (y - vy) / S, corner, cn, dmin / S * 100, "  <-- ΠΡΟΣΟΧΗ < 5 cm" if dmin < 0.05 * S else ""))
+    return out
+
+
+def hole_ref_text(h):
+    def one(v, pos, neg): return ("%s %s" % (pos if v >= 0 else neg, ("%.2f" % abs(v)).replace(".", ",")))
+    return "%s  %s  από %s γωνία %s" % (one(h["dx"], "→", "←"), one(h["dy"], "↓", "↑"), h["corner"], h["col"])
+
+
 def choose_layout(bb, force_scale=None, force_layout=None, title_w=60.0, title_h=30.0, margin=6.0):
     """bb = (x0,y0,x1,y1) σε pt πηγής (1:50). Επιστρέφει (κλίμακα, διάταξη, διαθέσιμο ορθογώνιο σε mm)."""
     wm = (bb[2] - bb[0]) / S * 1000 / 1.0; hm = (bb[3] - bb[1]) / S * 1000        # mm στην πραγματικότητα
@@ -288,6 +484,12 @@ def prep(page, DR, cfg, S_loc=S):
             if t["text"] == mv[0]:
                 for k_ in ("cx", "x0", "x1"): t[k_] += mv[1]
                 for k_ in ("cy", "y0", "y1"): t[k_] += mv[2]
+    log0 = []; fills = []; holes = []
+    if not cfg.get("section"):
+        if not cfg.get("show_ez"): remove_ez(G, T, log0, all_=cfg.get("ez_all", False))
+        fills = fill_regions(G, cfg)
+        if cfg.get("beam_len", True): beam_lengths(G, T, log0)
+        holes = prep_holes(G, T, cfg, log0)
     bbr = (min(r[0] for r in regs), min(r[1] for r in regs), max(r[2] for r in regs), max(r[3] for r in regs))
     dims_all = recover(DR, [t for t in T if t["kind"] == "dim"], (bbr[0] - 30, bbr[1] - 30, bbr[2] + 30, bbr[3] + 30), S=S_loc)
     skipd = cfg.get("skip_dims", [])
@@ -352,7 +554,7 @@ def prep(page, DR, cfg, S_loc=S):
             xs += [t["x0"], t["x1"]]; ys += [t["y0"], t["y1"]]
     pad = cfg.get("pad", 10)
     bb = (max(min(xs) - pad, bbr[0] - 40), max(min(ys) - pad, bbr[1] - 40), min(max(xs) + pad, bbr[2] + 40), min(max(ys) + pad, bbr[3] + 40))
-    return dict(G=G, T=T, dims=dims, unres=unres, bb=bb, cfg=cfg, dropped=locals().get("D_drop", []))
+    return dict(G=G, T=T, dims=dims, unres=unres, bb=bb, cfg=cfg, dropped=locals().get("D_drop", []), fills=fills, holes=holes, log0=log0)
 
 
 def draw(sh, D, bb_in, FC=None, sides=(), log=None, datum=None, inner=()):
@@ -363,6 +565,14 @@ def draw(sh, D, bb_in, FC=None, sides=(), log=None, datum=None, inner=()):
     if cfg.get("section"): return draw_section(sh, D, log)
     def inbb(t): return bb_in[0] <= t["cx"] <= bb_in[2] and bb_in[1] <= t["cy"] <= bb_in[3]
     EXTC = (0.5, 0.5, 0.5)
+    log += D.get("log0", [])
+    # ---------------- γέμισμα / μπάζωμα (κάτω από όλα)
+    for f in D.get("fills", []):
+        gs = f["poly"].geoms if hasattr(f["poly"], "geoms") else [f["poly"]]
+        for g in gs:
+            sh.shape.draw_polyline([sh.P(x, y) for x, y in g.exterior.coords]); sh.shape.finish(width=0, color=None, fill=FILLC[f["kind"]])
+            for hole_ in g.interiors:
+                sh.shape.draw_polyline([sh.P(x, y) for x, y in hole_.coords]); sh.shape.finish(width=0, color=None, fill=(1, 1, 1))
     # ---------------- γεωμετρία
     for c in G["columns"]:
         sh.shape.draw_polyline([sh.P(x, y) for x, y in c] + [sh.P(*c[0])]); sh.shape.finish(width=0, color=None, fill=COLFILL)
@@ -377,7 +587,13 @@ def draw(sh, D, bb_in, FC=None, sides=(), log=None, datum=None, inner=()):
         if not near_dim(e): continue
         sh.sline(max(bb[0], min(bb[2], e["x0"])), max(bb[1], min(bb[3], e["y0"])), max(bb[0], min(bb[2], e["x1"])), max(bb[1], min(bb[3], e["y1"])),
                  w=0.22, color=EXTC, dashes="[0.7 1.9] 0")
-    sh.draw_geometry(wmap={1.7: 1.25, 0.85: 0.7 if not cfg.get("section") else 1.0, 0.57: 0.35, 0.28: 0.2})
+    sh.draw_geometry(wmap={1.7: 1.25, 0.85: 0.7 if not cfg.get("section") else 1.0, 0.57: 0.35, 0.28: 0.2}, drop=lambda l: l.get("band"))
+    for l in G["lines"]:
+        if l.get("band"): sh.sline(l["x0"], l["y0"], l["x1"], l["y1"], w=0.55, dashes="[2.6 1.8] 0")
+    for f in D.get("fills", []):
+        if f["kind"] == "seed":
+            pts = [sh.P(x, y) for x, y in f["poly"].exterior.coords]
+            sh.shape.draw_polyline(pts); sh.shape.finish(width=1.1, color=(0.45, 0.25, 0.0), dashes="[5 2.5] 0")
     for c in G["columns"]:
         sh.shape.draw_polyline([sh.P(x, y) for x, y in c] + [sh.P(*c[0])]); sh.shape.finish(width=1.25, color=BLACK)
     for l in G["cuts"]:
@@ -386,7 +602,7 @@ def draw(sh, D, bb_in, FC=None, sides=(), log=None, datum=None, inner=()):
     # ---------------- γραμμές αναφοράς των αλυσίδων παρειών
     rowpos = {}
     for sd in sides:
-        off = (7.4 if datum else 4.6) * MM / K
+        off = (7.4 if datum else 4.2) * MM / K
         rowpos[sd] = (bb_in[1] - off) if sd == "top" else (bb_in[3] + off) if sd == "bottom" else (bb_in[0] - off) if sd == "left" else (bb_in[2] + off)
         for v, w in FC[sd]:
             if w is None: w = FC["_ext"]["y0" if sd == "top" else "y1" if sd == "bottom" else "x0" if sd == "left" else "x1"]
@@ -459,7 +675,15 @@ def draw(sh, D, bb_in, FC=None, sides=(), log=None, datum=None, inner=()):
     for t in T:
         if t["kind"] in ("col", "beam", "ez", "level", "other") and inbb(t) and straight(t): pl.pending[id(t)] = orig_rect(t)
     for i, c in enumerate(G["circles"]):          # οι κύκλοι των πλακών μπαίνουν αργότερα – κρατούν τη θέση τους
-        rr = max(4.6 * MM * min(1.0, 0.72 + 0.28 * K), 12.5 * K); pl.pending[("circ", i)] = (sh.X(c["cx"]) - rr, sh.Y(c["cy"]) - rr, sh.X(c["cx"]) + rr, sh.Y(c["cy"]) + rr)
+        rr = max(4.1 * MM * min(1.0, 0.72 + 0.28 * K), 12.5 * K); pl.pending[("circ", i)] = (sh.X(c["cx"]) - rr, sh.Y(c["cy"]) - rr, sh.X(c["cx"]) + rr, sh.Y(c["cy"]) + rr)
+    for h in D.get("holes", []):
+        c = sh.P(h["x"], h["y"]); r = max(h["r"] * K, 1.25 * MM)
+        v = sh.P(*h["ref"])
+        sh.oline(v.x, v.y, c.x, v.y, 0.45, HOLEC, dashes="[1.2 1.2] 0"); sh.oline(c.x, v.y, c.x, c.y, 0.45, HOLEC, dashes="[1.2 1.2] 0")
+        sh.ocircle(v.x, v.y, 1.1, 0, HOLEC, HOLEC)
+        sh.ocircle(c.x, c.y, r, 0.9, HOLEC, (1, 1, 1)); sh.oline(c.x - r - 2, c.y, c.x + r + 2, c.y, 0.45, HOLEC); sh.oline(c.x, c.y - r - 2, c.x, c.y + r + 2, 0.45, HOLEC)
+        pl.rects.append((c.x - r - 1, c.y - r - 1, c.x + r + 1, c.y + r + 1))
+    sh.flush()
     dtexts = []
     for d in dims:
         t = dict(cx=d["tx"], cy=d["ty"], dir=(1.0, 0.0) if d["dir"] == "H" else (0.0, -1.0), text=d["value"], size=7.9)
@@ -482,7 +706,7 @@ def draw(sh, D, bb_in, FC=None, sides=(), log=None, datum=None, inner=()):
         blue = t["color"] != 0
         if not straight(t): otext_rot(sh, sh.X(t["cx"]), sh.Y(t["cy"]), t["text"], 8.0, rot_of(t), color=BLUE if blue else BLACK); continue
         if blue or not georgia(t) or t["dir"] != (1.0, 0.0):
-            s_, x_, y_, w_ = P(t, "level", bold=True, color=BLUE if blue else BLACK, mask=not blue, sizes=(9.6, 7.4) if blue else None)
+            s_, x_, y_, w_ = P(t, "level", bold=True, color=BLUE if blue else BLACK, mask=not blue, sizes=(8.4, 6.6) if blue else None)
             if georgia(t) and not blue:          # κατακόρυφη στάθμη με σύμβολο: το σύμβολο κάτω από την αρχή του κειμένου
                 level_symbol(sh, pymupdf.Point(x_, y_ + w_ / 2 + 2.0 * MM + 2.2), pl)
         else:
@@ -503,12 +727,12 @@ def draw(sh, D, bb_in, FC=None, sides=(), log=None, datum=None, inner=()):
     for ci, ch in enumerate(ich):
         vals = [p[0] for p in ch["pts"]]
         for a, b in zip(vals[:-1], vals[1:]):
-            s_ = sh.fmt((b - a) / S); sz = 8.4
+            s_ = sh.fmt((b - a) / S); sz = 7.6
             if ch["horiz"]:
                 t = dict(cx=(a + b) / 2, cy=ch["pos"] - (1.9 + sz * 0.37) / K, dir=(1.0, 0.0), text=s_)
             else:
                 t = dict(cx=ch["pos"] - (1.9 + sz * 0.37) / K, cy=(a + b) / 2, dir=(0.0, -1.0), text=s_)
-            P(t, "dim", sizes=(8.4, 6.6), skip=pl.n_dims + ci, nudge="along")
+            P(t, "dim", sizes=(7.6, 6.0), skip=pl.n_dims + ci, nudge="along")
     for d in unres:
         t = dict(cx=d["tx"], cy=d["ty"], dir=(1.0, 0.0) if d["dir"] == "H" else (0.0, -1.0), text=d["value"])
         if not inbb(t) or cfg.get("hide_unresolved"): log.append("hidden unresolved %s (%.0f,%.0f)" % (d["value"], d["tx"], d["ty"])); continue
@@ -520,16 +744,30 @@ def draw(sh, D, bb_in, FC=None, sides=(), log=None, datum=None, inner=()):
         h = min(cand, key=lambda q: abs(q["cy"] - t["cy"])) if cand else None
         circ = [c for c in G["circles"] if math.hypot(c["cx"] - t["cx"], c["cy"] - (t["cy"] + 5)) < 9]
         cx, cy = (circ[0]["cx"], circ[0]["cy"]) if circ else (t["cx"], t["cy"] + 5.5)
-        c = sh.P(cx, cy); r = max(4.6 * MM * min(1.0, 0.72 + 0.28 * K), 12.5 * K)
+        c = sh.P(cx, cy); r = max(4.1 * MM * min(1.0, 0.72 + 0.28 * K), 12.5 * K)
         sh.ocircle(c.x, c.y, r, 0.45, BLACK, (1, 1, 1)); sh.oline(c.x - r, c.y, c.x + r, c.y, 0.35)
-        otext_c(sh, c.x, c.y - r * 0.42, t["text"], 8.6 if K > 0.8 else 8.0, bold=True)
-        if h: otext_c(sh, c.x, c.y + r * 0.45, h["text"].replace(" ", ""), 7.4 if K > 0.8 else 6.8)
+        otext_c(sh, c.x, c.y - r * 0.42, t["text"], 7.8 if K > 0.8 else 7.2, bold=True)
+        if h: otext_c(sh, c.x, c.y + r * 0.45, h["text"].replace(" ", ""), 6.8 if K > 0.8 else 6.2)
         pl.rects.append((c.x - r, c.y - r, c.x + r, c.y + r))
     # 5. δοκοί, Ε.Ζ.
     for t in T:
         if t["kind"] in ("beam", "ez") and inbb(t):
-            if not straight(t): otext_rot(sh, sh.X(t["cx"]), sh.Y(t["cy"]), t["text"], SZ[t["kind"]][1] + 0.6, rot_of(t))
-            else: P(t, t["kind"], bold=(t["kind"] == "beam"), mask=True, nudge="along")
+            txt = t["text"] + ("  L=%s" % sh.fmt(t["L"]) if t.get("L") else "")
+            if not straight(t): otext_rot(sh, sh.X(t["cx"]), sh.Y(t["cy"]), txt, SZ[t["kind"]][1] + 0.6, rot_of(t))
+            else: P(t, t["kind"], text=txt, bold=(t["kind"] == "beam"), mask=True, nudge="along")
+    # 5β. ετικέτες γεμίσματος / μπαζώματος και οπών
+    for f in D.get("fills", []):
+        if not f.get("label"): continue
+        if f["kind"] == "hatch" and f["poly"].area < cfg.get("fill_label_min_m2", 2.0) * S * S: continue
+        rp = f.get("at") or (f["poly"].representative_point().x, f["poly"].representative_point().y)
+        lines_ = f["label"] if isinstance(f["label"], list) else [f["label"]]
+        for i, ln in enumerate(lines_):
+            t = dict(cx=rp[0], cy=rp[1] + (i - (len(lines_) - 1) / 2) * 9.5 / K, dir=(1.0, 0.0), text=ln)
+            P(t, "fill", bold=True, color=(0.40, 0.22, 0.0), nudge="any")
+    for h in D.get("holes", []):
+        r = max(h["r"] * K, 1.25 * MM); s_ = "%s Ø%d" % (h["name"], h["dia"]); w_ = FONT_B.text_length(s_, fontsize=SZ["hole"][0])
+        t = dict(cx=h["x"] + (r + 3 + w_ / 2) / K, cy=h["y"] - (r + 2) / K, dir=(1.0, 0.0), text=s_)
+        P(t, "hole", bold=True, color=HOLEC, nudge="any")
     # 6. λοιπά (σημειώσεις μελετητή), τίτλοι ενθέτων, σημάδια τομών
     for t in T:
         if t["kind"] == "other" and inbb(t):
@@ -551,10 +789,10 @@ def draw(sh, D, bb_in, FC=None, sides=(), log=None, datum=None, inner=()):
     # ---------------- αλυσίδες παρειών υποστυλωμάτων (εξωτερική σειρά κάθε πλευράς)
     for sd in sides:
         vals = [v for v, w in FC[sd]]
-        if sd == "top": sh.hchain(vals, sh.Y(rowpos[sd]), text_side=-1, size=7.8, mask=True)
-        elif sd == "bottom": sh.hchain(vals, sh.Y(rowpos[sd]), text_side=+1, size=7.8, mask=True)
-        elif sd == "left": sh.vchain(vals, sh.X(rowpos[sd]), text_side=-1, size=7.8, mask=True)
-        else: sh.vchain(vals, sh.X(rowpos[sd]), text_side=+1, size=7.8, mask=True)
+        if sd == "top": sh.hchain(vals, sh.Y(rowpos[sd]), text_side=-1, size=7.0, mask=True)
+        elif sd == "bottom": sh.hchain(vals, sh.Y(rowpos[sd]), text_side=+1, size=7.0, mask=True)
+        elif sd == "left": sh.vchain(vals, sh.X(rowpos[sd]), text_side=-1, size=7.0, mask=True)
+        else: sh.vchain(vals, sh.X(rowpos[sd]), text_side=+1, size=7.0, mask=True)
     sh.flush()
     return log
 
@@ -648,7 +886,9 @@ def draw_section(sh, D, log):
         if any(sd == "L" for xe, sd in cuts): sh.oline(PX(xmin) - 5.5, PY(y), PX(xmin) - 4.6, PY(y), 0.3)
         sh.oline(PX(xmin) - 5, PY(y), PX(xmin) - 0.8, PY(y), 0.4)
         if abs(yy - PY(y)) > 0.5: sh.oline(PX(xmin) - 7, yy, PX(xmin) - 5, PY(y), 0.3)
-        sh.otext(PX(xmin) - 7.5, yy + 2.9, txt, size=8.2, bold=True, align="right")
+        chg = txt in D["cfg"].get("changed", [])          # στάθμη που άλλαξε με εντολή εργοδότη (cfg["sec_retext"]) – κόκκινη, υπογραμμισμένη
+        sh.otext(PX(xmin) - 7.5, yy + 2.9, txt, size=8.2, bold=True, align="right", color=RED if chg else BLACK)
+        if chg: sh.oline(PX(xmin) - 7.5 - FONT_B.text_length(txt, fontsize=8.2), yy + 4.4, PX(xmin) - 7.5, yy + 4.4, 0.7, RED)
     sh.flush()
     return log
 
@@ -684,11 +924,12 @@ def build(cfg, out_pdf=None, date=None):
             if re.match(cfg["inner_names"], t["text"]): ok_boxes.append((min(p[0] for p in c), min(p[1] for p in c)))
         inc = lambda x0, y0, x1, y1: any(abs(x0 - bx_) < 0.5 and abs(y0 - by_) < 0.5 for bx_, by_ in ok_boxes)
     inner = inner_chains(GC, include=inc, tol=cfg.get("chain_tol", 1.0)) if cfg.get("inner", True) and cfg.get("chains", True) else []
-    ROW_MM = 12.6 if datum else 9.5; TW = cfg.get("title_w", 64.0)
+    ROW_MM = 12.6 if datum else 8.6; TW = cfg.get("title_w", 46.0)
     insets = list(cfg.get("insets", []))
     if cfg.get("sections"):
         for name, reg in X.find_sections(page):
-            insets.append(dict(region=reg, section=True, src_scale=2.5, k=cfg.get("sec_k", 0.4), title="ΤΟΜΗ " + name, pad=4))
+            insets.append(dict(region=reg, section=True, src_scale=2.5, k=cfg.get("sec_k", 0.4), title="ΤΟΜΗ " + name, pad=4,
+                               retext=cfg.get("sec_retext", {}).get(name, []), changed=[r[1] for r in cfg.get("sec_retext", {}).get(name, [])]))
     STRIP = cfg.get("strip_w", 0.0)
     def grow(bb_, sc):
         rw = ROW_MM * MM * sc / 50.0          # πλάτος σειράς αλυσίδας σε pt πηγής
@@ -709,7 +950,8 @@ def build(cfg, out_pdf=None, date=None):
     log = draw(sh, D, bb0, FC, sides, datum=datum, inner=inner)
     for d in D["dropped"]: log.append("DROPPED DIM %s %s at (%.0f,%.0f)" % (d["value"], d["dir"], d["tx"], d["ty"]))
     if cfg.get("datum") and not datum: log.append("NO DATUM FOUND")
-    info = dict(scale=scale, layout=layout, bb=bb, K=K, log=log, G=G, T=D["T"], dims=D["dims"], FC=FC, aw=aw, ah=ah, margin=margin, TW=TW, datum=datum, inner=inner)
+    info = dict(scale=scale, layout=layout, bb=bb, K=K, log=log, G=G, T=D["T"], dims=D["dims"], FC=FC, aw=aw, ah=ah, margin=margin, TW=TW, datum=datum, inner=inner,
+                holes=D.get("holes", []), fills=D.get("fills", []))
     title_block(sh, cfg, info, date)
     # ---------------- ένθετα (λεπτομέρειες / τομές / φυτευτά) στον ελεύθερο χώρο της πινακίδας ή σε ρητή θέση
     main_tr = (sh.OX, sh.OY, sh.SX0, sh.SY0, sh.K)
@@ -804,70 +1046,88 @@ def title_block(sh, cfg, info, date=None):
     notes = cfg.get("notes") or []
     rows = levels_table(cfg, info["T"]) if cfg.get("level_table", True) else None
     if info["layout"] == "right":
-        W = x1 - x0 - 2 * pad; x = x0 + pad; y = y0 + 4.2 * MM
-        lab(x, y, "ΕΡΓΟ"); y += 9
-        for ln in ("ΚΩΝΣΤΑΝΤΙΝΟΥΠΟΛΕΩΣ 12 & ΑΓ. ΒΑΡΒΑΡΑΣ", "ΑΡΓΥΡΟΥΠΟΛΗ – ARKAD Ι.Κ.Ε."): sh.otext(x, y, ln, size=6.6, bold=True); y += 8.6
-        y += 2; sh.oline(x0, y, x1, y, 0.4); y += 4.2 * MM
-        lab(x, y, "ΣΧΕΔΙΟ ΕΡΓΟΤΑΞΙΟΥ – ΞΥΛΟΤΥΠΟΣ ΧΩΡΙΣ ΟΠΛΙΣΜΟΥΣ"); y += 13
-        nw = FONT_B.text_length(cfg["number"], fontsize=24)
-        sh.otext(x1 - pad - nw, y + 11, cfg["number"], size=24, bold=True)
-        tsz = 11.5
-        while tsz > 8 and max(FONT_B.text_length(ln, fontsize=tsz) for ln in cfg["title"]) > W - nw - 4: tsz -= 0.5
-        for ln in cfg["title"]: sh.otext(x, y, ln, size=tsz, bold=True); y += 13.5
+        # R01 (Γιάννης 10/11/2026: «μάζεψε τις σημειώσεις και γενικά όλο τον πίνακα δεξιά»): στενή στήλη, μικρά γράμματα, μόνο τα απαραίτητα
+        pad = 1.8 * MM; W = x1 - x0 - 2 * pad; x = x0 + pad; y = y0 + 3.4 * MM; fs = 5.7; lh = 6.7
+        def para(txt, bold=False, size=fs, color=BLACK, indent=0):
+            nonlocal y
+            for ln in _wrap(txt, size, W - indent, bold): sh.otext(x + indent, y, ln, size=size, bold=bold, color=color); y += lh * size / fs
+        def rule():
+            nonlocal y
+            y += 1.0; sh.oline(x0, y, x1, y, 0.4); y += 3.0 * MM
+        para("ΚΩΝΣΤΑΝΤΙΝΟΥΠΟΛΕΩΣ 12 & ΑΓ. ΒΑΡΒΑΡΑΣ, ΑΡΓΥΡΟΥΠΟΛΗ – ARKAD Ι.Κ.Ε.", True, 5.6)
+        para("Ξυλότυπος εργοταξίου – χωρίς οπλισμούς", False, 5.4, GRAY)
+        rule(); y += 9
+        nw = FONT_B.text_length(cfg["number"], fontsize=20)
+        sh.otext(x1 - pad - nw, y + 6, cfg["number"], size=20, bold=True)
+        tsz = 9.0
+        while tsz > 6.5 and max(FONT_B.text_length(ln, fontsize=tsz) for ln in cfg["title"]) > W - nw - 3: tsz -= 0.5
+        y -= 4
+        for ln in cfg["title"]: sh.otext(x, y, ln, size=tsz, bold=True); y += tsz + 1.6
+        y += 3
         if cfg.get("level_txt"):
-            y += 3; lab(x, y, "ΣΤΑΘΜΗ ΑΝΩ ΠΛΑΚΑΣ (ΜΠΕΤΟ)"); y += 15
-            sh.otext(x, y, cfg["level_txt"], size=17, bold=True); y += 5
-        y += 4; sh.oline(x0, y, x1, y, 0.4); y += 4.2 * MM
-        lab(x, y, "ΚΛΙΜΑΚΑ"); y += 15
-        sh.otext(x, y, scale_txt, size=17, bold=True); sh.otext(x + 62, y, "(Α3 – εκτύπωση 100 %)", size=6.4)
-        y += 6; scalebar(x + 1, y, min(5, int((W - 12) / u))); y += 1.6 * MM + 12
-        sh.oline(x0, y, x1, y, 0.4); y += 4.2 * MM
-        lab(x, y, "ΥΠΟΜΝΗΜΑ"); y += 9.5
-        for k, v in legend:
-            sh.otext(x, y, k, size=7.0, bold=True, color=BLUE if k == "μπλε" else BLACK)
-            for i, ln in enumerate(_wrap(v, 6.3, W - 46)): sh.otext(x + 46, y, ln, size=6.3); y += 7.6
-            y += 1.6
-        sh.otext(x, y, "Διαστάσεις σε m.", size=6.3); y += 7.6
-        if info.get("datum"):
-            sh.otext(x, y, "Σ.Σ.", size=7.0, bold=True, color=RED)
-            dn = cfg.get("datum", ("Κ1", "NW"))[0]
-            for ln in _wrap("σταθερό σημείο = ΒΔ γωνία του %s. Οι κόκκινοι αριθμοί στις εξωτερικές αλυσίδες = απόσταση κάθε παρειάς από το Σ.Σ." % dn, 6.3, W - 46): sh.otext(x + 46, y, ln, size=6.3); y += 7.6
-            y += 1.6
-        for ln in _wrap("Οι αλυσίδες παρειών υποστυλωμάτων (εξωτερική σειρά κάθε πλευράς και οι εσωτερικές, γωνία με γωνία) μετρήθηκαν από τη γεωμετρία του σχεδίου· οι υπόλοιπες διαστάσεις είναι του μελετητή.", 6.3, W) if info["FC"] else []:
-            sh.otext(x, y, ln, size=6.3); y += 7.6
-        y += 1; sh.oline(x0, y, x1, y, 0.4); y += 4.2 * MM
+            sh.otext(x, y, "ΣΤΑΘΜΗ ΑΝΩ ΠΛΑΚΑΣ", size=5.0, color=GRAY); y += 10.5
+            lsz = 12.0
+            while lsz > 8 and FONT_B.text_length(cfg["level_txt"], fontsize=lsz) > W: lsz -= 0.5
+            sh.otext(x, y, cfg["level_txt"], size=lsz, bold=True); y += 4
+        y += 7.5
+        sh.otext(x, y, "ΚΛΙΜΑΚΑ " + scale_txt, size=10.5, bold=True); sh.otext(x1 - pad, y, "Α3 · 100 %", size=5.2, align="right", color=GRAY)
+        y += 4; scalebar(x + 1, y, max(1, min(4, int((W - 12) / u)))); y += 1.6 * MM + 9
+        rule()
+        kw = 31.0
+        leg = cfg.get("legend") or [
+            ("Κ1 30/70", "υποστύλωμα / τοιχείο (cm)"),
+            ("Δ1.1 30/40", "δοκός: πλάτος / ύψος (το ύψος μαζί με την πλάκα)"),
+            ("L=3.50", "καθαρό μήκος δοκού, παρειά με παρειά"),
+            ("Π3 h=15", "πλάκα – πάχος (cm)"),
+            ("+0,30", "στάθμη άνω μπετού (m)"),
+            ("μπλε", "τομές επί τόπου / φυτευτά και οι στάθμες τους"),
+        ]
+        for k, v in leg:
+            sh.otext(x, y, k, size=fs, bold=True, color=BLUE if k == "μπλε" else BLACK)
+            for ln in _wrap(v, fs, W - kw): sh.otext(x + kw, y, ln, size=fs); y += lh
+        kinds = set(f["kind"] for f in info.get("fills", []))
+        for kd, v in (("hatch", cfg.get("fill_legend", "γέμισμα (διαγραμμισμένο)")), ("seed", "ΜΠΑΖΩΜΑ («φελιζόλ» του μελετητή) κάτω από πλάκα")):
+            if kd in kinds:
+                sh.orect(x + 1, y - 5, x + kw - 8, y + 0.6, 0.3, fill=FILLC[kd])
+                for ln in _wrap(v, fs, W - kw): sh.otext(x + kw, y, ln, size=fs); y += lh
+        if info.get("holes"):
+            sh.ocircle(x + 5, y - 2.2, 2.6, 0.8, HOLEC, (1, 1, 1)); sh.oline(x + 1, y - 2.2, x + 9, y - 2.2, 0.4, HOLEC); sh.oline(x + 5, y - 6.2, x + 5, y + 1.8, 0.4, HOLEC)
+            for ln in _wrap("οπή (χιτώνιο) αποχέτευσης / υδρορροής", fs, W - kw): sh.otext(x + kw, y, ln, size=fs); y += lh
+        para("Διαστάσεις σε m, από γωνία / παρειά κολόνας σε γωνία κολόνας." + (" Οι αλυσίδες παρειών μετρήθηκαν από τη γεωμετρία του σχεδίου, οι υπόλοιπες είναι του μελετητή." if info["FC"] else ""))
+        rule()
         if rows:
-            lab(x, y, "ΥΨΟΜΕΤΡΑ – ΠΑΤΟΙ ΚΑΛΟΥΠΙΩΝ"); y += 10
-            c2, c3 = x + W * 0.50, x + W * 0.78
             low = cfg.get("level_below")
-            sh.otext(x, y, "στοιχείο", size=6.0, color=GRAY); sh.otext(c2, y, "πάτος", size=6.0, color=GRAY)
-            if low is not None: sh.otext(c3, y, "ύψος*", size=6.0, color=GRAY)
-            y += 2.5; sh.oline(x, y, x1 - pad, y, 0.3); y += 9
+            sh.otext(x, y, "ΠΑΤΟΙ ΚΑΛΟΥΠΙΩΝ", size=5.0, color=GRAY); c2, c3 = x + W * 0.52, x + W * 0.80
+            sh.otext(c2, y, "στάθμη", size=5.0, color=GRAY)
+            if low is not None: sh.otext(c3, y, "ύψος*", size=5.0, color=GRAY)
+            y += 7.6
             for a, b, c in rows:
-                sh.otext(x, y, a, size=7.4); sh.otext(c2, y, b, size=7.8, bold=True)
-                if c: sh.otext(c3, y, c, size=7.8, bold=True)
-                y += 9.6
-            y += 1
-            txt = "Πάτος = στάθμη άνω πλάκας %s μείον το ύψος (υπολογισμένο)." % cfg["level_txt"]
-            if low is not None: txt += " * Ύψος πάτου από την πλάκα του κάτω ορόφου (%s)." % ("%+.2f" % low).replace(".", ",")
-            txt += " Δεν ισχύει για ανεστραμμένες δοκούς και για τα φυτευτά (μπλε στάθμες)."
-            for ln in _wrap(txt, 6.0, W): sh.otext(x, y, ln, size=6.0); y += 7.2
-            y += 1; sh.oline(x0, y, x1, y, 0.4); y += 4.2 * MM
+                sh.otext(x, y, a, size=6.2); sh.otext(c2, y, b, size=6.6, bold=True)
+                if c: sh.otext(c3, y, c, size=6.6, bold=True)
+                y += 7.8
+            para(("* από την πλάκα του κάτω ορόφου (%s). " % ("%+.2f" % low).replace(".", ",") if low is not None else "") + "Υπολογισμένα (στάθμη − ύψος)· όχι για ανεστραμμένες δοκούς / φυτευτά.", size=5.2, color=GRAY)
+            rule()
+        if info.get("holes"):
+            sh.otext(x, y, "ΟΠΕΣ – ΚΕΝΤΡΟ ΑΠΟ ΓΩΝΙΑ ΚΟΛΟΝΑΣ (m)", size=5.0, color=GRAY); y += 7.6
+            for h in info["holes"]:
+                sh.otext(x, y, "%s Ø%d" % (h["name"], h["dia"]), size=6.0, bold=True, color=HOLEC)
+                wn = FONT_B.text_length("%s Ø%d" % (h["name"], h["dia"]), fontsize=6.0)
+                dl = _wrap(h["desc"], 5.2, W - wn - 4)
+                if dl: sh.otext(x + wn + 4, y, dl[0], size=5.2, color=GRAY)
+                y += 6.6
+                sh.otext(x + 3, y, hole_ref_text(h), size=5.6); y += 7.4
+            para(cfg.get("holes_note", "Θέσεις κατά το τεύχος αποχετεύσεων R12 (27/10/2026) – ΕΠΙΒΕΒΑΙΩΣΗ ΠΡΙΝ ΤΟ ΜΠΕΤΟ. Καμία οπή σε δοκό."), True, 5.3, HOLEC)
+            rule()
         if notes:
-            lab(x, y, "ΣΗΜΕΙΩΣΕΙΣ"); y += 9.5
-            for n in notes:
-                for ln in _wrap(n, 6.3, W): sh.otext(x, y, ln, size=6.3); y += 7.6
-                y += 2
-            sh.oline(x0, y, x1, y, 0.4); y += 4.2 * MM
+            sh.otext(x, y, "ΣΗΜΕΙΩΣΕΙΣ", size=5.0, color=GRAY); y += 7.6
+            for n in notes: para("· " + n, size=5.5); y += 0.8
+            rule()
         info["title_y_free"] = y
-        # κάτω: βάση + ημερομηνία
-        yb = y1 - 21 * MM
-        sh.oline(x0, yb, x1, yb, 0.4); yy = yb + 4.2 * MM
-        lab(x, yy, "ΒΑΣΗ"); yy += 9
-        for ln in _wrap(cfg["base"], 6.3, W): sh.otext(x, yy, ln, size=6.3); yy += 7.6
-        for ln in _wrap("Οι οπλισμοί ΜΟΝΟ από το σχέδιο του μελετητή.", 6.3, W, True): sh.otext(x, yy, ln, size=6.3, bold=True); yy += 7.6
-        sh.otext(x, y1 - 2.2 * MM, "Έκδοση %s – %s" % (cfg.get("rev", "R00"), date), size=6.6, bold=True)
-        info["title_rect"] = (x0, y0, x1, y1); info["free"] = (x0, y, x1, yb)
+        yb = y1 - 13.5 * MM
+        sh.oline(x0, yb, x1, yb, 0.4); y = yb + 3.2 * MM
+        para("Βάση: " + cfg["base"], size=5.2); para("Οπλισμοί ΜΟΝΟ από το σχέδιο του μελετητή.", True, 5.2)
+        sh.otext(x, y1 - 1.8 * MM, "Έκδοση %s – %s" % (cfg.get("rev", "R00"), date), size=6.0, bold=True)
+        info["title_rect"] = (x0, y0, x1, y1); info["free"] = (x0, info["title_y_free"], x1, yb)
     else:
         cols = [x0, x0 + 78 * MM, x0 + 190 * MM, x0 + 290 * MM, x1]
         for cx in cols[1:-1]: sh.oline(cx, y0, cx, y1, 0.4)

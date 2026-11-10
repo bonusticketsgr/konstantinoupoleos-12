@@ -100,7 +100,7 @@ def extract_geometry(page, region, keep=(), stairs=(), diag_min=50, x57_min=100,
     for idx, (p, q, bl) in enumerate(segs85):
         if abs(p.y - q.y) < 0.05: groups[('H', round(p.y, 1))].append((min(p.x, q.x), max(p.x, q.x), idx))
         elif abs(p.x - q.x) < 0.05: groups[('V', round(p.x, 1))].append((min(p.y, q.y), max(p.y, q.y), idx))
-    drop85 = set(); dashed85 = set()
+    drop85 = set(); dashed85 = set(); short_runs = []
     for k, ivs in groups.items():
         ivs.sort(); runs = []; cur = [ivs[0]]
         for iv in ivs[1:]:
@@ -112,6 +112,7 @@ def extract_geometry(page, region, keep=(), stairs=(), diag_min=50, x57_min=100,
                 med = statistics.median([b - a_ for a_, b, i in run])
                 if med < 3.5:
                     for a_, b, i in run: drop85.add(i)
+                    short_runs.append((k[0], k[1], run[0][0], run[-1][1]))
                 elif med < 10:
                     for a_, b, i in run: dashed85.add(i)
     for idx, (p, q, bl) in enumerate(segs85):
@@ -202,6 +203,19 @@ def extract_geometry(page, region, keep=(), stairs=(), diag_min=50, x57_min=100,
             r = d["rect"]
             if 22 < max(r.width, r.height) < 28 and pin(pymupdf.Point((r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2)):
                 out["circles"].append(dict(cx=round((r.x0 + r.x1) / 2, 2), cy=round((r.y0 + r.y1) / 2, 2), r=round(r.width / 2, 2)))
+
+    # ---------- περιγράμματα κρυφών τοιχίων (π.χ. τοιχία που κλείνουν το «φελιζόλ» / μπάζωμα στον Σ2): έχουν την ίδια κοντή παύλα 0.85 με
+    # τον οπλισμό πλάκας, αλλά πάνω τους ΤΕΛΕΙΩΝΟΥΝ οι γραμμές διαγράμμισης 45° → κρατιούνται ως ενιαία διακεκομμένη γραμμή (band=True)
+    hpts = []
+    for l in out["lines"]:
+        if l.get("hatch"): hpts += [(l["x0"], l["y0"]), (l["x1"], l["y1"])]
+    for tag, kc, a_, b_ in short_runs:
+        if b_ - a_ < 10: continue
+        if tag == 'H': n = sum(1 for px, py in hpts if abs(py - kc) < 0.7 and a_ - 1 <= px <= b_ + 1)
+        else: n = sum(1 for px, py in hpts if abs(px - kc) < 0.7 and a_ - 1 <= py <= b_ + 1)
+        if n >= max(3, (b_ - a_) / 12.0):
+            if tag == 'H': out["lines"].append(dict(w=0.85, blue=False, x0=round(a_, 2), y0=kc, x1=round(b_, 2), y1=kc, dashed=True, band=True))
+            else: out["lines"].append(dict(w=0.85, blue=False, x0=kc, y0=round(a_, 2), x1=kc, y1=round(b_, 2), dashed=True, band=True))
 
     # ---------- 1.13 : ίχνη τομών (αξονική γραμμή + βέλη)
     if sections:
