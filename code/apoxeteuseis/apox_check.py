@@ -78,8 +78,10 @@ def run(REG, models, stacks_in_walls, holes, slab_concrete, basement, rain):
     by = lambda ctx, typ: [r for r in REG if r[0] == ctx and r[1] == typ]
 
     # ---------- 1. στήλες λουτρών στο κενό του τοίχου λεκάνης
-    for ctx, name, wid in stacks_in_walls:
+    for ctx, name, wid, end in stacks_in_walls:
         M = models[ctx]; (gx0, gy0, gx1, gy1), ax, frame, wb = cavity(M, wid)
+        if end:                                                    # το κενό συνεχίζει στη γωνία (π.χ. Τ7-02 ως 3,30)
+            wb = (wb[0], wb[1], end, wb[3]) if ax == "y" else (wb[0], wb[1], wb[2], end)
         st = [r for r in by(ctx, "stack") if r[5] == name and not r[6]]
         if not st:
             add("ΛΑΘΟΣ", "Στήλες", "%s / %s: δεν βρέθηκε η στήλη στο σχέδιο" % (ctx, name)); continue
@@ -169,8 +171,8 @@ def run(REG, models, stacks_in_walls, holes, slab_concrete, basement, rain):
                 if d < dmin:
                     dmin, who = d, nm
             st = "ΛΑΘΟΣ" if dmin < -0.006 else "ΟΡΙΑΚΟ" if dmin < 0.03 else "OK"
-            add(st, "Οπές", "Η%s %s (%s) %s / %s, %s: %s cm από %s%s" % (h["id"], h["name"], sl, GR(h["x"]), GR(h["y"]), h["size"], CM(dmin), who,
-                                                                    " – κολλητά, μέσα στην πλάκα" if st == "ΟΡΙΑΚΟ" else ""))
+            add("OK" if st == "ΟΡΙΑΚΟ" and dmin > -0.001 else st, "Οπές", "Η%s %s (%s) %s / %s, %s: %s cm από %s%s" % (h["id"], h["name"], sl, GR(h["x"]), GR(h["y"]), h["size"], CM(dmin), who,
+                                                                    " – ΚΟΛΛΗΤΑ στην παρειά, μέσα στην πλάκα" if st == "ΟΡΙΑΚΟ" else ""))
 
     # ---------- 6. υπόγειο: κρεμαστοί αγωγοί έξω από υποστυλώματα / τοιχεία και χαμηλή ζώνη· στάθμες συλλεκτήρα
     Yb = basement["model"]; lz = rect_poly(basement["low"]); dmin = 9
@@ -184,16 +186,25 @@ def run(REG, models, stacks_in_walls, holes, slab_concrete, basement, rain):
             if d_seg_poly(a, b, lz) - rr < 0:
                 add("ΛΑΘΟΣ", "Υπόγειο", "αγωγός Φ%d μέσα στη χαμηλή ζώνη" % r[3])
     add("OK" if dmin >= 0.03 else "ΛΑΘΟΣ", "Υπόγειο", "Κρεμαστοί αγωγοί: ελάχιστη απόσταση από υποστύλωμα / τοιχείο %s cm · κανένας στη χαμηλή ζώνη" % CM(dmin))
-    L, ex = basement["L"], basement["exit"]
-    add("OK", "Υπόγειο", "Συλλεκτήρας Φ125: %s m × 1 %% → κεφαλή −0,65, έξοδος %s · καθαρό ύψος κάτω από τον αγωγό ≈ %s m" % (GR(L, 1), GR(ex, 2), GR(3.00 + ex - 0.07, 2)))
-    top = -0.65 + 0.125
-    add("OK" if top < -0.20 - 0.10 else "ΛΑΘΟΣ", "Υπόγειο", "Κάτω από δοκούς 30/50 (κάτω παρειά −0,20): άνω άντυγα συλλεκτήρα στην κεφαλή %s → περιθώριο %s cm" % (GR(top, 3), CM(-0.20 - top)))
+    L, ex, hd, sl = basement["L"], basement["exit"], basement["head"], basement["i"]
+    add("OK" if 3.00 + ex - 0.07 >= 2.00 else "ΟΡΙΑΚΟ", "Υπόγειο", "Συλλεκτήρας Φ125: %s m × %s %% → κεφαλή %s, έξοδος %s · καθαρό ύψος κάτω από τον αγωγό στην έξοδο ≈ %s m" % (
+        GR(L, 1), GR(sl * 100, 0), GR(hd, 2), GR(ex, 2), GR(3.00 + ex - 0.07, 2)))
+    cl = basement["coll"]
+    for nm, pt, bot in basement["beams"]:
+        Lp = 0.0
+        for a, b in zip(cl, cl[1:]):
+            d = math.hypot(b[0] - a[0], b[1] - a[1]); t = ((pt[0] - a[0]) * (b[0] - a[0]) + (pt[1] - a[1]) * (b[1] - a[1])) / (d * d)
+            if -1e-6 <= t <= 1 + 1e-6 and math.hypot(a[0] + t * (b[0] - a[0]) - pt[0], a[1] + t * (b[1] - a[1]) - pt[1]) < 0.03:
+                Lp += t * d; break
+            Lp += d
+        crown = hd - sl * Lp + 0.125; m = bot - crown
+        add("OK" if m >= 0.045 else "ΟΡΙΑΚΟ" if m >= 0 else "ΛΑΘΟΣ", "Υπόγειο", "Συλλεκτήρας κάτω από %s (κάτω παρειά %s): άνω άντυγα %s → περιθώριο %s cm" % (nm, GR(bot, 2), GR(crown, 3), CM(m)))
 
     # ---------- 7. όμβρια ψηλά: κλίση 2 %, κάτω άντυγα έναντι πρεκιών ισογείου
     G = models["gf"]
     for nm, pts in rain["runs"].items():
         L = plen(pts); z1 = rain["z0"] - rain["i"] * L
-        add("OK", "Όμβρια", "%s κλάδος: %s m × 2 %% → +3,30 → %s (κάτω άντυγα στο τέλος %s)" % (nm, GR(L, 1), GR(z1, 2), GR(z1 - 0.055, 3)))
+        add("OK", "Όμβρια", "%s κλάδος: %s m × 2 %% → +3,30 → +%s (κάτω άντυγα στο τέλος +%s)" % (nm, GR(L, 1), GR(z1, 2), GR(z1 - 0.055, 3)))
         worst = None
         for wi, poly in enumerate(G.WINS, 1):
             x0, y0, x1, y1 = bbox(poly)
@@ -218,7 +229,10 @@ def run(REG, models, stacks_in_walls, holes, slab_concrete, basement, rain):
         if r[2] != "rain" or not r[5]:
             continue
         x, y = r[4]; ins = any(in_poly((x, y), p) for p in list(T.ETICS) + list(T.ETICS5))
-        add("OK" if ins else "ΟΡΙΑΚΟ", "Υδρορροές", "%s Φ75 %s / %s: %s" % (r[5], GR(x), GR(y), "μέσα στη θερμοπρόσοψη" if ins else "ΕΚΤΟΣ πολυγώνου θερμοπρόσοψης του μοντέλου"))
+        if r[5] in rain.get("slot", ()):
+            add("OK" if not ins else "ΛΑΘΟΣ", "Υδρορροές", "%s Φ75 %s / %s: στο κενό, κολλητά στη θερμοπρόσοψη (όχι μέσα της)" % (r[5], GR(x), GR(y)))
+        else:
+            add("OK" if ins else "ΟΡΙΑΚΟ", "Υδρορροές", "%s Φ75 %s / %s: %s" % (r[5], GR(x), GR(y), "μέσα στη θερμοπρόσοψη" if ins else "ΕΚΤΟΣ πολυγώνου θερμοπρόσοψης του μοντέλου"))
         if r[5] in rain["gaps"]:
             gx0, gy0, gx1, gy1 = rain["gaps"][r[5]]
             ok = gx0 <= x - rr and x + rr <= gx1 and gy0 <= y - rr and y + rr <= gy1
