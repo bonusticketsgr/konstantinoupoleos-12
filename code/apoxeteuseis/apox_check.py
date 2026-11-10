@@ -155,24 +155,26 @@ def run(REG, models, stacks_in_walls, holes, slab_concrete, basement, rain):
                 add("ΛΑΘΟΣ", "Συνδέσεις", "%s: ο αγωγός Φ%d που τελειώνει στο %s / %s δεν καταλήγει πουθενά" % (ctx, r[3], GR(e[0]), GR(e[1])))
         add("OK", "Συνδέσεις", "%s: %d αγωγοί, όλοι καταλήγουν σε στήλη / πτώση / πατοσίφωνο / αγωγό" % (ctx, n_ok))
 
-    # ---------- 5. οπές πλακών: απόσταση από υποστυλώματα και δοκούς της ίδιας πλάκας
+    # ---------- 5. οπές πλακών: κουτί 20×20 (box) έξω από υποστυλώματα / δοκούς της ίδιας πλάκας, ο σωλήνας ολόκληρος μέσα στο κουτί
     for h in holes:
+        x0, y0, x1, y1 = h["box"]; rr = h["od"] / 2
+        mg = min(h["x"] - rr - x0, x1 - h["x"] - rr, h["y"] - rr - y0, y1 - h["y"] - rr)
+        add("OK" if mg >= 0.010 else "ΛΑΘΟΣ", "Οπές", "Η%s %s %s: ο σωλήνας μέσα στο κουτί 20×20 με περιθώριο %s cm" % (h["id"], h["name"], h["pipe"], CM(mg)))
         for sl in h["slabs"]:
             if sl not in slab_concrete:
                 continue
-            cols, beams = slab_concrete[sl]; c = (h["x"], h["y"]); rr = h["d"] / 2
-            dmin, who = 9, ""
-            for i, poly in enumerate(cols):
-                d = d_pt_poly(c, poly) - rr
-                if d < dmin:
-                    dmin, who = d, "υποστύλωμα"
-            for nm, rc in beams.items():
-                d = d_pt_poly(c, rect_poly(rc)) - rr
-                if d < dmin:
-                    dmin, who = d, nm
-            st = "ΛΑΘΟΣ" if dmin < -0.006 else "ΟΡΙΑΚΟ" if dmin < 0.03 else "OK"
-            add("OK" if st == "ΟΡΙΑΚΟ" and dmin > -0.001 else st, "Οπές", "Η%s %s (%s) %s / %s, %s: %s cm από %s%s" % (h["id"], h["name"], sl, GR(h["x"]), GR(h["y"]), h["size"], CM(dmin), who,
-                                                                    " – ΚΟΛΛΗΤΑ στην παρειά, μέσα στην πλάκα" if st == "ΟΡΙΑΚΟ" else ""))
+            cols, beams = slab_concrete[sl]; worst, who = 9, ""
+            for nm, rc in [("υποστύλωμα", bbox(p)) for p in cols if len(p) == 4] + list(beams.items()):
+                ox = min(x1, rc[2]) - max(x0, rc[0]); oy = min(y1, rc[3]) - max(y0, rc[1])
+                gap = -min(ox, oy) if (ox > 0 and oy > 0) else max(-ox, -oy, 0.0) if (ox <= 0 or oy <= 0) else 0.0
+                if ox > 1e-6 and oy > 1e-6:
+                    gap = -min(ox, oy)
+                else:
+                    gap = math.hypot(max(-ox, 0.0), max(-oy, 0.0))
+                if gap < worst:
+                    worst, who = gap, nm
+            add("ΛΑΘΟΣ" if worst < -0.004 else "OK", "Οπές", "Η%s %s (%s) κουτί %s–%s / %s–%s: %s" % (h["id"], h["name"], sl, GR(x0, 2), GR(x1, 2), GR(y0, 2), GR(y1, 2),
+                ("ΚΟΛΛΗΤΑ στην παρειά (%s), δεν την κόβει" % who) if worst < 0.004 else "%s cm από %s" % (CM(worst), who)))
 
     # ---------- 6. υπόγειο: κρεμαστοί αγωγοί έξω από υποστυλώματα / τοιχεία και χαμηλή ζώνη· στάθμες συλλεκτήρα
     Yb = basement["model"]; lz = rect_poly(basement["low"]); dmin = 9

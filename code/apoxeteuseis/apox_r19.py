@@ -1,16 +1,17 @@
-"""ΑΠΟΧΕΤΕΥΣΕΙΣ & ΥΔΡΟΡΡΟΕΣ R18 (10/11/2026) = R17 + σχόλια Γιάννη στο R17:
-«και η ΑΠ3 πάει ο αερισμός της μέσα από το γέμισμα · φτιάξε την ΑΠ3 να είναι σωστή, όχι οριακή · η ΥΔ3 να κατεβαίνει από τον τοίχο
-του σαλονιού · βάλε την ΑΠ2 να μην πέφτει σε δοκό · θέλω δύο νέες υδρορροές ξεχωριστές στη στέγη · θέλω 2 % στις αποχετεύσεις στο
-υπόγειο · βγάλε μου τις σημειώσεις και δείξε μου τις τρύπες που κρατάω σε ένα σχέδιο (κάνε check σε όλες τις διαστάσεις)».
-Χρήση: python3 apox_r18.py [out.pdf]  (τυπώνει και τον έλεγχο διαστάσεων apox_check.py – πρέπει 0 ΛΑΘΟΣ)"""
+"""ΑΠΟΧΕΤΕΥΣΕΙΣ & ΥΔΡΟΡΡΟΕΣ R19 (10/11/2026) = R18 + απαντήσεις Γιάννη:
+«Α» (κεντρική κάθοδος ομβρίων στη γωνία Κ10 / τοίχου σαλονιού) · «θέλω φύλλα με τρύπες για όλους τους ορόφους · στα στηθαία δεν θα
+κρατήσω τρύπες, μόνο στις πλάκες για αποχετεύσεις και υδρορροές» · «οι τρύπες που θα κρατάω θα είναι 20 × 20».
+Νέα: έξοδος ομβρίων προς την Αγ. Βαρβάρας μέσα στο γέμισμα της δυτικής βεράντας (Σ2: πλάκα ±0,00, γέμισμα ως +0,30) + τομή ΑΠ-10 ·
+φύλλα οπών ΑΠ-11 … ΑΠ-17, ένα ανά πλάκα (Σ2 … Σ8), πάνω στον ξυλότυπο κάθε πλάκας (data/xyl_S*.png από make_xyl_underlays.py).
+Χρήση: python3 apox_r19.py [out.pdf]  (τυπώνει και τον έλεγχο διαστάσεων apox_check.py – πρέπει 0 ΛΑΘΟΣ)"""
 import sys, os, math
 import apox_pro as P
 from apox_pro import (B, G, S, F, Y, new_canvas, PAGE_W, PAGE_H, INK, MUTE, FAINT, SOIL, WASTE, VENT, RAIN, MAIN, WARN,
                       view, base, pipe, stack, drop, trap, linear, chase, vent, downpipe, gully, beam, key, call, tag, level,
                       begin_plan, end_plan, view_title, scale_bar, legend, notes, finish, viewport, mm_scale, ptext, pill, wrap, SW, dim)
-REV, DATE = "R18", "10/11/2026"
+REV, DATE = "R19", "10/11/2026"
 P.REV, P.DATE = REV, DATE
-P.SUB1 = "R18 · λύματα · ακάθαρτα · αερισμοί · όμβρια · οπές πλακών"
+P.SUB1 = "R19 · λύματα · ακάθαρτα · αερισμοί · όμβρια · οπές πλακών"
 OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..",
     "ΚΩΝΣΤΑΝΤΙΝΟΥΠΟΛΕΩΣ_12_ΑΡΓΥΡΟΥΠΟΛΗ", "ΑΠΟΧΕΤΕΥΣΕΙΣ_ΥΔΡΟΡΡΟΕΣ", "ΑΠΟΧΕΤΕΥΣΕΙΣ_ΥΔΡΟΡΡΟΕΣ_ΤΕΥΧΟΣ_%s.pdf" % REV)
 C = P.C = new_canvas(OUT, "Αποχετεύσεις & υδρορροές %s – Κωνσταντινουπόλεως 12, Αργυρούπολη" % REV)
@@ -39,6 +40,8 @@ ROOF_G = {"ΥΔ6": (6.90, 0.98), "ΥΔ7": (9.20, 0.98)}   # σιφώνια στ�
 #   ΥΔ6 / ΥΔ7: ΝΕΕΣ, μόνο για τη στέγη – βόρεια όψη, μέσα στη θερμοπρόσοψη, χωρίς καμία πλάκα ως το ισόγειο
 RD_OFF = {"ΥΔ1": ((12, -4), "l"), "ΥΔ2": ((10, 16), "l"), "ΥΔ3": ((-12, 12), "r"), "ΥΔ4": ((-10, -8), "r"), "ΥΔ5": ((8, 13), "l"),
           "ΥΔ6": ((-6, -14), "r"), "ΥΔ7": ((-6, -14), "r")}
+BURY = [(1.21, 5.33), (0.94, 5.60), (-5.20, 5.60)]   # R19: οριζόντιος Φ125 ΜΕΣΑ ΣΤΟ ΓΕΜΙΣΜΑ της δυτικής βεράντας → περίφραξη Αγ. Βαρβάρας
+BURY0, I_BURY = 0.145, 0.02            # άντυγα στο πόδι της καθόδου (ράχη +0,27 = 3 cm κάτω από το γέμισμα +0,30) · κλίση 2 %
 KATH = (1.21, 5.33)                    # κεντρική κάθοδος ομβρίων Φ110: κούτελο στη γωνία Κ10 / τοίχου σαλονιού, ακριβώς κάτω από την ΥΔ3 (R17: 1,21 / 9,30)
 
 # ---- συλλεκτήρας λυμάτων υπογείου (i = 1 %) και συλλεκτήρας ομβρίων ψηλά (i = 2 %)
@@ -75,6 +78,12 @@ def lv_rain(pts, pt=None):
 
 L_COLL = run_len(COLL)
 EXIT = lv_coll()
+
+
+def lv_bury(x):
+    """Άντυγα του Φ125 του γεμίσματος στη θέση x (m) – από το πόδι της καθόδου προς δυσμάς."""
+    L = math.hypot(BURY[1][0] - BURY[0][0], BURY[1][1] - BURY[0][1]) + (BURY[1][0] - x)
+    return BURY0 - I_BURY * L
 
 
 def rain_pipes(v, subs=None, skip=()):
@@ -137,7 +146,9 @@ def gf(v):
         pipe(v, [RD[k], (RD[k][0], 0.32)], "rain", 75, arrow=False, halo=False, where="high")
     pipe(v, [RD["ΥΔ5"], (2.20, 9.62)], "rain", 75, arrow=False, halo=False, where="high")
     pipe(v, [RD["ΥΔ4"], (0.75, 0.32)], "rain", 75, arrow=False, halo=False, where="high")
-    pipe(v, [KATH, (0.95, 5.59), (0.95, 13.9)], "rain", 125, lab="Φ125 θαμμένος → ρείθρο Κωνσταντινουπόλεως", seg=1, ov=True, side=1, lpos=0.72, where="bury")
+    pipe(v, BURY, "rain", 125, lab="Φ125 · 2 % · στο γέμισμα → ρείθρο Αγ. Βαρβάρας (ΑΠ-10)", seg=1, ov=True, side=1, lpos=0.42, where="bury")
+    for bx, an_, off_ in [(BURY[1][0], "l", (4, 12)), (-2.10, "c", (0, 12)), (-4.90, "l", (4, 12))]:
+        level(v, bx, BURY[1][1], gr(lv_bury(bx)), color=RAIN, off=off_, anchor=an_)
     for pts, pt, off, an in [(RAIN_N, RD["ΥΔ1"], (-8, 12), "r"), (RAIN_N, (10.12, 0.32), (12, 2), "l"), (RAIN_N, (0.75, 0.32), (10, -10), "l"),
                              (RAIN_N, KATH, (-12, -10), "r"), (RAIN_S, KATH, (10, 12), "l"), (RAIN_S, (1.21, 9.62), (-9, 10), "r"), (RAIN_S, (9.30, 9.62), (-4, 11), "r"),
                              (RAIN_S, (2.20, 9.62), (0, 11), "l")]:
@@ -253,10 +264,10 @@ def typ(v, M, sink, d4=False):
     key(v, 2.20, 9.78, 7, (-16, 6)); key(v, 9.30, 9.70, 8, (16, 20)); key(v, 0.72, 5.30, 8, (-18, 14))
     if CUR == "5":
         call(v, 9.30, 9.62, (20, 44), ["ΥΔ2 Φ75 στο ΚΕΝΟ 35 cm", "θερμοπρόσοψη Κ8 – καμία οπή"])
-        call(v, 9.05, 9.78, (-10, 50), ["Σιφώνι εξώστη → χιτώνιο Ø63", "στη βάση του στηθαίου"], "r")
+        call(v, 9.05, 9.78, (-10, 50), ["Σιφώνι εξώστη → διάτρηση Ø63", "στη βάση του στηθαίου (μετά)"], "r")
     if CUR == "4":
         call(v, 1.21, 5.30, (-40, -36), ["ΥΔ3 Φ75 στο ΚΕΝΟ 25 cm", "κολλητά στον τοίχο του σαλονιού"], "r")
-        call(v, 1.05, 5.60, (-36, 34), ["Σιφώνι εξώστη → χιτώνιο Ø63", "στη βάση του στηθαίου"], "r")
+        call(v, 1.05, 5.60, (-36, 34), ["Σιφώνι εξώστη → διάτρηση Ø63", "στη βάση του στηθαίου (μετά)"], "r")
 
 
 # ====================================================================== ΣΟΦΙΤΑ
@@ -367,7 +378,7 @@ plan_sheet(gf, OX, OY, S60, 60, "ΚΑΤΟΨΗ ΙΣΟΓΕΙΟΥ – ΑΠΟΧΕΤ�
 y = legend(["soil", "waste", "offs", "rainhi", "rain", "stack", "pass", "drop", "trap", "lin", "chase", "dp", "beam"])
 notes("ΣΗΜΕΙΩΣΕΙΣ", GF_NOTES, y)
 finish("ΑΠ-02", "ΙΣΟΓΕΙΟ – ΑΠΟΧΕΤΕΥΣΗ & ΟΜΒΡΙΑ", "ΑΠ1 / ΑΠ3 στο κενό του Τ7-01 · κούτελα WC / ΑΠ4 · όμβρια 2 % · λεπτομέρειες στο ΑΠ-06",
-       "Σ2 / Σ3 εφαρμογής · τοιχοποιίες ισογείου R13", "Κλίμακα 1:60 · A3")
+       "Σ2 / Σ3 εφαρμογής · τοιχοποιίες ισογείου %s" % G.REV, "Κλίμακα 1:60 · A3")
 
 # ---- ΑΠ-03 / ΑΠ-04
 TYP_NOTES = [
@@ -425,7 +436,7 @@ def detail_sheet(sheet, ttl, sub, base_txt, scale, title, leg, extra_title=None,
 viewport(gf, (2.80, 0.45, 6.25, 4.55), 40, 62, 25, "ΛΟΥΤΡΟ ΙΣΟΓΕΙΟΥ → ΑΠ1 · ΑΠ3 ΣΤΟ ΚΕΝΟ ΤΟΥ Τ7-01", "1")
 viewport(gf, (7.60, 4.90, 9.95, 8.50), 448, 62, 25, "WC + ΚΟΥΖΙΝΑ – ΚΟΥΤΕΛΟ", "2")
 viewport(gf, (11.55, 8.40, 13.55, 10.15), 730, 62, 25, "ΑΠ4 ΣΤΗΝ Κ7", "3")
-detail_sheet("ΑΠ-06", "ΙΣΟΓΕΙΟ – ΛΕΠΤΟΜΕΡΕΙΕΣ ΥΓΡΩΝ ΧΩΡΩΝ", "Λουτρό · WC / κουζίνα · ΑΠ4 στην Κ7", "ΑΠ-02 · τοιχοποιίες ισογείου R13",
+detail_sheet("ΑΠ-06", "ΙΣΟΓΕΙΟ – ΛΕΠΤΟΜΕΡΕΙΕΣ ΥΓΡΩΝ ΧΩΡΩΝ", "Λουτρό · WC / κουζίνα · ΑΠ4 στην Κ7", "ΑΠ-02 · τοιχοποιίες ισογείου %s" % G.REV,
              "Κλίμακα 1:25", "ΙΣΟΓΕΙΟ – ΛΕΠΤΟΜΕΡΕΙΕΣ ΥΓΡΩΝ ΧΩΡΩΝ", ["soil", "waste", "offs", "stack", "pass", "drop", "trap", "lin", "chase", "beam"])
 
 # ---- ΑΠ-07 τυπικός / Δ΄
@@ -435,7 +446,7 @@ for CUR, box_, px_, py_, ttl_ in [("1", (-0.10, 2.80, 4.40, 5.12), 40, 62, "ΛΟ
                                   ("4", (-0.45, 4.80, 2.35, 6.12), 545, 380, "ΥΔ3 ΣΤΟ ΚΕΝΟ 25 cm – ΣΤΟΝ ΤΟΙΧΟ ΤΟΥ ΣΑΛΟΝΙΟΥ"), ("5", (7.70, 9.05, 10.58, 10.45), 545, 560, "ΥΔ2 ΣΤΟ ΚΕΝΟ 35 cm (Κ8)")]:
     viewport(tb, box_, px_, py_, 25, ttl_, CUR)
 CUR = None
-detail_sheet("ΑΠ-07", "Α΄·Β΄·Γ΄·Δ΄ – ΛΕΠΤΟΜΕΡΕΙΕΣ ΥΓΡΩΝ ΧΩΡΩΝ", "Λουτρό γονέων · λουτρό · κουζίνα · υδρορροές στα κενά (ίδια και στον Δ΄)", "ΑΠ-03 / ΑΠ-04 · τοιχοποιίες τυπικού R25",
+detail_sheet("ΑΠ-07", "Α΄·Β΄·Γ΄·Δ΄ – ΛΕΠΤΟΜΕΡΕΙΕΣ ΥΓΡΩΝ ΧΩΡΩΝ", "Λουτρό γονέων · λουτρό · κουζίνα · υδρορροές στα κενά (ίδια και στον Δ΄)", "ΑΠ-03 / ΑΠ-04 · τοιχοποιίες τυπικού %s" % B.REV,
              "Κλίμακα 1:25", "Α΄ · Β΄ · Γ΄ · Δ΄ ΟΡΟΦΟΣ – ΛΕΠΤΟΜΕΡΕΙΕΣ ΥΓΡΩΝ ΧΩΡΩΝ", ["soil", "waste", "stack", "pass", "trap", "lin", "dp", "gully", "beam"])
 
 # ---- ΑΠ-08 σοφίτα
@@ -580,7 +591,7 @@ def riser():
     ptext(x - 22, fy(4) + 28, "σιφώνια εξωστών / δωμάτων", 5.0, "Inter", RAIN, "r"); ptext(x - 22, fy(3) + 28, "ΥΔ2 / ΥΔ3 στα κενά – καμία οπή", 5.0, "Inter", RAIN, "r")
     ptext(x + 5, yh - 8, "+3,30 → %s · Φ110 · 2 %%" % gr(lv_rain(RAIN_N)), 5.2, "Inter-SemiBold", RAIN, "c")
     ptext(x + 36, fy(1) + 40, "κάθοδος", 5.2, "Inter-SemiBold", RAIN, "l"); ptext(x + 36, fy(1) + 33, "Φ110 · Κ10", 5.2, "Inter", RAIN, "l")
-    ptext(X1 - 2, fy(1) - 21, "Φ125 → ρείθρο", 5.4, "Inter-SemiBold", RAIN, "r")
+    ptext(X1 - 2, fy(1) - 21, "Φ125 → ρείθρο Αγ. Βαρβάρας", 5.4, "Inter-SemiBold", RAIN, "r")
 
 
 riser()
@@ -601,47 +612,166 @@ notes("ΣΗΜΕΙΩΣΕΙΣ", [
 finish("ΑΠ-09", "ΚΑΤΑΚΟΡΥΦΟ ΔΙΑΓΡΑΜΜΑ", "Στήλες ΑΠ1–ΑΠ4 · αερισμοί · συλλεκτήρας · όμβρια", "ΑΠ-01 … ΑΠ-05", "Χωρίς κλίμακα · A3")
 
 
-# ====================================================================== ΑΠ-10 ΟΠΕΣ ΠΛΑΚΩΝ – ΕΝΑ ΣΧΕΔΙΟ
-#  Κάθε οπή: θέση (m μοντέλου) + παρειές σκυροδέματος αναφοράς. Οι διαστάσεις του σχεδίου ΥΠΟΛΟΓΙΖΟΝΤΑΙ από αυτά (όχι με το χέρι)
-#  και το apox_check.py ελέγχει την απόσταση κάθε οπής από υποστυλώματα / δοκούς / Ε.Ζ. της πλάκας της.
-S37, S36 = ["Σ3", "Σ4", "Σ5", "Σ6", "Σ7"], ["Σ3", "Σ4", "Σ5", "Σ6"]
+# ====================================================================== ΑΠ-10 ΟΜΒΡΙΑ ΙΣΟΓΕΙΟΥ – ΚΑΘΟΔΟΣ Κ10 → ΑΓ. ΒΑΡΒΑΡΑΣ (κάτοψη + τομή)
+#  Σ2_ΕΦ: κάτω από τη δυτική βεράντα πλάκα Π16 h20 στο ±0,00 και «γέμισμα μέχρι τη στ. +0,30»· Α-30-ΑΑ: δάπεδο βεράντας +0,40,
+#  φυτεμένο ως +0,30, περίφραξη 0,61 + 1,25· Α-40 (δυτική όψη): πεζοδρόμιο Αγ. Βαρβάρας από +0,40 (σημείο Ε, y −1,39) ως −0,11
+#  (σημείο Β, y 15,45) → στο y 5,60 ≈ +0,19 (γραμμική παρεμβολή – ΝΑ ΧΩΡΟΣΤΑΘΜΗΘΕΙ επί τόπου πριν χυθεί η περίφραξη).
+PAVE = round(0.40 - 0.51 * (BURY[1][1] + 1.39) / 16.84, 2)
+SLAB0, FILL0, VER0 = 0.00, 0.30, 0.40
+cmf = lambda z: ("%.1f" % (z * 100)).replace(".", ",").replace("-", "−")
+m2 = lambda z: ("%.2f" % z).replace(".", ",")
+
+
+def gf_west(v):
+    base(v, G, site=True)
+    pipe(v, RAIN_N[-3:], "rain", 110, dash=[5, 2], arrow=False, where="high")
+    pipe(v, [(1.21, 6.6), KATH], "rain", 110, dash=[5, 2], arrow=False, where="high")
+    chase(v, 1.10, 5.25, 1.30, 5.45)
+    v.rect(-5.20, 4.0, -4.90, 7.5, fill=P.COLF, stroke=INK, lw=0.5)
+    pipe(v, BURY[:2] + [(-5.75, 5.60)], "rain", 125, lab="Φ125 · 2 %% · %s m στο γέμισμα" % m2(run_len(BURY[:2]) + BURY[1][0] + 4.90), seg=1, side=1, lpos=0.62, where="bury")
+    stack(v, *KATH, "ΚΑΘΟΔΟΣ", 110, "rain", off=(-22, 40), anchor="r", sub="κούτελο στη γωνία Κ10 / τοίχου σαλονιού", r=0.058)
+    for bx, off_, an_ in [(BURY[1][0], (-4, 13), "r"), (-2.10, (0, 13), "c"), (-4.90, (5, 13), "l")]:
+        level(v, bx, 5.60, gr(lv_bury(bx)), color=RAIN, off=off_, anchor=an_)
+    for (x, y), t in [((-0.4, 6.55), "ΒΕΡΑΝΤΑ ΙΣ1 +0,40"), ((-3.5, 6.55), "ΦΥΤΕΜΕΝΟ +0,30"), ((-5.95, 6.55), "ΑΓ. ΒΑΡΒΑΡΑΣ"), ((-5.05, 4.75), "ΠΕΡΙΦΡΑΞΗ")]:
+        v.text(x, y, t, size=6.0, font="Inter-SemiBold", color=MUTE, rot=90 if t == "ΠΕΡΙΦΡΑΞΗ" else 0, bg=True)
+
+
+viewport(gf_west, (-6.60, 4.30, 2.40, 7.10), 40, 62, 50, "ΚΑΤΟΨΗ – ΚΑΘΟΔΟΣ ΟΜΒΡΙΩΝ ΣΤΗ ΓΩΝΙΑ Κ10 → ΡΕΙΘΡΟ ΑΓ. ΒΑΡΒΑΡΑΣ", "1")
+
+# ---- τομή 1:25 στον άξονα του αγωγού (y 5,60), βλέποντας προς βορρά: αριστερά η Αγ. Βαρβάρας, δεξιά το σαλόνι
+SZB = -1.05; K25 = mm_scale(25); SXW, SZT, SPX, SPY = -6.70, 1.75, 40, 262
+SX = lambda x: SPX + (x - SXW) * K25
+SZ = lambda z: PAGE_H - (SPY + (SZT - z) * K25)
+CONC, MAS, SOILC, FILLC, PAVC = (0.42, 0.43, 0.47), (0.80, 0.80, 0.83), (0.87, 0.82, 0.70), (0.90, 0.90, 0.92), (0.72, 0.72, 0.75)
+
+
+def sr(x0, z0, x1, z1, fill=None, stroke=INK, lw=0.5, dash=None):
+    C.saveState()
+    if fill: C.setFillColorRGB(*fill)
+    if stroke: C.setStrokeColorRGB(*stroke); C.setLineWidth(lw)
+    if dash: C.setDash(dash)
+    C.rect(SX(x0), SZ(z0), SX(x1) - SX(x0), SZ(z1) - SZ(z0), stroke=1 if stroke else 0, fill=1 if fill else 0); C.restoreState()
+
+
+def slev(x, z, txt, col=INK, side=1, dx=0):
+    """Σύμβολο στάθμης (τρίγωνο) + τιμή στο σημείο (x, z) της τομής."""
+    X, Y = SX(x) + dx, SZ(z)
+    C.saveState(); C.setFillColorRGB(*col); C.setStrokeColorRGB(*col); C.setLineWidth(0.5)
+    p = C.beginPath(); p.moveTo(X, Y); p.lineTo(X - 3.2, Y + 5); p.lineTo(X + 3.2, Y + 5); p.close(); C.drawPath(p, stroke=0, fill=1)
+    C.line(X - 3.2, Y + 5, X + side * 30, Y + 5); C.restoreState()
+    ptext(X + side * 5, Y + 7.2, txt, 6.6, "Inter-Bold", col, "l" if side > 0 else "r", bg=True)
+
+
+def snote(x, z, off, lines, anchor="l", col=INK):
+    X, Y = SX(x), SZ(z); TX, TY = X + off[0], Y + off[1]
+    P._leader(X, Y, TX, TY, col); C.setFillColorRGB(*col); C.circle(X, Y, 1.3, stroke=0, fill=1)
+    for i, t in enumerate(lines):
+        ptext(TX + (3 if anchor == "l" else -3), TY - 2 - i * 8.6, t, 7.0 if i == 0 else 6.2, "Inter-SemiBold" if i == 0 else "Inter", col if i == 0 else MUTE, anchor)
+
+
+C.saveState(); _p = C.beginPath(); _p.rect(SX(SXW), SZ(SZB), SX(2.10) - SX(SXW), SZ(SZT) - SZ(SZB)); C.clipPath(_p, stroke=0, fill=0)
+# υπόγειο: περιμετρικό τοιχείο + πλάκα Π16 h20 (±0,00) + δοκός Δ7.1 30/50 + πλάκα ισογείου (+0,30)
+sr(-5.20, SZB - 0.1, -4.90, SLAB0, CONC); sr(-5.20, -0.20, 1.40, SLAB0, CONC); sr(1.40, -0.20, 1.70, 0.30, CONC); sr(1.70, 0.15, 2.10, 0.30, CONC)
+sr(-5.20, SLAB0, -4.90, PAVE + 0.61, CONC)                                  # βάση περίφραξης (0,61 πάνω από το πεζοδρόμιο)
+sr(-5.12, PAVE + 0.61, -4.98, SZT + 0.1, (0.62, 0.56, 0.42), lw=0.4)         # περίφραξη (1,25)
+sr(SXW - 0.1, PAVE - 0.45, -5.20, PAVE - 0.10, (0.93, 0.91, 0.86), stroke=None); sr(SXW - 0.1, PAVE - 0.10, -5.20, PAVE, PAVC, lw=0.4)   # πεζοδρόμιο
+sr(-4.90, SLAB0, -2.20, FILL0, SOILC, lw=0.3); sr(-2.20, SLAB0, -2.10, FILL0, MAS, lw=0.4)     # φυτεμένο + κράσπεδο βεράντας
+sr(-2.10, SLAB0, 1.40, FILL0, FILLC, lw=0.3); sr(-2.20, FILL0, 1.30, VER0, PAVC, lw=0.4)       # γέμισμα + δάπεδο βεράντας
+sr(1.70, 0.30, 2.10, 0.45, FILLC, lw=0.3)                                                      # γέμισμα ισογείου (+0,45)
+sr(1.40, 0.30, 1.70, SZT + 0.1, MAS, lw=0.4); sr(1.30, VER0, 1.40, SZT + 0.1, (0.98, 0.90, 0.55), lw=0.3)   # τοίχος σαλονιού + θερμοπρόσοψη
+sr(1.09, VER0, 1.30, SZT + 0.1, (0.94, 0.94, 0.96), lw=0.5, dash=[2.5, 1.5])                   # κούτελο καθόδου
+# εγκιβωτισμός σκυροδέματος στο φυτεμένο τμήμα + αγωγός
+sr(-4.90, SLAB0, -2.20, lv_bury(-2.20) + 0.125 + 0.04, (0.74, 0.75, 0.78), lw=0.3)
+C.setFillColorRGB(*RAIN); C.setStrokeColorRGB(*INK); C.setLineWidth(0.5)
+_q = C.beginPath(); x_a, x_b = 1.16, -5.20
+_q.moveTo(SX(x_a), SZ(lv_bury(x_a))); _q.lineTo(SX(x_b), SZ(lv_bury(x_b))); _q.lineTo(SX(x_b), SZ(lv_bury(x_b) + 0.125)); _q.lineTo(SX(x_a), SZ(lv_bury(x_a) + 0.125)); _q.close()
+C.drawPath(_q, stroke=1, fill=1)
+sr(1.155, lv_bury(1.16), 1.265, SZT + 0.1, RAIN, lw=0.5)                                       # κατακόρυφη Φ110
+sr(-5.20, lv_bury(-5.20) - 0.018, -4.90, lv_bury(-4.90) + 0.125 + 0.018, None, stroke=(1, 1, 1), lw=1.0)   # χιτώνιο Ø160
+sr(SXW - 0.1, lv_bury(-5.20) - 0.02, -5.20, lv_bury(-5.20) + 0.08, (0.55, 0.70, 0.93), lw=0.5)  # αγωγός πεζοδρομίου 20×8
+C.restoreState()
+C.setStrokeColorRGB(*INK); C.setLineWidth(0.9); C.rect(SX(SXW), SZ(SZB), SX(2.10) - SX(SXW), SZ(SZT) - SZ(SZB), stroke=1, fill=0)
+# στάθμες
+slev(1.90, 0.45, "+0,45 ισόγειο", side=-1); slev(-1.00, VER0, "+0,40 βεράντα"); slev(-4.45, FILL0, "+0,30 φυτεμένο")
+slev(-1.45, SLAB0, "±0,00 πλάκα Π16", col=(1, 1, 1) if False else INK, side=1, dx=0); slev(-6.20, PAVE, "≈ %s πεζοδρόμιο" % gr(PAVE))
+for bx, sd in [(BURY[1][0], -1), (-2.10, 1), (-4.90, 1)]:
+    slev(bx, lv_bury(bx), "π.α. " + gr(lv_bury(bx)), col=RAIN, side=sd)
+# κείμενα-οδηγοί
+snote(1.21, 1.10, (-46, 6), ["ΚΑΘΟΔΟΣ Φ110", "από τον συλλεκτήρα +3,30 · σε κούτελο", "θυρίδα καθαρισμού +0,60"], "r", RAIN)
+snote(1.19, lv_bury(1.19) + 0.06, (-34, 64), ["2 × 45° στο πόδι", "ράχη 3 cm κάτω από το γέμισμα"], "r")
+snote(-1.00, lv_bury(-1.00) + 0.06, (-130, 160), ["Φ125 · 2 % · ΜΕΣΑ ΣΤΟ ΓΕΜΙΣΜΑ ΤΗΣ ΒΕΡΑΝΤΑΣ", "γέμισμα 30 cm πάνω από την πλάκα του υπογείου (Σ2) – στρώνεται πριν από το γέμισμα"], "l", RAIN)
+snote(-3.60, lv_bury(-3.60) + 0.15, (-20, 62), ["Φυτεμένο τμήμα: εγκιβωτισμός σκυροδέματος", "κάλυψη %s cm ως το +0,30" % cmf(FILL0 - lv_bury(-2.20) - 0.125)], "l")
+snote(-5.05, lv_bury(-5.05) + 0.06, (40, 150), ["Διέλευση βάσης περίφραξης Ø160", "ανοίγεται με την περίφραξη – όχι στην πλάκα"], "l")
+snote(-6.10, lv_bury(-5.20) + 0.03, (10, -52), ["Αγωγός πεζοδρομίου 20 × 8 → ρείθρο", "στάθμες πεζοδρομίου / ρείθρου: χωροστάθμηση επί τόπου"], "l", RAIN)
+snote(-2.8, -0.10, (16, -34), ["Πλάκα οροφής υπογείου Π16 h20 (±0,00) – καμία οπή"], "l")
+snote(1.55, -0.05, (-30, -40), ["Δ7.1 30/50"], "r")
+yb = SZ(SZB) - 17
+C.setFillColorRGB(*INK); C.circle(SPX + 9, yb + 3.4, 8.2, stroke=0, fill=1); C.setFont("Inter-Bold", 8.5); C.setFillColorRGB(1, 1, 1); C.drawCentredString(SPX + 9, yb + 0.4, "2")
+C.setFont("Inter-Bold", 9.5); C.setFillColorRGB(*INK); C.drawString(SPX + 23, yb, "ΤΟΜΗ ΣΤΟΝ ΑΞΟΝΑ ΤΟΥ ΑΓΩΓΟΥ (βλέποντας προς βορρά)")
+C.setFont("Inter-Medium", 7.5); C.setFillColorRGB(*MUTE); C.drawString(SPX + 23 + SW("ΤΟΜΗ ΣΤΟΝ ΑΞΟΝΑ ΤΟΥ ΑΓΩΓΟΥ (βλέποντας προς βορρά)", "Inter-Bold", 9.5) + 8, yb, "Κλίμακα 1:25")
+# πίνακας σταθμών (δεξιά από την κάτοψη)
+TX0, ty = 590, PAGE_H - 74
+C.setFillColorRGB(*INK); C.rect(TX0, ty - 3, 540, 12, stroke=0, fill=1); C.setFont("Inter-Bold", 7.4); C.setFillColorRGB(1, 1, 1); C.drawString(TX0 + 4, ty, "ΣΤΑΘΜΕΣ ΑΓΩΓΟΥ Φ125 (εξωτ. Ø125) – κλίση 2 %"); ty -= 18
+ROWS = [("Θέση", "Απόσταση", "Άντυγα", "Ράχη", "Πάνω από την πλάκα ±0,00", "Κάλυψη ως το τελικό")]
+for nm_, bx in [("Πόδι καθόδου (γωνία Κ10)", BURY[1][0]), ("Άκρη βεράντας (x −2,10)", -2.10), ("Εσωτ. παρειά περίφραξης", -4.90), ("Εξωτ. παρειά περίφραξης", -5.20)]:
+    z = lv_bury(bx); top = VER0 if bx > -2.10 else FILL0 if bx >= -4.90 else PAVE
+    ROWS.append((nm_, m2(run_len(BURY[:2]) + BURY[1][0] - bx) + " m", gr(z), gr(z + 0.125), cmf(z - SLAB0) + " cm", cmf(top - z - 0.125) + " cm"))
+for i, row in enumerate(ROWS):
+    for j, (t, xx) in enumerate(zip(row, (4, 150, 215, 275, 335, 470))):
+        C.setFont("Inter-Bold" if i == 0 else "Inter-SemiBold" if j == 0 else "Inter", 6.8); C.setFillColorRGB(*(MUTE if i == 0 else INK)); C.drawString(TX0 + xx, ty, t)
+    ty -= 11.5
+    C.setStrokeColorRGB(*FAINT); C.setLineWidth(0.3); C.line(TX0, ty + 7.5, TX0 + 540, ty + 7.5)
+C.setFillColorRGB(1, 1, 1); C.rect(20, 20, PAGE_W - 40, 72, stroke=0, fill=1)
+P.frame_and_title(C, "ΑΠ-10", "ΟΜΒΡΙΑ ΙΣΟΓΕΙΟΥ – ΚΑΘΟΔΟΣ & ΕΞΟΔΟΣ", P.SUB1, "Κάθοδος Φ110 στην Κ10 · Φ125 στο γέμισμα → Αγ. Βαρβάρας",
+                  "Σ2_ΕΦ · Α-30-ΑΑ · Α-40 · ΑΠ-02", "Κλίμακες 1:50 · 1:25 · A3", REV, DATE)
+P.north_arrow(C, PAGE_W - 42, P.BOT + 24, r=9)
+C.showPage()
+
+
+# ====================================================================== ΑΠ-11 … ΑΠ-17 ΟΠΕΣ ΠΛΑΚΩΝ – ΕΝΑ ΦΥΛΛΟ ΑΝΑ ΠΛΑΚΑ
+#  Γιάννης 10/11: «φύλλα με τρύπες για όλους τους ορόφους · στα στηθαία δεν θα κρατήσω τρύπες, μόνο στις πλάκες · οι τρύπες 20 × 20».
+#  Κάθε οπή = ΚΟΥΤΙ 20 × 20 (box, m μοντέλου) που περιέχει τον σωλήνα και ΑΚΟΥΜΠΑ ή απέχει από τις παρειές σκυροδέματος – ποτέ δεν τις
+#  κόβει. Οι διαστάσεις (παρειά σκυροδέματος → πλησιέστερη ακμή του κουτιού) ΥΠΟΛΟΓΙΖΟΝΤΑΙ από τις συντεταγμένες και το apox_check.py
+#  ελέγχει κάθε κουτί με τα υποστυλώματα / δοκούς της πλάκας του και ότι ο σωλήνας είναι ολόκληρος μέσα στο κουτί.
+#  Υπόβαθρο κάθε φύλλου: ο ξυλότυπος της ίδιας της πλάκας (data/xyl_S*.png).
+S37 = ["Σ3", "Σ4", "Σ5", "Σ6", "Σ7"]
+
+
+def H(id, slabs, name, pipe_, pt, box, rx, ry, off, an="l", dxy=None, dyx=None):
+    return dict(id=id, slabs=slabs, name=name, pipe=pipe_, x=pt[0], y=pt[1], box=box, size="20×20", d=0.20, rx=rx, ry=ry, off=off, an=an, dxy=dxy, dyx=dyx)
+
+
 HOLES = [
-    dict(id=1, slabs=["Σ2"], name="ΑΠ1", pipe="Φ100", x=AP1G[0], y=AP1G[1], d=0.20, size="20×20", rx=(4.60, "Δ παρειά Κ2"), ry=(0.80, "Ν παρειά Κ2"), off=(-12, -16), an="r"),
-    dict(id=2, slabs=["Σ2"], name="ΑΠ3", pipe="Φ100", x=AP3G[0], y=AP3G[1], d=0.20, size="20×20", rx=(4.60, "Δ παρειά Κ2"), ry=(0.80, "Ν παρειά Κ2"), off=(-14, 10), an="r", dyx=4.70),
-    dict(id=3, slabs=["Σ2"], name="WC + κουζίνα ΙΣ1", pipe="Φ100", x=9.29, y=5.74, d=0.16, size="Ø160", rx=(9.40, "Δ παρειά Δ9.1"), ry=(5.15, "Ν παρειά Κ3"), off=(-14, 8), an="r"),
-    dict(id=4, slabs=["Σ2"], name="ΑΠ4", pipe="Φ75", x=AP4G[0], y=AP4G[1], d=0.125, size="Ø125", rx=(12.70, "Δ παρειά Κ7"), ry=(9.15, "Β παρειά Κ7"), off=(-14, -12), an="r"),
-    dict(id=5, slabs=["Σ2"], name="ΑΠ2", pipe="Φ100", x=AP2[0], y=AP2[1], d=0.16, size="Ø160 + κολάρο", rx=(9.70, "Α παρειά Δ9.5"), ry=(3.00, "Β παρειά Κ3"), off=(14, -14), an="l", dyx=10.30),
-    dict(id=6, slabs=S37, name="ΑΠ1", pipe="Φ100", x=AP1[0], y=AP1[1], d=0.20, size="20×20", rx=(4.60, "Δ παρειά Κ2"), ry=(0.80, "Ν παρειά Κ2"), off=(14, 16), an="l", dxy=1.22),
-    dict(id=7, slabs=S37, name="ΑΠ3", pipe="Φ100", x=AP3[0], y=AP3[1], d=0.20, size="20×20", rx=(1.10, "Α παρειά Δ6.1"), ry=(4.85, "Β παρειά Δ3.1"), off=(14, -14), an="l", dxy=3.08),
-    dict(id=8, slabs=S37, name="ΑΠ4", pipe="Φ75", x=AP4[0], y=AP4[1], d=0.12, size="12×12", rx=(12.70, "Δ παρειά Κ7"), ry=(9.45, "Ν παρειά Κ7"), off=(-12, 18), an="r", dxy=9.72),
-    dict(id=9, slabs=S37, name="ΥΔ1", pipe="Φ75", x=9.75, y=2.62, d=0.10, size="10×10", rx=(9.70, "Α παρειά Δ9.5"), ry=(3.00, "Β παρειά Κ3"), off=(16, -4), an="l", dyx=9.95),
-    dict(id=10, slabs=S37, name="ΥΔ4", pipe="Φ75", x=0.75, y=0.30, d=0.10, size="10×10", rx=(0.80, "Δ παρειά Κ1"), ry=(0.50, "Β παρειά Κ1"), off=(-14, -10), an="r"),
-    dict(id=11, slabs=S37, name="ΥΔ5", pipe="Φ75", x=2.20, y=9.51, d=0.10, size="10×10", rx=(1.40, "Δ παρειά Κ9"), ry=(9.45, "Ν παρειά Κ9"), off=(10, 18), an="l", dxy=9.72),
-    dict(id=12, slabs=S36, name="Χιτώνιο στηθαίου ΥΔ2", pipe="Φ50", x=9.05, y=9.78, d=0.0, size="Ø63", ry=(9.45, "Ν παρειά Κ8"), off=(-14, 14), an="r", dyx=8.80),
-    dict(id=13, slabs=S36, name="Χιτώνιο στηθαίου ΥΔ3", pipe="Φ50", x=1.10, y=5.50, d=0.0, size="Ø63", ry=(5.15, "Ν παρειά Κ10"), off=(-14, 16), an="r", dyx=0.95),
-    dict(id=14, slabs=["Σ7"], name="ΥΔ2 σιφώνι δώματος", pipe="Φ75", x=9.30, y=9.51, d=0.12, size="12×12", rx=(9.00, "Δ παρειά Κ8"), ry=(9.45, "Ν παρειά Κ8"), off=(14, 30), an="l", dxy=9.72),
-    dict(id=15, slabs=["Σ7"], name="ΥΔ3 σιφώνι δώματος", pipe="Φ75", x=1.25, y=5.325, d=0.12, size="12×12", rx=(1.40, "Δ παρειά Δ7.1"), ry=(5.15, "Ν παρειά Κ10"), off=(-16, -22), an="r"),
-    dict(id=16, slabs=["Σ8"], name="ΥΔ6 σιφώνι στέγης", pipe="Φ75", x=ROOF_G["ΥΔ6"][0], y=ROOF_G["ΥΔ6"][1], d=0.125, size="Ø125", rx=(6.60, "Α παρειά Κ2"), ry=(0.80, "Ν παρειά Δ1.5"), off=(-12, 34), an="r", dxy=1.22),
-    dict(id=17, slabs=["Σ8"], name="ΥΔ7 σιφώνι στέγης", pipe="Φ75", x=ROOF_G["ΥΔ7"][0], y=ROOF_G["ΥΔ7"][1], d=0.125, size="Ø125", rx=(9.40, "Δ παρειά Δ9.5"), ry=(0.80, "Ν παρειά Δ1.5"), off=(-14, 52), an="r", dxy=1.22),
-    dict(id=18, slabs=["Σ8"], name="ΚΑ1", pipe="Φ75", x=4.45, y=0.45, d=0.11, size="Ø110", rx=(4.60, "Δ παρειά Κ2"), ry=(0.50, "Β παρειά Δ1.2"), off=(-12, -12), an="r", dxy=0.28),
-    dict(id=19, slabs=["Σ8"], name="ΚΑ3", pipe="Φ75", x=2.40, y=3.365, d=0.11, size="Ø110", rx=(1.70, "Α παρειά Δ7.4"), ry=(0.80, "Ν παρειά Δ1.2"), off=(-12, 16), an="r", dyx=2.05, dxy=3.62),
+    H(1, ["Σ2"], "ΑΠ1", "Φ100", AP1G, (4.45, 0.85, 4.65, 1.05), (4.60, "Δ παρειά Κ2"), (0.80, "Ν παρειά Κ2"), (-16, -18), "r", dxy=1.25),
+    H(2, ["Σ2"], "ΑΠ3", "Φ100", AP3G, (4.45, 2.65, 4.65, 2.85), (4.60, "Δ παρειά Κ2"), (0.80, "Ν παρειά Κ2"), (-18, 16), "r", dxy=3.05, dyx=4.80),
+    H(3, ["Σ2"], "WC + κουζίνα ΙΣ1", "Φ100", (9.29, 5.74), (9.20, 5.65, 9.40, 5.85), (9.40, "Δ παρειά Δ9.1"), (5.15, "Ν παρειά Κ3"), (-18, 14), "r", dyx=9.05),
+    H(4, ["Σ2"], "ΑΠ4", "Φ75", AP4G, (12.50, 8.95, 12.70, 9.15), (12.70, "Δ παρειά Κ7"), (9.15, "Β παρειά δοκού Κ8–Κ7"), (-18, -16), "r"),
+    H(5, ["Σ2"], "ΑΠ2", "Φ100", AP2, (9.80, 0.45, 10.00, 0.65), (9.70, "Α παρειά Δ9.5"), (3.00, "Β παρειά Κ3"), (18, -16), "l", dxy=0.30, dyx=10.25),
+    H(6, S37, "ΑΠ1", "Φ100", AP1, (4.80, 0.85, 5.00, 1.05), (4.60, "Δ παρειά Κ2"), (0.80, "Ν παρειά Κ2"), (18, 22), "l", dxy=1.25, dyx=5.20),
+    H(7, S37, "ΑΠ3", "Φ100", AP3, (3.05, 3.25, 3.25, 3.45), (1.10, "Α παρειά Δ6.1"), (4.85, "Β παρειά Δ3.1"), (18, -16), "l", dxy=3.05, dyx=3.50),
+    H(8, S37, "ΑΠ4", "Φ75", AP4, (12.80, 9.45, 13.00, 9.65), (12.70, "Δ παρειά Κ7"), (9.45, "Ν παρειά Κ7"), (-10, 26), "r", dxy=9.90),
+    H(9, S37, "ΥΔ1", "Φ75", RD["ΥΔ1"], (9.70, 2.50, 9.90, 2.70), (9.70, "Α παρειά Δ9.5"), (3.00, "Β παρειά Κ3"), (20, -8), "l", dyx=10.15),
+    H(10, S37, "ΥΔ4", "Φ75", RD["ΥΔ4"], (0.68, 0.20, 0.88, 0.40), (0.80, "Δ παρειά Κ1"), (0.50, "Β παρειά Κ1"), (-18, -12), "r", dxy=0.05, dyx=1.10),
+    H(11, S37, "ΥΔ5", "Φ75", RD["ΥΔ5"], (2.10, 9.45, 2.30, 9.65), (1.40, "Δ παρειά Κ9"), (9.45, "Ν παρειά Κ9"), (14, 24), "l", dxy=9.90),
+    H(12, ["Σ7"], "ΥΔ2 – σιφώνι δώματος", "Φ75", RD["ΥΔ2"], (9.20, 9.45, 9.40, 9.65), (9.00, "Δ παρειά Κ8"), (9.45, "Ν παρειά Κ8"), (18, 26), "l", dxy=9.90),
+    H(13, ["Σ7"], "ΥΔ3 – σιφώνι δώματος", "Φ75", RD["ΥΔ3"], (1.15, 5.20, 1.35, 5.40), (1.40, "Δ παρειά Δ7.1"), (5.15, "Ν παρειά Κ10"), (-20, 26), "r", dxy=5.65, dyx=0.95),
+    H(14, ["Σ8"], "ΥΔ6 – σιφώνι στέγης", "Φ75", ROOF_G["ΥΔ6"], (6.80, 0.90, 7.00, 1.10), (6.60, "Α παρειά Κ2"), (0.80, "Ν παρειά Δ1.5"), (-14, 40), "r", dxy=1.35, dyx=7.20),
+    H(15, ["Σ8"], "ΥΔ7 – σιφώνι στέγης", "Φ75", ROOF_G["ΥΔ7"], (9.10, 0.90, 9.30, 1.10), (9.40, "Δ παρειά Δ9.5"), (0.80, "Ν παρειά Δ1.5"), (-16, 40), "r", dxy=1.35, dyx=8.90),
+    H(16, ["Σ8"], "ΚΑ1 – αερισμός ΑΠ1", "Φ75", (4.45, 0.45), (4.35, 0.30, 4.55, 0.50), (4.60, "Δ παρειά Κ2"), (0.50, "Β παρειά Δ1.2"), (-16, -18), "r", dxy=0.15),
+    H(17, ["Σ8"], "ΚΑ3 – αερισμός ΑΠ3", "Φ75", (2.40, 3.365), (2.30, 3.25, 2.50, 3.45), (1.70, "Α παρειά Δ7.4"), (0.80, "Ν παρειά Δ1.2"), (16, 22), "l", dxy=3.70, dyx=2.70),
 ]
+PIPE_OD = {"Φ100": 0.110, "Φ75": 0.075}
+HOLES[3]["xalign"] = True      # Η4: το κουτί είναι βόρεια της Κ7 – η ανατ. ακμή του απλώς στην ευθεία της δυτικής παρειάς της
 BEAMS_T = {"Δ1.1": (1.10, 0.50, 4.60, 0.80), "Δ1.4": (6.60, 0.50, 9.40, 0.80), "Δ9.5": (9.40, 0.80, 9.70, 3.00), "Δ6.1": (0.80, 1.20, 1.10, 4.85),
            "Δ3.1": (1.70, 4.85, 9.40, 5.15), "Δ7.1": (1.40, 5.15, 1.70, 9.15), "Δ9.1": (9.40, 5.15, 9.70, 9.15), "Δ4.4": (3.40, 9.15, 9.00, 9.45),
            "Δ4.6": (9.70, 9.15, 12.70, 9.45), "Δ12.2": (11.45, 7.60, 13.10, 7.85), "Δ10.2": (13.10, 5.80, 13.35, 7.85),
            "Ε.Ζ. 40/30": (-1.20, 0.55, 0.80, 0.95), "Ε.Ζ. 50/30": (1.40, 9.45, 1.90, 11.15)}
 BEAMS_2 = {"Δ βόρεια": (1.10, 0.50, 4.60, 0.80), "Δ9.5": (9.40, 0.80, 9.70, 3.00), "Δ3.1": (1.70, 4.85, 9.40, 5.15), "Δ9.1": (9.40, 5.15, 9.70, 9.10),
            "Δ Κ8–Κ7": (9.70, 9.15, 12.70, 9.45), "Δ13.1": (-1.25, 9.15, 1.40, 9.45), "Δ Κ10–Κ9": (1.40, 5.15, 1.70, 9.15)}
-BL = {"Δ1.1": ((2.4, 0.65), 0), "Δ1.4": ((8.0, 0.65), 0), "Δ9.5": ((9.55, 1.75), 90), "Δ6.1": ((0.95, 2.6), 90), "Δ3.1": ((6.4, 5.0), 0), "Δ7.1": ((1.55, 7.2), 90),
-      "Δ9.1": ((9.55, 7.2), 90), "Δ4.4": ((6.0, 9.30), 0), "Δ4.6": ((11.2, 9.30), 0), "Δ12.2": ((12.3, 7.72), 0), "Δ10.2": ((13.225, 6.8), 90),
-      "Ε.Ζ. 40/30": ((-0.3, 0.75), 0), "Ε.Ζ. 50/30": ((1.65, 10.4), 90)}
-GRP = {"Σ2": (MAIN, "Σ2 – πλάκα οροφής υπογείου (+0,30)"), "Σ3": (SOIL, "Σ3 … Σ7 – οροφή ισογείου, Α΄, Β΄, Γ΄, Δ΄ (ίδια θέση σε όλες)"),
-       "Σ36": (RAIN, "Σ3 … Σ6 – χιτώνιο στη βάση του στηθαίου (όχι στην πλάκα)"), "Σ7": (VENT, "Σ7 μόνο – δώμα (+16,05): σιφώνια δώματος"), "Σ8": (MUTE, "Σ8 – στέγη (προκαταρκτικά)")}
-
-
-def hgrp(h):
-    sl = h["slabs"]
-    return "Σ2" if sl == ["Σ2"] else "Σ8" if sl == ["Σ8"] else "Σ7" if sl == ["Σ7"] else "Σ36" if sl == S36 else "Σ3"
+HB = (-1.80, -0.50, 13.95, 11.05)
+DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+HCOL = {"Φ100": SOIL, "Φ75": RAIN}
+GAPS = [((9.15, 9.45, 9.50, 10.25), ["ΚΕΝΟ 35 cm – ΥΔ2", "καμία οπή"], (30, 38)), ((0.10, 5.15, 1.30, 5.40), ["ΚΕΝΟ 25 cm – ΥΔ3", "καμία οπή"], (-52, 70))]
 
 
 def cm(z):
@@ -653,93 +783,111 @@ def cm(z):
     return ("%.3f" % z).rstrip("0").rstrip(".").replace(".", ",") + " m"
 
 
-def holes_fn(v):
-    base(v, B, site=False, rooms=False, furniture=False)
-    C.saveState(); C.setFillColorRGB(1, 1, 1); C.setFillAlpha(0.62); C.rect(0, 0, PAGE_W, PAGE_H, stroke=0, fill=1); C.restoreState()
-    for poly in B.FLOORS:
-        v.poly(poly, stroke=(0.55, 0.56, 0.60), lw=0.5)
-    for poly in B.COLS:
-        v.poly(poly, fill=P.COLF, stroke=INK, lw=0.6)
-    for nm, rc in BEAMS_T.items():
-        lp = BL.get(nm); beam(v, rc, nm if lp else None, lp[0] if lp else None, lp[1] if lp else 0)
-    for nm, (x, y) in [("Κ1", (0.95, 0.85)), ("Κ2", (5.6, 0.65)), ("Κ3", (9.55, 4.1)), ("Κ7", (13.02, 9.30)), ("Κ8", (9.35, 9.30)), ("Κ9", (2.4, 9.30)), ("Κ10", (1.25, 5.0))]:
-        v.text(x, y, nm, size=6.4, font="Inter-Bold", color=(1, 1, 1))
-    for (x0, y0, x1, y1), tx, off, an in [((9.15, 9.45, 9.50, 10.25), ["ΚΕΝΟ 35 cm – ΥΔ2", "καμία οπή (Σ3–Σ6)"], (26, 34), "l"),
-                                          ((0.10, 5.15, 1.30, 5.40), ["ΚΕΝΟ 25 cm – ΥΔ3 στον τοίχο του σαλονιού", "καμία οπή (Σ3–Σ6) · το τμήμα 0,80–1,30 να επιβεβαιωθεί επί τόπου"], (-62, 88), "l")]:
-        C.saveState(); C.setFillAlpha(0.30); v.rect(x0, y0, x1, y1, fill=RAIN); C.restoreState(); v.rect(x0, y0, x1, y1, stroke=RAIN, lw=0.7)
-        X, Y_ = v.p((x0 + x1) / 2, (y0 + y1) / 2); P._leader(X, Y_, X + off[0], Y_ - off[1], RAIN)
-        for i, t in enumerate(tx):
-            ptext(X + off[0] + (2.5 if an == "l" else -2.5), Y_ - off[1] - i * 8.2, t, 6.2 if i == 0 else 5.4, "Inter-Bold" if i == 0 else "Inter", RAIN, an)
-    for k in ("ΥΔ2", "ΥΔ3"):
-        v.circle(RD[k][0], RD[k][1], 0.0375, fill=RAIN, stroke=INK, lw=0.4)
-    for h in HOLES:
-        col = GRP[hgrp(h)][0]; x, y = h["x"], h["y"]; a = max(h["d"], 0.07) / 2
-        X, Y_ = v.p(x, y); TX, TY = X + h["off"][0], Y_ - h["off"][1]
-        # διαστάσεις από παρειές σκυροδέματος (υπολογίζονται από τις συντεταγμένες)
-        if "rx" in h:
-            yy = h.get("dxy", y)
-            if abs(yy - y) > 1e-6:
-                v.line(x, y, x, yy, color=col, lw=0.3, dash=[1.2, 1.0]); v.line(h["rx"][0], yy, h["rx"][0], yy - 0.001, color=col, lw=0.3)
-            dim(v, (h["rx"][0], yy), (x, yy), cm(x - h["rx"][0]), color=col, size=5.6, side=1 if yy <= y else -1)
-        if "ry" in h:
-            xx = h.get("dyx", x)
-            if abs(xx - x) > 1e-6:
-                v.line(x, y, xx, y, color=col, lw=0.3, dash=[1.2, 1.0])
-            dim(v, (xx, h["ry"][0]), (xx, y), cm(y - h["ry"][0]), color=col, size=5.6, side=1)
-        P._leader(X, Y_, TX, TY, col)
-        C.saveState()
-        if hgrp(h) == "Σ8":
-            C.setDash([2, 1.4])
-        if h["size"].startswith("Ø"):
-            v.circle(x, y, a, fill=(1, 1, 1), stroke=col, lw=1.2)
+def edge_d(lo, hi, face):
+    """Απόσταση παρειάς σκυροδέματος → πλησιέστερη ακμή του κουτιού (lo–hi) και η ακμή αυτή. 0 = ΚΟΛΛΗΤΑ."""
+    return (lo - face, lo) if face <= lo + 1e-9 else (hi - face, hi) if face >= hi - 1e-9 else (lo - face, lo)   # παρειά μέσα στο εύρος → ως την ακμή lo
+
+
+def hole_pos(h):
+    """Κείμενο θέσης για τον πίνακα: από τις δύο παρειές αναφοράς ως τις ακμές του κουτιού."""
+    x0, y0, x1, y1 = h["box"]; out = []
+    for (lo, hi), (face, lab), names in (((x0, x1), h["rx"], ("ανατ.", "δυτ.")), ((y0, y1), h["ry"], ("νότια", "βόρ."))):
+        d, e = edge_d(lo, hi, face); lab = lab.replace("παρειά", "παρ.")
+        if abs(d) < 1e-6 and h.get("xalign") and names[0] == "ανατ.":
+            out.append("ανατ. ακμή στην ευθεία της %s" % lab)
+        elif abs(d) < 1e-6:
+            out.append("κολλητά στη %s" % lab)
+        elif lo < face < hi:
+            out.append("%s ακμή %s %s της %s" % ("δυτ." if names[0] == "ανατ." else "βόρ.", cm(d), names[1], lab))
         else:
-            v.rect(x - a, y - a, x + a, y + a, fill=(1, 1, 1), stroke=col, lw=1.2)
-        C.restoreState()
-        v.line(x - a * 0.7, y - a * 0.7, x + a * 0.7, y + a * 0.7, color=col, lw=0.6); v.line(x - a * 0.7, y + a * 0.7, x + a * 0.7, y - a * 0.7, color=col, lw=0.6)
-        pill(TX, TY, "Η%d" % h["id"], "%s · %s" % (h["name"], h["size"]), col, h["an"], 6.4)
+            out.append("%s %s της %s" % (cm(d), names[0] if d > 0 else names[1], lab))
+    return " · ".join(out)
 
 
-HB = (-1.80, -0.50, 13.95, 11.05)
-viewport(holes_fn, HB, 34, 56, 50, "ΟΠΕΣ ΚΑΙ ΑΝΑΜΟΝΕΣ ΣΕ ΟΛΕΣ ΤΙΣ ΠΛΑΚΕΣ – διαστάσεις σε cm από παρειές σκυροδέματος", "Η")
-# δεξιά στήλη: χρώμα = πλάκα + πίνακας οπών
-HX = 34 + (HB[2] - HB[0]) * mm_scale(50) + 14; HW = PAGE_W - 34 - HX; yy = PAGE_H - 62
-C.setFillColorRGB(*INK); C.rect(HX, yy - 3, HW, 12, stroke=0, fill=1); C.setFont("Inter-Bold", 7.4); C.setFillColorRGB(1, 1, 1); C.drawString(HX + 4, yy, "ΧΡΩΜΑ = ΠΛΑΚΑ"); yy -= 17
-for k in ("Σ2", "Σ3", "Σ36", "Σ7", "Σ8"):
-    col, txt = GRP[k]
-    C.setStrokeColorRGB(*col); C.setFillColorRGB(1, 1, 1); C.setLineWidth(1.2); C.rect(HX + 3, yy - 1.5, 8, 8, stroke=1, fill=1)
-    for i, ln_ in enumerate(wrap(txt, "Inter", 6.6, HW - 20)):
-        C.setFont("Inter", 6.6); C.setFillColorRGB(*INK); C.drawString(HX + 17, yy - i * 7.8, ln_)
-    yy -= 7.8 * len(wrap(txt, "Inter", 6.6, HW - 20)) + 5
-yy -= 6
-C.setFillColorRGB(*INK); C.rect(HX, yy - 3, HW, 12, stroke=0, fill=1); C.setFont("Inter-Bold", 7.4); C.setFillColorRGB(1, 1, 1); C.drawString(HX + 4, yy, "ΠΙΝΑΚΑΣ ΟΠΩΝ"); yy -= 16
-for h in HOLES:
-    col = GRP[hgrp(h)][0]; sl = h["slabs"]; sls = (sl[0] + "–" + sl[-1]) if len(sl) > 1 else sl[0]
-    C.setFont("Inter-Bold", 6.6); C.setFillColorRGB(*col); C.drawString(HX + 2, yy, "Η%d" % h["id"])
-    C.setFont("Inter-SemiBold", 6.4); C.setFillColorRGB(*INK); C.drawString(HX + 22, yy, "%s %s · %s · %s" % (h["name"], h["pipe"], h["size"], sls))
-    pos = []
-    if "rx" in h:
-        d_ = h["x"] - h["rx"][0]; pos.append("%s %s της %s" % (cm(d_), "ανατ." if d_ > 0 else "δυτ.", h["rx"][1].replace("παρειά", "παρ.")))
-    d_ = h["y"] - h["ry"][0]; pos.append("%s %s της %s" % (cm(d_), "νότια" if d_ > 0 else "βόρ.", h["ry"][1].replace("παρειά", "παρ.")))
-    C.setFont("Inter", 5.9); C.setFillColorRGB(*MUTE)
-    for i, ln_ in enumerate(wrap(" · ".join(pos), "Inter", 5.9, HW - 24)):
-        C.drawString(HX + 22, yy - 7.4 - i * 6.9, ln_)
-    yy -= 7.4 + 6.9 * len(wrap(" · ".join(pos), "Inter", 5.9, HW - 24)) + 4.2
-C.setFont("Inter-Bold", 6.4); C.setFillColorRGB(*MAIN); C.drawString(HX + 2, yy, "–")
-C.setFont("Inter-SemiBold", 6.4); C.setFillColorRGB(*INK); C.drawString(HX + 22, yy, "Έξοδος συλλεκτήρα · χιτώνιο Ø200")
-C.setFont("Inter", 5.9); C.setFillColorRGB(*MUTE)
-for i, ln_ in enumerate(wrap("νότιο τοιχείο υπογείου, 50 cm ανατ. της εσωτ. παρειάς του δυτικού τοιχείου, π.α. %s (ΑΠ-01)" % gr(EXIT), "Inter", 5.9, HW - 24)):
-    C.drawString(HX + 22, yy - 7.4 - i * 6.9, ln_)
-C.setFillColorRGB(1, 1, 1); C.rect(20, 20, PAGE_W - 40, 72, stroke=0, fill=1)
-P.frame_and_title(C, "ΑΠ-10", "ΟΠΕΣ ΠΛΑΚΩΝ – ΟΛΕΣ ΣΕ ΕΝΑ ΣΧΕΔΙΟ", P.SUB1, "Σ2 · Σ3–Σ7 · Σ8 · θέσεις από παρειές σκυροδέματος",
-                  "Σ2_ΕΦ … Σ7_ΕΦ · Σ8 · υπόβαθρο: τυπικός όροφος", "Κλίμακα 1:50 · A3", REV, DATE)
-P.north_arrow(C, PAGE_W - 42, P.BOT + 24, r=9)
-C.showPage()
+def holes_fn(slab, img, ext=None):
+    def fn(v):
+        bx = ext or HB
+        X0, Y1 = v.p(bx[0], bx[1]); X1, Y0 = v.p(bx[2], bx[3])
+        C.drawImage(os.path.join(DATA, img), X0, Y0, X1 - X0, Y1 - Y0)
+        if slab in ("Σ3", "Σ4", "Σ5", "Σ6") and not ext:
+            for (x0, y0, x1, y1), tx, off in GAPS:
+                C.saveState(); C.setFillAlpha(0.30); v.rect(x0, y0, x1, y1, fill=RAIN); C.restoreState(); v.rect(x0, y0, x1, y1, stroke=RAIN, lw=0.7)
+                X, Y_ = v.p((x0 + x1) / 2, (y0 + y1) / 2); P._leader(X, Y_, X + off[0], Y_ - off[1], RAIN)
+                for i, t in enumerate(tx):
+                    ptext(X + off[0] + 2.5, Y_ - off[1] - i * 8.4, t, 6.6 if i == 0 else 5.8, "Inter-Bold" if i == 0 else "Inter", RAIN, "l")
+            for k in ("ΥΔ2", "ΥΔ3"):
+                v.circle(RD[k][0], RD[k][1], 0.0375, fill=RAIN, stroke=INK, lw=0.4)
+        if ext:
+            v.rect(EXIT_BOX[0], EXIT_BOX[1], EXIT_BOX[2], EXIT_BOX[3], fill=(1, 1, 1), stroke=MAIN, lw=1.3)
+            v.circle(-0.75, 15.30, 0.0625, fill=MAIN, stroke=INK, lw=0.4)
+            dim(v, (-1.25, 15.02), (EXIT_BOX[0], 15.02), cm(EXIT_BOX[0] + 1.25), color=MAIN, size=6.4, side=1)
+            return
+        for h in HOLES:
+            if slab not in h["slabs"]:
+                continue
+            col = HCOL[h["pipe"]]; x0, y0, x1, y1 = h["box"]; x, y = h["x"], h["y"]
+            X, Y_ = v.p((x0 + x1) / 2, (y0 + y1) / 2); TX, TY = X + h["off"][0], Y_ - h["off"][1]
+            d, e = edge_d(x0, x1, h["rx"][0]); yy = h["dxy"] if h["dxy"] is not None else (y0 + y1) / 2
+            if abs(d) > 1e-6:
+                if not (y0 <= yy <= y1):
+                    v.line(e, y0 if yy < y0 else y1, e, yy, color=col, lw=0.3, dash=[1.2, 1.0])
+                dim(v, (h["rx"][0], yy), (e, yy), cm(d), color=col, size=6.2, side=1 if yy <= (y0 + y1) / 2 else -1)
+            d, e = edge_d(y0, y1, h["ry"][0]); xx = h["dyx"] if h["dyx"] is not None else (x0 + x1) / 2
+            if abs(d) > 1e-6:
+                if not (x0 <= xx <= x1):
+                    v.line(x0 if xx < x0 else x1, e, xx, e, color=col, lw=0.3, dash=[1.2, 1.0])
+                dim(v, (xx, h["ry"][0]), (xx, e), cm(d), color=col, size=6.2, side=1)
+            P._leader(X, Y_, TX, TY, col)
+            v.rect(x0, y0, x1, y1, fill=(1, 1, 1), stroke=col, lw=1.4)
+            v.line(x0, y0, x1, y1, color=col, lw=0.35); v.line(x0, y1, x1, y0, color=col, lw=0.35)
+            v.circle(x, y, PIPE_OD[h["pipe"]] / 2, fill=col, stroke=INK, lw=0.35)
+            pill(TX, TY, "Η%d" % h["id"], "%s %s" % (h["name"], h["pipe"]), col, h["an"], 7.2)
+    return fn
+
+
+EXIT_BOX = (-0.85, 15.15, -0.65, 15.45)      # χιτώνιο συλλεκτήρα στο νότιο τοιχείο υπογείου (τοιχείο, όχι πλάκα)
+SLABS = [("Σ2", "ΑΠ-11", "xyl_S2.png", "ΟΡΟΦΗΣ ΥΠΟΓΕΙΟΥ", "+0,30", "Σ2_ΕΦ"), ("Σ3", "ΑΠ-12", "xyl_S3.png", "ΟΡΟΦΗΣ ΙΣΟΓΕΙΟΥ", "+3,65", "Σ3_ΕΦ"),
+         ("Σ4", "ΑΠ-13", "xyl_S4.png", "ΟΡΟΦΗΣ Α΄ ΟΡΟΦΟΥ", "+6,75", "Σ4_ΕΦ"), ("Σ5", "ΑΠ-14", "xyl_S5.png", "ΟΡΟΦΗΣ Β΄ ΟΡΟΦΟΥ", "+9,85", "Σ5_ΕΦ"),
+         ("Σ6", "ΑΠ-15", "xyl_S6.png", "ΟΡΟΦΗΣ Γ΄ ΟΡΟΦΟΥ", "+12,95", "Σ6_ΕΦ"), ("Σ7", "ΑΠ-16", "xyl_S7.png", "ΟΡΟΦΗΣ Δ΄ ΟΡΟΦΟΥ (ΔΩΜΑ)", "+16,05", "Σ7_ΕΦ"),
+         ("Σ8", "ΑΠ-17", "xyl_S8.png", "ΣΤΕΓΗΣ (ΟΡΟΦΗ ΣΟΦΙΤΑΣ)", "+18,49 … +19,32", "Σ8")]
+for slab, sheet, img, nm_, lev_, src_ in SLABS:
+    viewport(holes_fn(slab, img), HB, 34, 56, 50, "ΟΠΕΣ ΠΛΑΚΑΣ %s (%s · %s) – κουτιά 20 × 20, διαστάσεις σε cm από παρειές σκυροδέματος" % (nm_, slab, lev_), slab[1:])
+    HX = 34 + (HB[2] - HB[0]) * mm_scale(50) + 14; HW = PAGE_W - 34 - HX; yy = PAGE_H - 62
+    C.setFillColorRGB(*INK); C.rect(HX, yy - 3, HW, 12, stroke=0, fill=1); C.setFont("Inter-Bold", 7.4); C.setFillColorRGB(1, 1, 1); C.drawString(HX + 4, yy, "ΟΠΕΣ ΠΛΑΚΑΣ %s" % slab); yy -= 18
+    C.setFont("Inter", 6.6); C.setFillColorRGB(*INK)
+    for ln_ in wrap("Όλες κουτί 20 × 20 cm. Η θέση δίνεται ως την ΑΚΜΗ του κουτιού.", "Inter", 6.6, HW - 4):
+        C.drawString(HX + 2, yy, ln_); yy -= 8.2
+    yy -= 6
+    for h in [h for h in HOLES if slab in h["slabs"]]:
+        col = HCOL[h["pipe"]]
+        C.setFont("Inter-Bold", 7.2); C.setFillColorRGB(*col); C.drawString(HX + 2, yy, "Η%d" % h["id"])
+        C.setFont("Inter-SemiBold", 6.9); C.setFillColorRGB(*INK); C.drawString(HX + 24, yy, "%s %s" % (h["name"], h["pipe"]))
+        C.setFont("Inter", 6.3); C.setFillColorRGB(*MUTE)
+        ls = wrap(hole_pos(h), "Inter", 6.3, HW - 26)
+        for i, ln_ in enumerate(ls):
+            C.drawString(HX + 24, yy - 8.2 - i * 7.4, ln_)
+        yy -= 8.2 + 7.4 * len(ls) + 6
+    if slab == "Σ2":
+        yy -= 4
+        C.setFont("Inter-Bold", 7.2); C.setFillColorRGB(*MAIN); C.drawString(HX + 2, yy, "Χ1")
+        C.setFont("Inter-SemiBold", 6.9); C.setFillColorRGB(*INK); C.drawString(HX + 24, yy, "Έξοδος συλλεκτήρα Φ125")
+        C.setFont("Inter", 6.3); C.setFillColorRGB(*MUTE)
+        for i, ln_ in enumerate(wrap("χιτώνιο Ø200 στο ΝΟΤΙΟ ΤΟΙΧΕΙΟ του υπογείου (όχι στην πλάκα) · άξονας 50 cm ανατ. της εσωτ. παρειάς του δυτικού τοιχείου · άντυγα σωλήνα %s" % gr(EXIT), "Inter", 6.3, HW - 26)):
+            C.drawString(HX + 24, yy - 8.2 - i * 7.4, ln_)
+        yy -= 52
+        vb = (-1.90, 13.55, 1.60, 15.80); s50 = mm_scale(50)
+        viewport(holes_fn(slab, "xyl_S2_exit.png", ext=vb), vb, HX + 2, PAGE_H - yy, 50, "Χ1 – ΝΟΤΙΟ ΤΟΙΧΕΙΟ", "Χ")
+    C.setFillColorRGB(1, 1, 1); C.rect(20, 20, PAGE_W - 40, 72, stroke=0, fill=1)
+    P.frame_and_title(C, sheet, "ΟΠΕΣ ΠΛΑΚΑΣ %s" % nm_, P.SUB1, "%s (%s) · κουτιά 20 × 20 · θέσεις από παρειές σκυροδέματος" % (slab, lev_),
+                      "Υπόβαθρο: ξυλότυπος %s" % src_, "Κλίμακα 1:50 · A3", REV, DATE)
+    P.north_arrow(C, PAGE_W - 42, P.BOT + 24, r=9)
+    C.showPage()
 
 # ====================================================================== ΕΛΕΓΧΟΣ ΔΙΑΣΤΑΣΕΩΝ (δεν τυπώνεται φύλλο – αναφορά στο .txt)
 import apox_check as CK
 SLABC = {"Σ2": (G.COLS, BEAMS_2), "Σ3": (B.COLS, BEAMS_T), "Σ4": (B.COLS, BEAMS_T), "Σ5": (B.COLS, BEAMS_T), "Σ6": (B.COLS, BEAMS_T), "Σ7": (F.COLS, BEAMS_T)}
 for h in HOLES:
-    h.setdefault("ref", "")
+    h["od"] = PIPE_OD[h["pipe"]]
 CHK = CK.run(P.REG, {"ug": Y, "gf": G, "typ": B, "d4": F, "attic": S},
              [("typ", "ΑΠ1", "T7-01", None), ("typ", "ΑΠ3", "T7-02", None), ("d4", "ΑΠ1", "T7-01", None), ("d4", "ΑΠ3", "T7-02", None),
               ("gf", "ΑΠ1", "T7-01", None), ("gf", "ΑΠ3", "T7-01", None)],
@@ -747,6 +895,11 @@ CHK = CK.run(P.REG, {"ug": Y, "gf": G, "typ": B, "d4": F, "attic": S},
              dict(model=Y, low=(3.42, 9.44, 13.16, 15.15), L=L_COLL, exit=EXIT, head=HEAD, i=I_COLL, coll=COLL,
                   beams=[("Δ9.1 30/50", (9.70, 8.60), -0.20), ("δοκός Κ10–Κ9 30/50", (1.70, 8.60), -0.20), ("Δ13.1 30/50", (-1.10, 9.15), -0.50)]),
              dict(runs={"Βόρειος": RAIN_N, "Νότιος": RAIN_S}, z0=RAIN0, i=I_RAIN, gaps={"ΥΔ2": (9.15, 9.45, 9.50, 10.25), "ΥΔ3": (0.10, 5.25, 1.30, 5.40)}, slot={"ΥΔ3"}))
+# αγωγός ομβρίων μέσα στο γέμισμα της δυτικής βεράντας (Σ2: πλάκα ±0,00, γέμισμα ως +0,30)
+for nm_, bx, top in [("πόδι καθόδου", BURY[1][0], FILL0), ("άκρη βεράντας", -2.10, FILL0), ("εσωτ. παρειά περίφραξης", -4.90, FILL0)]:
+    z = lv_bury(bx); ok = z >= SLAB0 + 0.015 and z + 0.125 <= top - 0.03 + 1e-9 or (bx <= -2.10 and z >= SLAB0 + 0.015)
+    CHK.append(("OK" if ok else "ΛΑΘΟΣ", "Όμβρια γέμισμα", "Φ125 στο %s: άντυγα %s, ράχη %s · %s cm πάνω από την πλάκα ±0,00 · %s cm κάτω από το +0,30"
+                % (nm_, gr(z), gr(z + 0.125), cmf(z - SLAB0), cmf(top - z - 0.125))))
 NCH = CK.summary(CHK)
 REP = "\n".join("%-7s %-16s %s" % c for c in CHK) + "\n%d έλεγχοι: %d εντάξει · %d οριακά · %d λάθη\n" % (len(CHK), NCH["OK"], NCH["ΟΡΙΑΚΟ"], NCH["ΛΑΘΟΣ"])
 print(REP)
