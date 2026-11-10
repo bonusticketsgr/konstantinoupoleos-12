@@ -398,36 +398,40 @@ def calibrate(G):
 
 
 def prep_holes(G, T, cfg, log):
-    """Οπές (χιτώνια) αποχέτευσης / υδρορροών: cfg["holes"] = [(όνομα, x, y, Ø mm, περιγραφή)] σε m του κοινού συστήματος.
-    Για καθεμία: θέση σε pt πηγής, κοντινότερη ΓΩΝΙΑ υποστυλώματος ως αναφορά (dx, dy) και έλεγχος απόστασης από δομικές γραμμές."""
-    hs = cfg.get("holes")
-    if not hs: return []
+    """Οπές πλάκας για αποχετεύσεις / υδρορροές από το τεύχος αποχετεύσεων (holes_r19.py = αντίγραφο του apox_r19.py): cfg["holes"] = "Σ2" …
+    Κάθε οπή = κουτί 20 × 20 σε m του κοινού συστήματος → pt πηγής με τη βαθμονόμηση Κ2 / Κ3. Έλεγχος: το κουτί δεν κόβει υποστύλωμα
+    ούτε το διασχίζει δομική γραμμή (παρειά δοκού)· «κολλητά» επιτρέπεται."""
+    slab = cfg.get("holes")
+    if not slab: return []
+    import holes_r19 as HR
     cal = calibrate(G)
     if cal is None: log.append("HOLES: NO CALIBRATION (Κ2 / Κ3)"); return []
-    labs = [t for t in T if t["kind"] == "col"]
-    cols = [(Polygon(c), c) for c in G["columns"]]
+    def PX(x): return cal[0] + x * S
+    def PY(y): return cal[1] + y * S
+    cols = [Polygon(c) for c in G["columns"]]
     struct = [LineString([(l["x0"], l["y0"]), (l["x1"], l["y1"])]) for l in G["lines"] if l["w"] >= 0.85 and not l.get("dashed") and not l["blue"]]
     out = []
-    for name, mx, my, dia, desc in hs:
-        x = cal[0] + mx * S; y = cal[1] + my * S; r = dia / 2000.0 * S; pt = Point(x, y)
-        dmin = min([pt.distance(g) for g in struct] + [pt.distance(p_) for p_, _ in cols]) - r
-        best = None
-        for p_, c in cols:
-            for (vx, vy) in c:
-                d = math.hypot(vx - x, vy - y)
-                if best is None or d < best[0]: best = (d, vx, vy, p_)
-        d, vx, vy, p_ = best
-        t = min(labs, key=lambda t: p_.distance(box(t["x0"], t["y0"], t["x1"], t["y1"]))) if labs else None
-        cn = t["text"].split()[0] if t else ";"
-        bx = p_.bounds; corner = ("πάνω" if vy < (bx[1] + bx[3]) / 2 else "κάτω") + "-" + ("αριστ." if vx < (bx[0] + bx[2]) / 2 else "δεξιά")
-        out.append(dict(name=name, x=x, y=y, r=r, dia=dia, desc=desc, ref=(vx, vy), col=cn, corner=corner, dx=(x - vx) / S, dy=(y - vy) / S, clear=dmin / S))
-        log.append("HOLE %-10s Ø%d  %+.2f / %+.2f από %s γωνία %s · καθαρό από δομική γραμμή %.1f cm%s" % (name, dia, (x - vx) / S, (y - vy) / S, corner, cn, dmin / S * 100, "  <-- ΠΡΟΣΟΧΗ < 5 cm" if dmin < 0.05 * S else ""))
+    for h in HR.for_slab(slab):
+        x0, y0, x1, y1 = h["box"]; bx = box(PX(x0), PY(y0), PX(x1), PY(y1)); inner = bx.buffer(-0.02 * S)
+        cut = [g for g in cols if g.intersection(inner).area > 1.0]            # κόβει υποστύλωμα / τοιχείο = ΛΑΘΟΣ
+        edge = [g for g in struct if g.intersects(inner)]                        # γραμμή ξυλοτύπου (ακμή πλάκας / παρειά δοκού) ΜΕΣΑ από το κουτί
+        dmin = min([bx.distance(g) for g in struct] + [bx.distance(g) for g in cols] + [1e9])
+        links = []
+        d, e = HR.edge_d(x0, x1, h["rx"][0]); yy = h["dxy"] if h["dxy"] is not None else (y0 + y1) / 2
+        if abs(d) > 1e-6: links.append((PX(h["rx"][0]), PY(yy), PX(e), PY(yy)))
+        d, e = HR.edge_d(y0, y1, h["ry"][0]); xx = h["dyx"] if h["dyx"] is not None else (x0 + x1) / 2
+        if abs(d) > 1e-6: links.append((PX(xx), PY(h["ry"][0]), PX(xx), PY(e)))
+        out.append(dict(name="Η%d" % h["id"], what="%s %s" % (h["name"], h["pipe"]), x=PX(h["x"]), y=PY(h["y"]), r=HR.PIPE_OD[h["pipe"]] / 2 * S,
+                        box=(PX(x0), PY(y0), PX(x1), PY(y1)), pos=HR.hole_pos(h), links=links, clear=(-1.0 if cut else dmin / S), onedge=bool(edge)))
+        log.append("HOLE Η%-2d %-22s %s · %s" % (h["id"], out[-1]["what"], out[-1]["pos"], "ΚΟΒΕΙ ΥΠΟΣΤΥΛΩΜΑ  <-- ΛΑΘΟΣ" if cut else "ΓΡΑΜΜΗ ΞΥΛΟΤΥΠΟΥ ΜΕΣΑ ΑΠΟ ΤΟ ΚΟΥΤΙ (ακμή πλάκας / παρειά δοκού)  <-- ΝΑ ΕΛΕΓΧΘΕΙ" if edge else "καθαρό %.1f cm" % (dmin / S * 100)))
+    ex = []
+    if slab in ("Σ3", "Σ4", "Σ5", "Σ6"):
+        for (gx0, gy0, gx1, gy1), nm, tx in HR.GAPS:
+            ex.append(dict(kind="gap", name=nm, text=tx, x=PX(HR.RD[nm][0]), y=PY(HR.RD[nm][1]), box=(PX(gx0), PY(gy0), PX(gx1), PY(gy1))))
+    if slab == "Σ2":
+        b = HR.EXIT_BOX; ex.append(dict(kind="exit", name="Χ1", text=HR.EXIT_TXT, x=PX(-0.75), y=PY(15.30), box=(PX(b[0]), PY(b[1]), PX(b[2]), PY(b[3]))))
+    cfg["_hole_extra"] = ex; cfg["_hole_sheet"] = HR.SHEET.get(slab, "")
     return out
-
-
-def hole_ref_text(h):
-    def one(v, pos, neg): return ("%s %s" % (pos if v >= 0 else neg, ("%.2f" % abs(v)).replace(".", ",")))
-    return "%s  %s  από %s γωνία %s" % (one(h["dx"], "→", "←"), one(h["dy"], "↓", "↑"), h["corner"], h["col"])
 
 
 def choose_layout(bb, force_scale=None, force_layout=None, title_w=60.0, title_h=30.0, margin=6.0):
@@ -677,12 +681,16 @@ def draw(sh, D, bb_in, FC=None, sides=(), log=None, datum=None, inner=()):
     for i, c in enumerate(G["circles"]):          # οι κύκλοι των πλακών μπαίνουν αργότερα – κρατούν τη θέση τους
         rr = max(4.1 * MM * min(1.0, 0.72 + 0.28 * K), 12.5 * K); pl.pending[("circ", i)] = (sh.X(c["cx"]) - rr, sh.Y(c["cy"]) - rr, sh.X(c["cx"]) + rr, sh.Y(c["cy"]) + rr)
     for h in D.get("holes", []):
-        c = sh.P(h["x"], h["y"]); r = max(h["r"] * K, 1.25 * MM)
-        v = sh.P(*h["ref"])
-        sh.oline(v.x, v.y, c.x, v.y, 0.45, HOLEC, dashes="[1.2 1.2] 0"); sh.oline(c.x, v.y, c.x, c.y, 0.45, HOLEC, dashes="[1.2 1.2] 0")
-        sh.ocircle(v.x, v.y, 1.1, 0, HOLEC, HOLEC)
-        sh.ocircle(c.x, c.y, r, 0.9, HOLEC, (1, 1, 1)); sh.oline(c.x - r - 2, c.y, c.x + r + 2, c.y, 0.45, HOLEC); sh.oline(c.x, c.y - r - 2, c.x, c.y + r + 2, 0.45, HOLEC)
-        pl.rects.append((c.x - r - 1, c.y - r - 1, c.x + r + 1, c.y + r + 1))
+        for ax, ay, bx_, by_ in h["links"]: sh.sline(ax, ay, bx_, by_, w=0.5, color=HOLEC, dashes="[1.2 1.2] 0")
+        a = sh.P(h["box"][0], h["box"][1]); b = sh.P(h["box"][2], h["box"][3]); c = sh.P(h["x"], h["y"])
+        sh.orect(a.x, a.y, b.x, b.y, 1.0, HOLEC, fill=(1, 1, 1)); sh.oline(a.x, a.y, b.x, b.y, 0.3, HOLEC); sh.oline(a.x, b.y, b.x, a.y, 0.3, HOLEC)
+        sh.ocircle(c.x, c.y, h["r"] * K, 0, HOLEC, HOLEC)
+        pl.rects.append((a.x - 1, a.y - 1, b.x + 1, b.y + 1))
+    for e in cfg.get("_hole_extra", []):
+        a = sh.P(e["box"][0], e["box"][1]); b = sh.P(e["box"][2], e["box"][3]); c = sh.P(e["x"], e["y"])
+        if e["kind"] == "gap": sh.orect(a.x, a.y, b.x, b.y, 0.5, HOLEC, fill=(1.0, 0.90, 0.96)); sh.ocircle(c.x, c.y, 1.4, 0, HOLEC, HOLEC)
+        else: sh.orect(a.x, a.y, b.x, b.y, 1.0, HOLEC, fill=(1, 1, 1)); sh.ocircle(c.x, c.y, 2.0, 0, HOLEC, HOLEC)
+        pl.rects.append((a.x - 1, a.y - 1, b.x + 1, b.y + 1))
     sh.flush()
     dtexts = []
     for d in dims:
@@ -764,9 +772,10 @@ def draw(sh, D, bb_in, FC=None, sides=(), log=None, datum=None, inner=()):
         for i, ln in enumerate(lines_):
             t = dict(cx=rp[0], cy=rp[1] + (i - (len(lines_) - 1) / 2) * 9.5 / K, dir=(1.0, 0.0), text=ln)
             P(t, "fill", bold=True, color=(0.40, 0.22, 0.0), nudge="any")
-    for h in D.get("holes", []):
-        r = max(h["r"] * K, 1.25 * MM); s_ = "%s Ø%d" % (h["name"], h["dia"]); w_ = FONT_B.text_length(s_, fontsize=SZ["hole"][0])
-        t = dict(cx=h["x"] + (r + 3 + w_ / 2) / K, cy=h["y"] - (r + 2) / K, dir=(1.0, 0.0), text=s_)
+    for h in D.get("holes", []) + cfg.get("_hole_extra", []):
+        s_ = h["name"] + (" " + h["what"].split(" –")[0] if h.get("what") else " – κενό, καμία οπή" if h.get("kind") == "gap" else "")
+        w_ = FONT_B.text_length(s_, fontsize=SZ["hole"][0])
+        t = dict(cx=h["box"][2] + (4 + w_ / 2) / K, cy=h["box"][1] - 3 / K, dir=(1.0, 0.0), text=s_)
         P(t, "hole", bold=True, color=HOLEC, nudge="any")
     # 6. λοιπά (σημειώσεις μελετητή), τίτλοι ενθέτων, σημάδια τομών
     for t in T:
@@ -1091,8 +1100,8 @@ def title_block(sh, cfg, info, date=None):
                 sh.orect(x + 1, y - 5, x + kw - 8, y + 0.6, 0.3, fill=FILLC[kd])
                 for ln in _wrap(v, fs, W - kw): sh.otext(x + kw, y, ln, size=fs); y += lh
         if info.get("holes"):
-            sh.ocircle(x + 5, y - 2.2, 2.6, 0.8, HOLEC, (1, 1, 1)); sh.oline(x + 1, y - 2.2, x + 9, y - 2.2, 0.4, HOLEC); sh.oline(x + 5, y - 6.2, x + 5, y + 1.8, 0.4, HOLEC)
-            for ln in _wrap("οπή (χιτώνιο) αποχέτευσης / υδρορροής", fs, W - kw): sh.otext(x + kw, y, ln, size=fs); y += lh
+            sh.orect(x + 2, y - 5.6, x + 8.4, y + 0.8, 0.8, HOLEC, fill=(1, 1, 1)); sh.oline(x + 2, y - 5.6, x + 8.4, y + 0.8, 0.3, HOLEC); sh.oline(x + 2, y + 0.8, x + 8.4, y - 5.6, 0.3, HOLEC)
+            for ln in _wrap("οπή πλάκας 20 × 20 (αποχέτευση / υδρορροή)", fs, W - kw): sh.otext(x + kw, y, ln, size=fs); y += lh
         para("Διαστάσεις σε m, από γωνία / παρειά κολόνας σε γωνία κολόνας." + (" Οι αλυσίδες παρειών μετρήθηκαν από τη γεωμετρία του σχεδίου, οι υπόλοιπες είναι του μελετητή." if info["FC"] else ""))
         rule()
         if rows:
@@ -1108,15 +1117,17 @@ def title_block(sh, cfg, info, date=None):
             para(("* από την πλάκα του κάτω ορόφου (%s). " % ("%+.2f" % low).replace(".", ",") if low is not None else "") + "Υπολογισμένα (στάθμη − ύψος)· όχι για ανεστραμμένες δοκούς / φυτευτά.", size=5.2, color=GRAY)
             rule()
         if info.get("holes"):
-            sh.otext(x, y, "ΟΠΕΣ – ΚΕΝΤΡΟ ΑΠΟ ΓΩΝΙΑ ΚΟΛΟΝΑΣ (m)", size=5.0, color=GRAY); y += 7.6
+            sh.otext(x, y, "ΟΠΕΣ ΠΛΑΚΑΣ – ΚΟΥΤΙ 20 × 20", size=5.0, color=GRAY); y += 6.4
+            para("Θέση σε cm ως την ΑΚΜΗ του κουτιού, από παρειές σκυροδέματος.", size=5.2, color=GRAY); y += 1.5
             for h in info["holes"]:
-                sh.otext(x, y, "%s Ø%d" % (h["name"], h["dia"]), size=6.0, bold=True, color=HOLEC)
-                wn = FONT_B.text_length("%s Ø%d" % (h["name"], h["dia"]), fontsize=6.0)
-                dl = _wrap(h["desc"], 5.2, W - wn - 4)
-                if dl: sh.otext(x + wn + 4, y, dl[0], size=5.2, color=GRAY)
-                y += 6.6
-                sh.otext(x + 3, y, hole_ref_text(h), size=5.6); y += 7.4
-            para(cfg.get("holes_note", "Θέσεις κατά το τεύχος αποχετεύσεων R12 (27/10/2026) – ΕΠΙΒΕΒΑΙΩΣΗ ΠΡΙΝ ΤΟ ΜΠΕΤΟ. Καμία οπή σε δοκό."), True, 5.3, HOLEC)
+                sh.otext(x, y, h["name"], size=6.2, bold=True, color=HOLEC); sh.otext(x + 15, y, h["what"], size=5.8, bold=True); y += 6.6
+                for ln in _wrap(h["pos"], 5.4, W - 4): sh.otext(x + 4, y, ln, size=5.4); y += 6.2
+                y += 1.4
+            for e in cfg.get("_hole_extra", []):
+                sh.otext(x, y, e["name"], size=6.2, bold=True, color=HOLEC)
+                for i_, ln in enumerate(_wrap(e["text"] + (" – ΚΑΜΙΑ οπή" if e["kind"] == "gap" else ""), 5.4, W - 15)): sh.otext(x + 15, y, ln, size=5.4); y += 6.2
+                y += 1.4
+            para("Τεύχος αποχετεύσεων R19, φύλλο %s. Καμία οπή σε δοκό, καμία αναμονή σε στηθαίο." % cfg.get("_hole_sheet", ""), True, 5.3, HOLEC)
             rule()
         if notes:
             sh.otext(x, y, "ΣΗΜΕΙΩΣΕΙΣ", size=5.0, color=GRAY); y += 7.6
