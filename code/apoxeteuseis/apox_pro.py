@@ -1,4 +1,4 @@
-"""Στιλ σχεδίασης αποχετεύσεων από το R16 (Γιάννης 10/11/2026: «πιο ωραίο σχέδιο, γραμμές, να φαίνεται πιο επαγγελματικό»).
+"""Στιλ σχεδίασης αποχετεύσεων από το R16 (Γιάννης 10/11/2026: «πιο ωραίο σχέδιο, γραμμές, να φαίνεται πιο επαγγελματικό») · από το R17 και μητρώο REG για τον έλεγχο διαστάσεων.
 
 Αρχές:
   · υπόβαθρο ΜΟΝΟΧΡΩΜΟ (γκρι τοίχοι, σκούρα υποστυλώματα, αχνά έπιπλα) από τα μοντέλα τοιχοποιιών του repo·
@@ -16,7 +16,15 @@ from draw import View, new_canvas, frame_and_title, north_arrow, PAGE_W, PAGE_H,
 from reportlab.pdfbase.pdfmetrics import stringWidth as SW
 
 C = None
-REV, DATE = "R16", "10/11/2026"
+REV, DATE = "R17", "10/11/2026"
+REG = []                           # μητρώο στοιχείων δικτύου για τον έλεγχο διαστάσεων (apox_check.py)
+CTX = None                         # όνομα κάτοψης που σχεδιάζεται (None → δεν καταγράφεται)
+
+
+def _reg(v, *rec):
+    if CTX and not getattr(v, "detail", False):
+        REG.append((CTX,) + rec)
+
 SUB1 = ""
 INK = (0.12, 0.13, 0.16); MUTE = (0.40, 0.41, 0.46); FAINT = (0.62, 0.63, 0.67)
 SOIL = (0.74, 0.09, 0.11); WASTE = (0.90, 0.46, 0.02); VENT = (0.05, 0.52, 0.30); RAIN = (0.08, 0.36, 0.80)
@@ -161,10 +169,11 @@ def _arrow(X, Y, ang, a, col):
     c.restoreState()
 
 
-def pipe(v, pts, kind, dia, dash=None, arrow=True, lab=None, seg=None, side=1, ov=False, halo=True, lsize=5.0, apos=0.55, lpos=0.5):
+def pipe(v, pts, kind, dia, dash=None, arrow=True, lab=None, seg=None, side=1, ov=False, halo=True, lsize=5.0, apos=0.55, lpos=0.5, where="fill", slope=None):
     """Σωλήνας. pts: σημεία με τη φορά ροής. lab: ετικέτα (π.χ. «Φ50») πάνω στο τμήμα seg (προεπιλογή το μακρύτερο)·
     ov=True → η ετικέτα φαίνεται και στην κάτοψη 1:60. dash: π.χ. [4, 2] για αγωγό σε άλλο επίπεδο."""
     c = v.c; col = COL.get(kind, kind); lw = LW[dia] * v.k
+    _reg(v, "pipe", kind, dia, list(pts), where, slope)
     P = [v.p(*q) for q in pts]
     def stroke(w, color, dsh):
         c.saveState(); c.setStrokeColorRGB(*color); c.setLineWidth(w); c.setLineCap(0 if dsh else 1); c.setLineJoin(1); c.setDash(dsh or [])
@@ -221,6 +230,7 @@ def _leader(X, Y, TX, TY, col, lw=0.5):
 def stack(v, x, y, name, dia, kind="soil", off=(10, -10), anchor="l", sub=None, hollow=False, r=None, size=6.4):
     """Κατακόρυφη στήλη: γεμάτος κύκλος + κάψουλα. hollow: η στήλη περνά / σταματά (κενός κύκλος)."""
     col = COL.get(kind, kind); X, Y = v.p(x, y); r = (r or 0.062) * v.sym
+    _reg(v, "stack", kind, dia, (x, y), name, hollow)
     if name:
         TX, TY = X + off[0], Y - off[1]
         _leader(X, Y, TX, TY, col)
@@ -238,6 +248,7 @@ def stack(v, x, y, name, dia, kind="soil", off=(10, -10), anchor="l", sub=None, 
 def drop(v, x, y, kind="soil", r=0.055):
     """Πτώση στον κάτω όροφο (κύκλος με Χ)."""
     col = COL.get(kind, kind); r *= v.sym
+    _reg(v, "drop", kind, None, (x, y), None, False)
     v.circle(x, y, r + 0.9 / v.s, fill=(1, 1, 1))
     v.circle(x, y, r, fill=(1, 1, 1), stroke=col, lw=0.9 * v.k)
     d = r * 0.68
@@ -247,6 +258,7 @@ def drop(v, x, y, kind="soil", r=0.055):
 def trap(v, x, y, name=None, off=(8, -8), anchor="l"):
     """Πατοσίφωνο (σιφώνι δαπέδου) 15×15: τετράγωνο + κύκλος + σχάρα."""
     a = 0.075 * v.sym
+    _reg(v, "trap", "waste", None, (x, y), name, False)
     v.rect(x - a, y - a, x + a, y + a, fill=(1, 1, 1), stroke=(1, 1, 1), lw=2.0 * v.k)
     v.rect(x - a, y - a, x + a, y + a, fill=(1, 1, 1), stroke=WASTE, lw=0.9 * v.k)
     v.circle(x, y, a * 0.62, stroke=WASTE, lw=0.6 * v.k)
@@ -257,6 +269,7 @@ def trap(v, x, y, name=None, off=(8, -8), anchor="l"):
 
 def linear(v, x0, y0, x1, y1, name=None, off=(6, 0), anchor="l", w=0.07):
     """Γραμμικό σιφώνι ντους: στενό ορθογώνιο με σχάρα."""
+    _reg(v, "linear", "waste", None, ((x0 + x1) / 2, (y0 + y1) / 2), name, False)
     L = math.hypot(x1 - x0, y1 - y0); ux, uy = (x1 - x0) / L, (y1 - y0) / L; nx, ny = -uy, ux; h = w / 2 * (v.sym if not v.detail else 1.0)
     pts = [(x0 + nx * h, y0 + ny * h), (x1 + nx * h, y1 + ny * h), (x1 - nx * h, y1 - ny * h), (x0 - nx * h, y0 - ny * h)]
     v.poly(pts, fill=(1, 1, 1), stroke=(1, 1, 1), lw=2.0 * v.k)
@@ -289,7 +302,8 @@ def downpipe(v, x, y, name, off=(8, -8), anchor="l", dia="75", sub=None):
 def gully(v, x, y, to=None):
     """Σιφώνι ομβρίων εξώστη + πλευρική έξοδος προς την υδρορροή."""
     if to:
-        pipe(v, [(x, y)] + to, "rain", 50, dash=[2.2, 1.4], arrow=False, halo=False)
+        pipe(v, [(x, y)] + to, "rain", 50, dash=[2.2, 1.4], arrow=False, halo=False, where="balcony")
+    _reg(v, "gully", "rain", None, (x, y), None, False)
     r = 0.075 * v.sym
     v.circle(x, y, r, stroke=RAIN, lw=0.8 * v.k, fill=(1, 1, 1))
     v.line(x - r * 0.6, y, x + r * 0.6, y, color=RAIN, lw=0.45 * v.k); v.line(x, y - r * 0.6, x, y + r * 0.6, color=RAIN, lw=0.45 * v.k)
@@ -338,6 +352,26 @@ def level(v, x, y, s, color=MAIN, off=(6, 0), anchor="l"):
     C.saveState(); C.setFillColorRGB(1, 1, 1); C.rect(X - 1.5, Y - 3.6, w + 10, 7.4, stroke=0, fill=1)
     C.setFillColorRGB(*color); p = C.beginPath(); p.moveTo(X, Y + 2.4); p.lineTo(X + 5, Y + 2.4); p.lineTo(X + 2.5, Y - 2.0); p.close(); C.drawPath(p, stroke=0, fill=1)
     C.restoreState(); ptext(X + 7, Y, s, 5.4 * v.t, "Inter-SemiBold", color, "l", bg=False)
+
+
+def dim(v, a, b, txt=None, color=INK, size=4.8, off=0.0, side=1):
+    """Γραμμή διάστασης a → b (m μοντέλου) με τιμή στη μέση· για τις οπές πλακών (απόσταση από παρειά σκυροδέματος)."""
+    (X0, Y0), (X1, Y1) = v.p(*a), v.p(*b); L = math.hypot(X1 - X0, Y1 - Y0)
+    if L < 1e-6:
+        return
+    ux, uy = (X1 - X0) / L, (Y1 - Y0) / L; nx, ny = -uy, ux
+    X0 += nx * off; Y0 += ny * off; X1 += nx * off; Y1 += ny * off
+    C.saveState(); C.setStrokeColorRGB(*color); C.setLineWidth(0.4); C.line(X0, Y0, X1, Y1)
+    for X, Y in ((X0, Y0), (X1, Y1)):
+        C.line(X - nx * 2.2 - ux * 1.2, Y - ny * 2.2 - uy * 1.2, X + nx * 2.2 + ux * 1.2, Y + ny * 2.2 + uy * 1.2)
+    C.restoreState()
+    if txt is None:
+        txt = ("%.3f" % math.hypot(b[0] - a[0], b[1] - a[1])).rstrip("0").rstrip(".").replace(".", ",")
+    ang = math.degrees(math.atan2(Y1 - Y0, X1 - X0))
+    if ang > 90 or ang <= -90:
+        ang += 180
+    r = math.radians(ang); px, py = -math.sin(r), math.cos(r)
+    ptext((X0 + X1) / 2 + px * 4.2 * side, (Y0 + Y1) / 2 + py * 4.2 * side, txt, size, "Inter-SemiBold", color, "c", ang, pad=0.6)
 
 
 # ------------------------------------------------------------------ σελίδα
