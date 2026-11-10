@@ -418,9 +418,9 @@ def prep_holes(G, T, cfg, log):
         dmin = min([bx.distance(g) for g in struct] + [bx.distance(g) for g in cols] + [1e9])
         links = []
         d, e = HR.edge_d(x0, x1, h["rx"][0]); yy = h["dxy"] if h["dxy"] is not None else (y0 + y1) / 2
-        if abs(d) > 1e-6: links.append((PX(h["rx"][0]), PY(yy), PX(e), PY(yy)))
+        if abs(d) > 1e-6: links.append((PX(h["rx"][0]), PY(yy), PX(e), PY(yy), HR.cm(d) + ("" if abs(d) >= 0.995 else " cm")))
         d, e = HR.edge_d(y0, y1, h["ry"][0]); xx = h["dyx"] if h["dyx"] is not None else (x0 + x1) / 2
-        if abs(d) > 1e-6: links.append((PX(xx), PY(h["ry"][0]), PX(xx), PY(e)))
+        if abs(d) > 1e-6: links.append((PX(xx), PY(h["ry"][0]), PX(xx), PY(e), HR.cm(d) + ("" if abs(d) >= 0.995 else " cm")))
         out.append(dict(name="Η%d" % h["id"], what="%s %s" % (h["name"], h["pipe"]), x=PX(h["x"]), y=PY(h["y"]), r=HR.PIPE_OD[h["pipe"]] / 2 * S,
                         box=(PX(x0), PY(y0), PX(x1), PY(y1)), pos=HR.hole_pos(h), links=links, clear=(-1.0 if cut else dmin / S), onedge=bool(edge)))
         log.append("HOLE Η%-2d %-22s %s · %s" % (h["id"], out[-1]["what"], out[-1]["pos"], "ΚΟΒΕΙ ΥΠΟΣΤΥΛΩΜΑ  <-- ΛΑΘΟΣ" if cut else "ΓΡΑΜΜΗ ΞΥΛΟΤΥΠΟΥ ΜΕΣΑ ΑΠΟ ΤΟ ΚΟΥΤΙ (ακμή πλάκας / παρειά δοκού)  <-- ΝΑ ΕΛΕΓΧΘΕΙ" if edge else "καθαρό %.1f cm" % (dmin / S * 100)))
@@ -681,7 +681,12 @@ def draw(sh, D, bb_in, FC=None, sides=(), log=None, datum=None, inner=()):
     for i, c in enumerate(G["circles"]):          # οι κύκλοι των πλακών μπαίνουν αργότερα – κρατούν τη θέση τους
         rr = max(4.1 * MM * min(1.0, 0.72 + 0.28 * K), 12.5 * K); pl.pending[("circ", i)] = (sh.X(c["cx"]) - rr, sh.Y(c["cy"]) - rr, sh.X(c["cx"]) + rr, sh.Y(c["cy"]) + rr)
     for h in D.get("holes", []):
-        for ax, ay, bx_, by_ in h["links"]: sh.sline(ax, ay, bx_, by_, w=0.5, color=HOLEC, dashes="[1.2 1.2] 0")
+        for ax, ay, bx_, by_, tx_ in h["links"]:
+            sh.sline(ax, ay, bx_, by_, w=0.45, color=HOLEC)
+            for qx, qy in ((ax, ay), (bx_, by_)): sh.tick(sh.X(qx), sh.Y(qy), HOLEC)
+            # προέκταση της ακμής του κουτιού ως τη γραμμή διάστασης όταν αυτή περνά έξω από το κουτί
+            if abs(ay - by_) < 0.01 and not (h["box"][1] <= ay <= h["box"][3]): sh.sline(bx_, h["box"][1] if ay < h["box"][1] else h["box"][3], bx_, ay, w=0.3, color=HOLEC, dashes="[1.2 1.0] 0")
+            if abs(ax - bx_) < 0.01 and not (h["box"][0] <= ax <= h["box"][2]): sh.sline(h["box"][0] if ax < h["box"][0] else h["box"][2], by_, ax, by_, w=0.3, color=HOLEC, dashes="[1.2 1.0] 0")
         a = sh.P(h["box"][0], h["box"][1]); b = sh.P(h["box"][2], h["box"][3]); c = sh.P(h["x"], h["y"])
         sh.orect(a.x, a.y, b.x, b.y, 1.0, HOLEC, fill=(1, 1, 1)); sh.oline(a.x, a.y, b.x, b.y, 0.3, HOLEC); sh.oline(a.x, b.y, b.x, a.y, 0.3, HOLEC)
         sh.ocircle(c.x, c.y, h["r"] * K, 0, HOLEC, HOLEC)
@@ -772,6 +777,11 @@ def draw(sh, D, bb_in, FC=None, sides=(), log=None, datum=None, inner=()):
         for i, ln in enumerate(lines_):
             t = dict(cx=rp[0], cy=rp[1] + (i - (len(lines_) - 1) / 2) * 9.5 / K, dir=(1.0, 0.0), text=ln)
             P(t, "fill", bold=True, color=(0.40, 0.22, 0.0), nudge="any")
+    for h in D.get("holes", []):
+        for ax, ay, bx_, by_, tx_ in h["links"]:
+            if abs(ay - by_) < 0.01: t = dict(cx=(ax + bx_) / 2, cy=ay - 5.0 / K, dir=(1.0, 0.0), text=tx_)
+            else: t = dict(cx=ax - 5.0 / K, cy=(ay + by_) / 2, dir=(0.0, -1.0), text=tx_)
+            P(t, "hole", bold=True, color=HOLEC, nudge="along")
     for h in D.get("holes", []) + cfg.get("_hole_extra", []):
         s_ = h["name"] + (" " + h["what"].split(" –")[0] if h.get("what") else " – κενό, καμία οπή" if h.get("kind") == "gap" else "")
         w_ = FONT_B.text_length(s_, fontsize=SZ["hole"][0])
@@ -912,6 +922,8 @@ def level_symbol(sh, c, pl=None, r=2.0 * MM):
 
 
 def build(cfg, out_pdf=None, date=None):
+    global A3W, A3H
+    A3W, A3H = cfg.get("paper_mm", (420.0, 297.0))          # R03: και Α2 (594 × 420) – ο Γιάννης: «μεγάλωσε το φύλλο αν θες, δεν χωράνε»
     doc = pymupdf.open(cfg["pdf"]); page = doc[0]
     DR = page.get_drawings()
     D = prep(page, DR, cfg)
@@ -954,7 +966,7 @@ def build(cfg, out_pdf=None, date=None):
     cw, ch = (bb[2] - bb[0]) * K / MM, (bb[3] - bb[1]) * K / MM
     margin = 6.0
     ox = margin + (aw - cw) / 2; oy = margin + (ah - ch) / 2
-    sh = lib.Sheet(G, [], scale=scale, ox_mm=ox, oy_mm=oy, sx0=bb[0], sy0=bb[1])
+    sh = lib.Sheet(G, [], scale=scale, ox_mm=ox, oy_mm=oy, sx0=bb[0], sy0=bb[1], page_w=A3W, page_h=A3H)
     D["bb_out"] = bb
     log = draw(sh, D, bb0, FC, sides, datum=datum, inner=inner)
     for d in D["dropped"]: log.append("DROPPED DIM %s %s at (%.0f,%.0f)" % (d["value"], d["dir"], d["tx"], d["ty"]))
@@ -1025,6 +1037,18 @@ def levels_table(cfg, T):
     return rows
 
 
+class _Scaled:
+    """Σχεδίαση της πινακίδας μεγεθυμένης κατά F γύρω από την πάνω-αριστερή γωνία της (Α2: ίδια διάταξη, μεγαλύτερα γράμματα)."""
+    def __init__(self, sh, x0, y0, F): self.sh, self.x0, self.y0, self.F = sh, x0, y0, F
+    def _x(self, x): return self.x0 + (x - self.x0) * self.F
+    def _y(self, y): return self.y0 + (y - self.y0) * self.F
+    def otext(self, x, y, t, size=7, **kw): self.sh.otext(self._x(x), self._y(y), t, size=size * self.F, **kw)
+    def oline(self, x0, y0, x1, y1, w=0.5, *a, **kw): self.sh.oline(self._x(x0), self._y(y0), self._x(x1), self._y(y1), w, *a, **kw)
+    def orect(self, x0, y0, x1, y1, w=0.5, *a, **kw): self.sh.orect(self._x(x0), self._y(y0), self._x(x1), self._y(y1), w, *a, **kw)
+    def ocircle(self, x, y, r, *a, **kw): self.sh.ocircle(self._x(x), self._y(y), r * self.F, *a, **kw)
+    def flush(self): self.sh.flush()
+
+
 def title_block(sh, cfg, info, date=None):
     date = date or datetime.date.today().strftime("%d/%m/%Y")
     m = info["margin"] * MM
@@ -1056,6 +1080,9 @@ def title_block(sh, cfg, info, date=None):
     rows = levels_table(cfg, info["T"]) if cfg.get("level_table", True) else None
     if info["layout"] == "right":
         # R01 (Γιάννης 10/11/2026: «μάζεψε τις σημειώσεις και γενικά όλο τον πίνακα δεξιά»): στενή στήλη, μικρά γράμματα, μόνο τα απαραίτητα
+        TF = cfg.get("title_fs", 1.0); sh_real = sh; rx1, ry1 = x1, y1
+        if TF != 1.0:                       # εικονικές συντεταγμένες: όλα παρακάτω σχεδιάζονται × TF γύρω από το (x0, y0)
+            sh = _Scaled(sh_real, x0, y0, TF); x1 = x0 + (x1 - x0) / TF; y1 = y0 + (y1 - y0) / TF; u = u / TF
         pad = 1.8 * MM; W = x1 - x0 - 2 * pad; x = x0 + pad; y = y0 + 3.4 * MM; fs = 5.7; lh = 6.7
         def para(txt, bold=False, size=fs, color=BLACK, indent=0):
             nonlocal y
@@ -1079,7 +1106,7 @@ def title_block(sh, cfg, info, date=None):
             while lsz > 8 and FONT_B.text_length(cfg["level_txt"], fontsize=lsz) > W: lsz -= 0.5
             sh.otext(x, y, cfg["level_txt"], size=lsz, bold=True); y += 4
         y += 7.5
-        sh.otext(x, y, "ΚΛΙΜΑΚΑ " + scale_txt, size=10.5, bold=True); sh.otext(x1 - pad, y, "Α3 · 100 %", size=5.2, align="right", color=GRAY)
+        sh.otext(x, y, "ΚΛΙΜΑΚΑ " + scale_txt, size=10.5, bold=True); sh.otext(x1 - pad, y, "%s · 100 %%" % cfg.get("paper", "Α3"), size=5.2, align="right", color=GRAY)
         y += 4; scalebar(x + 1, y, max(1, min(4, int((W - 12) / u)))); y += 1.6 * MM + 9
         rule()
         kw = 31.0
@@ -1138,7 +1165,8 @@ def title_block(sh, cfg, info, date=None):
         sh.oline(x0, yb, x1, yb, 0.4); y = yb + 3.2 * MM
         para("Βάση: " + cfg["base"], size=5.2); para("Οπλισμοί ΜΟΝΟ από το σχέδιο του μελετητή.", True, 5.2)
         sh.otext(x, y1 - 1.8 * MM, "Έκδοση %s – %s" % (cfg.get("rev", "R00"), date), size=6.0, bold=True)
-        info["title_rect"] = (x0, y0, x1, y1); info["free"] = (x0, info["title_y_free"], x1, yb)
+        info["title_rect"] = (x0, y0, rx1, ry1); info["free"] = (x0, y0 + (info["title_y_free"] - y0) * TF, rx1, y0 + (yb - y0) * TF)
+        sh = sh_real
     else:
         cols = [x0, x0 + 78 * MM, x0 + 190 * MM, x0 + 290 * MM, x1]
         for cx in cols[1:-1]: sh.oline(cx, y0, cx, y1, 0.4)
