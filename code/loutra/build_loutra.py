@@ -16,14 +16,14 @@ BASE = "Τοιχοποιίες Β1 R26 / Δ΄ R05 · ανόψεις R16 · απ�
 
 # θέσεις στο φύλλο: κάτοψη (ox, oy = πάνω αριστερά) · όψεις (ox, oy = αριστερό άκρο στη στάθμη δαπέδου) · υπόμνημα
 LAYOUT = {
-    "Λ1": dict(plan=(78, 768), elev={"Α": (455, 508), "Δ": (715, 508), "Γ": (455, 150), "Β": (715, 150)},
-               legend=(78, 368), key=(250, 368), north=(402, 792)),
-    "Λ2": dict(plan=(82, 770), elev={"Α": (588, 508), "Γ": (112, 150), "Δ": (545, 150), "Β": (815, 150)},
-               legend=(985, 792), key=(985, 630), north=(546, 796)),
+    "Λ1": dict(plan=(82, 760), elev={"Α": (455, 497), "Δ": (698, 497), "Γ": (455, 142), "Β": (698, 142)},
+               legend=(1022, 800), key=(1022, 610), north=(398, 790)),
+    "Λ2": dict(plan=(82, 760), elev={"Α": (588, 497), "Γ": (112, 142), "Δ": (548, 142), "Β": (835, 142)},
+               legend=(1000, 800), key=(1000, 600), north=(546, 790)),
 }
-KEY = [("Πλακάκι", "60 × 120, όρθιο στους τοίχους"), ("Αρμός", "2 mm · βήμα 0,60 / 1,20"),
-       ("Ύψος", "2 ολόκληρα ως την ψευδοροφή +2,40"), ("Δάπεδο", "ίδιο πλακάκι, αρμοί = αρμοί τοίχων"),
-       ("Γωνίες", "εξωτερικές με φάλτσο 45°")]
+KEY = [("Πλακάκι", "60 × 120 όρθιο"), ("Αρμός", "2 mm · βήμα 0,60 / 1,20"),
+       ("Ύψος", "2 ολόκληρα ως το +2,40"), ("Οροφή", "+2,40 έως +2,50"),
+       ("Δάπεδο", "αρμοί = αρμοί τοίχων"), ("Γωνίες", "φάλτσο 45°"), ("Πάγκος", "κτιστός +0,75")]
 
 
 def sheet(c, R):
@@ -32,12 +32,12 @@ def sheet(c, R):
     by = {e["id"]: e for e in R["elevs"]}
     for k, (ox, oy) in L["elev"].items():
         S.draw_elev(c, by[k], ox, oy)
-    y = S.legend(c, L["legend"][0], L["legend"][1], R)
+    S.legend(c, L["legend"][0], L["legend"][1], R)
     S.keybox(c, *L["key"], KEY)
     north_arrow(c, *L["north"], r=9)
     frame_and_title(c, R["sheet"], "%s – ΟΨΕΙΣ · ΕΣΟΧΕΣ · ΠΛΑΚΑΚΙΑ" % R["name"],
                     "Α΄ · Β΄ · Γ΄ · Δ΄ όροφος · " + R["sub_short"],
-                    "πλακάκι 60 × 120 όρθιο ως την ψευδοροφή +2,40 · ΠΡΟΤΑΣΗ προς έγκριση",
+                    "πλακάκι 60 × 120 ως +2,40 · σκοτία ως την οροφή · ΠΡΟΤΑΣΗ προς έγκριση",
                     BASE, "ΚΛΙΜΑΚΑ 1:25 · A3", T.REV, T.DATE)
     c.showPage()
 
@@ -47,7 +47,7 @@ def check(R, out):
     bad = 0
     out.append("=" * 100)
     out.append("%s  %s – %s" % (R["sheet"], R["name"], R["sub"]))
-    tot_whole = tot_cut = 0; area = 0.0
+    tot_whole = tot_cut = 0; area = 0.0; mos = 0.0
     WX, WY = set(), set()
     for E in R["elevs"]:
         ps = S.pieces(E)
@@ -55,10 +55,11 @@ def check(R, out):
         for u in E.get("jv", []):
             (WX if ax == "x" else WY).add(round(o + sg * u, 3))
         whole = sum(1 for p in ps if p["whole"]); cut = len(ps) - whole
-        tot_whole += whole; tot_cut += cut; area += sum(p["area"] for p in ps)
-        out.append("  ΟΨΗ %s  %-46s μήκος %s · %d ολόκληρα · %d κομμένα / με εγκοπή" % (E["id"], E["title"][:46], fm(E["w"]), whole, cut))
+        tot_whole += whole; tot_cut += cut; area += sum(p["area"] for p in ps); mos += S.mosaic_area(E)
+        out.append("  ΟΨΗ %s  %-46s μήκος %s · %d ολόκληρα · %d κομμένα / με εγκοπή%s" % (
+            E["id"], E["title"][:46], fm(E["w"]), whole, cut, " · μικρό πλακάκι %.1f m²" % S.mosaic_area(E) if E.get("mosaic") else ""))
         us, _ = S.cells(E)
-        out.append("        πλάτη: " + " | ".join(fm(b - a) for a, b in zip(us[:-1], us[1:])))
+        out.append("        πλάτη: " + " | ".join("μικρό πλακάκι %s" % fm(b - a) if S.in_mosaic(E, (a + b) / 2) else fm(b - a) for a, b in zip(us[:-1], us[1:])))
         sp = E.get("special", {})
         for p in ps:
             key = next((k for k in sp if abs(k[0] - p["u0"]) < 2e-3 and abs(k[1] - p["u1"]) < 2e-3), None)
@@ -66,14 +67,13 @@ def check(R, out):
                 tag = "ΕΙΔΙΚΟ (%s)" % sp[key] if key else ("ΕΓΚΟΠΗ" if p["notched"] and p["minleg"] >= 0.10 - 1e-6 else "ΣΤΕΝΟ < 20 cm")
                 if tag.startswith("ΣΤΕΝΟ"): bad += 1
                 out.append("        %s–%s × %s–%s: στενότερο σημείο %s → %s" % (fm(p["u0"]), fm(p["u1"]), fm(p["z0"]), fm(p["z1"]), fm(p["minleg"]), tag))
-        # άξονες ειδών πάνω σε αρμό
         for it in E.get("items", []):
             if it[0] in ("wc_front", "mixer", "tap"):
                 u = it[1]; on = any(abs(u - j) < 2e-3 for j in E.get("jv", []))
                 mid = any(abs(u - (a + b) / 2) < 2e-3 for a, b in zip(us[:-1], us[1:]))
                 out.append("        άξονας %-9s u = %s → %s" % (it[0], fm(u), "σε αρμό" if on else ("στο κέντρο πλακιδίου" if mid else "ελεύθερη θέση")))
     out.append("  ΔΑΠΕΔΟ")
-    FX, FY = set(), set(); farea = 0.0
+    FX, FY = set(), set()
     for f in R["fields"]:
         a0, b0, a1, b1 = f["r"]
         xs = sorted(set([a0, a1] + list(f["xc"]))); ys = sorted(set([b0, b1] + list(f["yc"])))
@@ -88,8 +88,9 @@ def check(R, out):
     farea = abs(sum(pts[i][0] * pts[(i + 1) % n][1] - pts[(i + 1) % n][0] * pts[i][1] for i in range(n))) / 2
     fx = sorted(x for x in FX if not any(abs(x - w) < 3e-3 for w in WX))
     fy = sorted(y for y in FY if not any(abs(y - w) < 3e-3 for w in WY))
-    out.append("        αρμοί δαπέδου που ΔΕΝ συνεχίζουν σε τοίχο: x %s · y %s" % ([fm(x) for x in fx] or "κανένας", [fm(y) for y in fy] or "κανένας"))
-    out.append("  ΣΥΝΟΛΟ τοίχων: %d ολόκληρα · %d κομμένα / με εγκοπή · πλακάκι τοίχων %.1f m² · δαπέδου %.1f m² (καθαρά, χωρίς φύρα)" % (tot_whole, tot_cut, area, farea))
+    out.append("        αρμοί δαπέδου που ΔΕΝ συνεχίζουν σε τοίχο 60 × 120: x %s · y %s" % ([fm(x) for x in fx] or "κανένας", [fm(y) for y in fy] or "κανένας"))
+    out.append("  ΣΥΝΟΛΟ τοίχων: %d ολόκληρα · %d κομμένα / με εγκοπή · πλακάκι 60 × 120 τοίχων %.1f m²%s · δαπέδου %.1f m² (καθαρά, χωρίς φύρα)" % (
+        tot_whole, tot_cut, area, " · μικρό πλακάκι %.1f m²" % mos if mos else "", farea))
     return bad
 
 
