@@ -188,11 +188,15 @@ def draw_elev(c, E, ox, oy, s=S25):
             v.rect(u, 1.05 - 0.082, u + d * 0.012, 1.05 + 0.082, fill=METAL)
         elif k == "counter_front":          # κτιστός πάγκος: πλάκα 12 cm ντυμένη με το ίδιο πλακάκι, ανοιχτός από κάτω, κρυφό LED
             u0, u1, ub = it[1], it[2], it[3]
+            op = it[4] if len(it) > 4 else {}
             v.rect(u0, 0.63, u1, 0.75, fill=TILE, stroke=DARK, lw=0.9)
             v.rrect(ub - 0.24, 0.75, ub + 0.24, 0.88, 0.025, fill=SAN, stroke=DARK, lw=0.7)
             v.line(u0 + 0.03, 0.615, u1 - 0.03, 0.615, color=LED, lw=1.4)
-            v.text((u0 + u1) / 2, 0.545, "ΚΤΙΣΤΟΣ ΠΑΓΚΟΣ +0,75", size=4.6, font="Inter-SemiBold", bg=TILE)
-            v.text((u0 + u1) / 2, 0.475, "νιπτήρας από πάνω · LED από κάτω", size=4.2, bg=TILE)
+            lu = op.get("label_u", (u0 + u1) / 2)
+            v.text(lu, 0.545, "ΚΤΙΣΤΟΣ ΠΑΓΚΟΣ +0,75", size=4.6, font="Inter-SemiBold", bg=TILE)
+            v.text(lu, 0.475, "νιπτήρας από πάνω · LED από κάτω", size=4.2, bg=TILE)
+            for pu, ps in op.get("parts", []):
+                v.text(pu, 0.545, ps, size=4.3, font="Inter-SemiBold", bg=MOS if in_mosaic(E, pu) else TILE)
         elif k == "counter_side":
             u, d, dep = it[1], it[2], it[3]
             v.rect(u, 0.63, u + d * dep, 0.75, fill=TILE, stroke=DARK, lw=0.9)
@@ -235,16 +239,16 @@ def draw_elev(c, E, ox, oy, s=S25):
         elif k == "glass_edge":
             u = it[1]
             v.rect(u - 0.007, 0, u + 0.007, 2.10, fill=GLASS)
-            v.text(u + 0.045, 0.52, "γυαλί 0,70 × 2,10", size=4.8, color=GLASS, font="Inter-Medium", rot=90)
+            v.text(u + 0.045, it[2] if len(it) > 2 else 0.52, "γυαλί 0,70 × 2,10", size=4.8, color=GLASS, font="Inter-Medium", rot=90)
         elif k == "drain_lin":
             v.rect(it[1], 0, it[2], 0.02, fill=METAL)
             v.text((it[1] + it[2]) / 2, 0.075, "γραμμικό σιφώνι %s" % fm(it[2] - it[1]), size=4.8, bg=MOS if in_mosaic(E, it[1]) else TILE)
         elif k == "drain_end":
             v.rect(it[1], 0, it[2], 0.02, fill=METAL)
-        elif k == "shelves":
-            for zz in it[3]:
-                v.rect(it[1], zz - 0.012, it[2], zz + 0.012, fill=WHITE, stroke=DARK, lw=0.6)
-            v.text((it[1] + it[2]) / 2, max(it[3]) + 0.075, "ραφάκια κόγχης", size=4.6, font="Inter-Medium", bg=MOS)
+        elif k == "ledge_cut":             # το ράφι του ντους (συνέχεια του πάγκου) κομμένο από το επίπεδο της όψης
+            v.rect(it[1], 0.63, it[2], 0.75, fill=TILE, stroke=DARK, lw=0.9)
+            v.hatch([(it[1], 0.63), (it[2], 0.63), (it[2], 0.75), (it[1], 0.75)], step_pt=3.0, color=JOINT, lw=0.3)
+            v.text((it[1] + it[2]) / 2, 0.80, it[3] + " +0,75", size=4.6, font="Inter-SemiBold", bg=MOS)
     # ---- σκοτία πάνω από το πλακάκι ως την ψευδοροφή (+2,40 … +2,50) · κρυφό LED όπου cove
     v.rect(0, H, W, TOP, fill=BAND)
     cv = E.get("cove")
@@ -292,7 +296,7 @@ def _polyline(c, v, pts, color, lw, dash=None):
     c.drawPath(pth, stroke=1, fill=0); c.setDash([])
 
 
-def draw_plan(c, R, M, ox, oy, s=S25):
+def draw_plan(c, R, M, ox, oy, s=S25, light=False):
     x0, y0, x1, y1 = R["view"]
     v = V2(c, ox, oy, s, ydown=True, a0=x0, b0=y0)
     Wp, Hp = (x1 - x0) * s, (y1 - y0) * s
@@ -313,12 +317,12 @@ def draw_plan(c, R, M, ox, oy, s=S25):
         else:
             v.line((b[0] + b[2]) / 2, b[1], (b[0] + b[2]) / 2, b[3], color=GLASS, lw=1.0)
     # ---- προτάσεις (αλλαγές στην τοιχοποιία)
-    for kind, r in R.get("patches", []):
+    for kind, r in ([] if light else R.get("patches", [])):
         if kind == "remove":
             v.rect(*r, fill=WHITE, stroke=PRE, lw=0.6, dash=[2, 1.5])
         else:
             v.rect(*r, fill=PRE_F, stroke=PRE, lw=0.6); v.hatch([(r[0], r[1]), (r[2], r[1]), (r[2], r[3]), (r[0], r[3])])
-    for pr in R.get("pre", []):
+    for pr in ([] if light else R.get("pre", [])):
         r = pr["r"]
         v.rect(*r, fill=PRE_F, stroke=PRE, lw=0.5); v.hatch([(r[0], r[1]), (r[2], r[1]), (r[2], r[3]), (r[0], r[3])])
     # ---- δάπεδο: κάναβος πλακιδίων (αποκοπή στο τελικό περίγραμμα)
@@ -334,30 +338,29 @@ def draw_plan(c, R, M, ox, oy, s=S25):
             for ya, yb in zip(ys[:-1], ys[1:]):
                 d = sorted([xb - xa, yb - ya])
                 full = abs(d[0] - 0.60) < 0.012 and abs(d[1] - 1.20) < EPS
-                v.rect(xa, ya, xb, yb, fill=TILE if full else TILE_CUT)
+                v.rect(xa, ya, xb, yb, fill=TILE if (full or light) else TILE_CUT)
+    jc, jl = ((0.80, 0.78, 0.74), 0.3) if light else (JOINT, 0.6)
     for f in R["fields"]:
         a0, b0, a1, b1 = f["r"]
-        v.rect(a0, b0, a1, b1, stroke=JOINT, lw=0.6)
-        for x in f["xc"]: v.line(x, b0, x, b1, color=JOINT, lw=0.6)
-        for y in f["yc"]: v.line(a0, y, a1, y, color=JOINT, lw=0.6)
+        v.rect(a0, b0, a1, b1, stroke=jc, lw=jl)
+        for x in f["xc"]: v.line(x, b0, x, b1, color=jc, lw=jl)
+        for y in f["yc"]: v.line(a0, y, a1, y, color=jc, lw=jl)
     c.restoreState()
     v.poly(R["floor"], stroke=DARK, lw=0.9)
     # ---- ψηφίδα στους τοίχους του ντους (γραμμή πάνω στην τελική παρειά)
-    if R.get("mosaic_line"):
+    if R.get("mosaic_line") and not light:
         _polyline(c, v, R["mosaic_line"], MOSC, 2.2)
     # ---- εσοχές / ντουλάπια μέσα στους τοίχους · ραφάκια
     for n in R.get("niches", []):
         v.rect(*n["r"], fill=CAB if n.get("cab") else NICHE_IN, stroke=DARK, lw=0.6)
-    for sh in R.get("shelves", []):
-        v.poly(sh, fill=WHITE, stroke=DARK, lw=0.6)
     # ---- αποχέτευση
     for r in R.get("lin", []):
         v.rect(*r, fill=METAL)
-    for x, y, nm in R.get("traps", []):
+    for x, y, nm in ([] if light else R.get("traps", [])):
         v.rect(x - 0.05, y - 0.05, x + 0.05, y + 0.05, fill=WHITE, stroke=DARK, lw=0.6)
         v.line(x - 0.05, y - 0.05, x + 0.05, y + 0.05, lw=0.35); v.line(x - 0.05, y + 0.05, x + 0.05, y - 0.05, lw=0.35)
         v.text(x, y + 0.115, nm, size=4.8, font="Inter-Medium")
-    for x, y, nm in R.get("stacks", []):
+    for x, y, nm in ([] if light else R.get("stacks", [])):
         v.circle(x, y, 0.055, stroke=HID, lw=0.7, dash=[2, 1.5], fill=WHITE)
         v.text(x, y, nm, size=3.6, color=HID, font="Inter-SemiBold")
     # ---- είδη
@@ -371,7 +374,10 @@ def draw_plan(c, R, M, ox, oy, s=S25):
             v.rect(w["axis"] - 0.18, w["face"], w["axis"] + 0.18, w["face"] + 0.14, fill=SAN, stroke=DARK, lw=0.7)
             v.line(w["axis"], w["face"] - 0.30, w["axis"], w["face"] + 0.75, color=RED, lw=0.35, dash=[6, 2, 1, 2])
     for vn in R.get("vanity", []):
-        v.rect(*vn["r"], fill=TILE if vn.get("built") else STONE, stroke=DARK, lw=0.9)
+        if vn.get("poly"):
+            v.poly(vn["poly"], fill=TILE if vn.get("built") else STONE, stroke=DARK, lw=0.9)
+        else:
+            v.rect(*vn["r"], fill=TILE if vn.get("built") else STONE, stroke=DARK, lw=0.9)
         bx, by = vn["basin"]
         if vn["wall"] == "W":
             v.rrect(bx - 0.17, by - 0.24, bx + 0.17, by + 0.24, 0.05, fill=WHITE, stroke=DARK, lw=0.5)
@@ -401,10 +407,41 @@ def draw_plan(c, R, M, ox, oy, s=S25):
             X, Y = v.p(hinge[0] + r * math.cos(t), hinge[1] - r * math.sin(t))
             (pth.moveTo if i == 0 else pth.lineTo)(X, Y)
         c.drawPath(pth, stroke=1, fill=0)
+    if light:
+        # ---- ΚΡΥΦΟΣ ΦΩΤΙΣΜΟΣ: κάθε γραμμή LED με τη λάμψη της και τον αριθμό της
+        c.setLineCap(1); c.setLineJoin(1)
+        for L in R.get("lights", []):
+            _polyline(c, v, L["pts"], LED_F, 0.11 * s)
+        for L in R.get("lights", []):
+            _polyline(c, v, L["pts"], LED, 2.4)
+        c.setLineCap(0); c.setLineJoin(0)
+        for s_, (lx, ly), size in R.get("labels", []) + R.get("light_labels", []):
+            v.text(lx, ly, s_.split(" 1,")[0], size=5.0, font="Inter-SemiBold", color=GREY)
+        for L in R.get("lights", []):
+            X, Y = v.p(*L["tag"]); X2, Y2 = v.p(*L["to"])
+            c.setStrokeColorRGB(*LED); c.setLineWidth(0.7); c.line(X, Y, X2, Y2)
+            c.setFillColorRGB(*LED); c.circle(X2, Y2, 1.8, stroke=0, fill=1)
+            c.setFillColorRGB(1, 1, 1); c.setLineWidth(1.1); c.circle(X, Y, 9.5, stroke=1, fill=1)
+            c.setFillColorRGB(*DARK); c.setFont("Inter-Bold", 8.4); c.drawCentredString(X, Y - 3.0, L["id"])
+        c.restoreState()
+        c.setStrokeColorRGB(0.75, 0.75, 0.78); c.setLineWidth(0.4); c.setDash([4, 3]); c.rect(ox, oy - Hp, Wp, Hp, stroke=1, fill=0); c.setDash([])
+        c.setFillColorRGB(*DARK); c.setFont("Inter-Bold", 8.6)
+        c.drawString(ox, oy + 17, "ΚΑΤΟΨΗ ΚΡΥΦΟΥ ΦΩΤΙΣΜΟΥ  ·  %s" % R["name"])
+        c.setFont("Inter", 6.2); c.setFillColorRGB(*GREY)
+        c.drawString(ox, oy + 7, "πορτοκαλί γραμμή = ταινία LED · ο αριθμός παραπέμπει στον πίνακα και στις λεπτομέρειες")
+        return v
     # ---- κρυφό LED στη σκοτία της οροφής
     for pl in R.get("led", []):
         _polyline(c, v, pl, LED, 1.5, dash=[4, 2])
+    # ---- καθαρές αποστάσεις (λεκάνη ↔ απέναντι)
+    for kind, pos, vals in R.get("clear", []):
+        if kind == "v":
+            v.chain_v(vals, pos, off=0, color=RED, size=6.4, font="Inter-Bold")
+        else:
+            v.chain_h(vals, pos, off=0, color=RED, size=6.4, font="Inter-Bold", ext=False)
     # ---- κείμενα μέσα στην κάτοψη
+    for s_, (lx, ly), rot in R.get("plan_notes2", []):
+        v.text(lx, ly, s_, size=3.9, font="Inter-SemiBold", color=GREY, rot=rot)
     for f in R["fields"]:
         if f.get("slope"):
             a0, b0, a1, b1 = f["r"]
@@ -420,8 +457,6 @@ def draw_plan(c, R, M, ox, oy, s=S25):
     for n in R.get("niches", []):
         if n.get("lp"):
             v.text(n["lp"][0], n["lp"][1], n["label"], size=4.8, font="Inter-SemiBold", color=DARK, bg=WHITE)
-    if R.get("shelf_label"):
-        v.text(R["shelf_label"][1][0], R["shelf_label"][1][1], R["shelf_label"][0], size=4.8, font="Inter-SemiBold", bg=WHITE)
     if R.get("mosaic_label"):
         s_, (lx, ly), rot = R["mosaic_label"]
         v.text(lx, ly, s_, size=5.0, font="Inter-SemiBold", color=MOSC, rot=rot, bg=WHITE)
@@ -478,6 +513,7 @@ def legend(c, x, y, R):
         (lambda: sw(WHITE, HID, [2, 2]), "κρυφά: καζανάκι, στήλη"),
         (lambda: sw(GLASS, GLASS), "γυαλί ντους 0,70 × 2,10"),
         (lambda: sw(WHITE, RED, [6, 2, 1, 2], 0.6), "άξονας είδους σε αρμό"),
+        (lambda: ln(RED, 0.9), "καθαρή απόσταση μπροστά στη λεκάνη"),
     ]
     if R.get("pre") or R.get("patches"):
         rows.append((lambda: sw(PRE_F, PRE, lw=0.7), "ΠΡΟΤΑΣΗ: αλλαγή τοιχοποιίας"))

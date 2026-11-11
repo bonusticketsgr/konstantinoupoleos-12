@@ -1,0 +1,265 @@
+<title>Λουτρά 3D Κωνσταντινουπόλεως</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@600;700&display=swap">
+<style>
+/* Διάταξη: μία οθόνη – λωρίδα επιλογών πάνω, το 3D γεμίζει τον υπόλοιπο χώρο, λωρίδα λήψεων κάτω. */
+:root {
+  --bg: #e9ebe8; --stage: #dfe2de; --panel: #f6f7f5; --fg: #1c2321; --muted: #5d6763; --line: #c3c9c5;
+  --accent: #b9770b; --accent-fg: #ffffff; --chip: #ffffff;
+  --font-head: "Manrope", "Inter", system-ui, sans-serif; --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #151918; --stage: #1d2221; --panel: #1f2524; --fg: #e7ebe9; --muted: #9aa5a1; --line: #39413f;
+  --accent: #f0b03e; --accent-fg: #1b1608; --chip: #2a3130; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #151918; --stage: #1d2221; --panel: #1f2524; --fg: #e7ebe9; --muted: #9aa5a1; --line: #39413f;
+  --accent: #f0b03e; --accent-fg: #1b1608; --chip: #2a3130; color-scheme: dark }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 14px; display: flex; flex-direction: column; overflow: hidden; }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding-block: 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); background: var(--panel); }
+.bar.top { border-bottom: 1px solid var(--line); }
+.bar.bottom { border-top: 1px solid var(--line); }
+h1 { font-family: var(--font-head); font-size: 16px; font-weight: 700; margin: 0; letter-spacing: 0.01em; text-wrap: balance; }
+.sub { color: var(--muted); font-size: 12px; margin: 0; }
+.grow { flex: 1 1 auto; min-width: 0; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--chip); }
+.seg button { border: 0; background: transparent; color: var(--fg); font: 500 13px var(--font-body); padding: 8px 12px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+.tog { border: 1px solid var(--line); border-radius: 8px; background: var(--chip); color: var(--fg); font: 500 13px var(--font-body); padding: 8px 12px; cursor: pointer; }
+.tog[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#stage { position: relative; flex: 1 1 auto; min-height: 0; background: var(--stage); }
+#gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+#gl:active { cursor: grabbing; }
+#tags { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.tag { position: absolute; transform: translate(-50%, -135%); white-space: nowrap; font: 500 11.5px var(--font-body); color: #1c2321;
+  background: rgba(255, 255, 255, 0.92); border: 1px solid rgba(28, 35, 33, 0.35); border-radius: 5px; padding: 3px 7px; }
+.tag::after { content: ""; position: absolute; left: 50%; top: 100%; width: 1px; height: 9px; background: rgba(28, 35, 33, 0.6); }
+.tag.led { background: #ffd98a; border-color: #8a5a06; }
+.hint { color: var(--muted); font-size: 12px; margin: 0; }
+#err { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; color: var(--fg); }
+.shot .bar { display: none; }
+@media (max-width: 520px) { .seg button, .tog { padding: 8px 10px; font-size: 12.5px; } h1 { font-size: 15px; } }
+</style>
+
+<div class="bar top">
+  <div class="grow">
+    <h1>Λουτρά τυπικού ορόφου – 3D</h1>
+    <p class="sub">Κωνσταντινουπόλεως 12 · πρόταση __REV__ · ίδια νούμερα με τα σχέδια Λ-01 / Λ-02</p>
+  </div>
+  <div class="seg" role="group" aria-label="Χώρος" id="rooms"></div>
+</div>
+<div id="stage">
+  <canvas id="gl"></canvas>
+  <div id="tags"></div>
+  <div id="err" hidden>Το 3D δεν άνοιξε σε αυτή τη συσκευή. Δες τα φύλλα Λ-04 και Λ-05 του PDF, έχουν τις ίδιες λήψεις.</div>
+</div>
+<div class="bar bottom">
+  <div class="seg" role="group" aria-label="Λήψη" id="views"></div>
+  <button class="tog" id="night" type="button" aria-pressed="false">Κρυφός φωτισμός</button>
+  <button class="tog" id="labels" type="button" aria-pressed="true">Ετικέτες</button>
+  <p class="hint grow">Σύρε για περιστροφή · δύο δάχτυλα ή ροδέλα για ζουμ</p>
+</div>
+
+<script src="__THREE__"></script>
+<script>const SCENES = /*__SCENE__*/;</script>
+<script>
+(function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const canvas = $("gl"), stage = $("stage"), tagsEl = $("tags");
+  if (!window.THREE) { $("err").hidden = false; return; }
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, preserveDrawingBuffer: true }); }
+  catch (e) { $("err").hidden = false; return; }
+  const scene = new THREE.Scene();
+  const cam = new THREE.PerspectiveCamera(32, 1, 0.05, 80);
+  const V = (p) => new THREE.Vector3(p[0], p[2], p[1]);          // μοντέλο (x, y νότος, z πάνω) → three (x, πάνω, z)
+
+  // ---- υλικά
+  const std = (c, r, m, extra) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: r, metalness: m || 0 }, extra || {}));
+  const MAT = {
+    tile: std(0xddd3c2, 0.7), mosaic: std(0xcbbba2, 0.75), floor: std(0xcdc1ae, 0.7), counter: std(0xe2d9c9, 0.6),
+    paint: std(0xefece5, 0.95), ceiling: std(0xf4f2ec, 0.95), niche: std(0xc6b9a3, 0.7), cab: std(0xb08f62, 0.6),
+    mirror: std(0xb9d0db, 0.25), white: std(0xfafaf7, 0.3), white2: std(0xe6e4de, 0.35), basin: std(0xd5dcdf, 0.3),
+    chrome: std(0x8d8a83, 0.4, 0.3), plate: std(0xd9d6ce, 0.4), dark: std(0x3b3b3b, 0.6), door: std(0xe9e4d8, 0.7),
+    glass: std(0xbfe0ee, 0.05, 0, { transparent: true, opacity: 0.26, depthWrite: false, side: THREE.DoubleSide }),
+    shelf: std(0xcfe6ef, 0.05, 0, { transparent: true, opacity: 0.55, depthWrite: false }),
+    sky: new THREE.MeshBasicMaterial({ color: 0xe3f0f7 }), led: new THREE.MeshBasicMaterial({ color: 0xffc457 })
+  };
+  const LMAT = {
+    joint: new THREE.LineBasicMaterial({ color: 0x8f8576 }), mjoint: new THREE.LineBasicMaterial({ color: 0xb5a58c }),
+    dark: new THREE.LineBasicMaterial({ color: 0x3d3d3d }), edge: new THREE.LineBasicMaterial({ color: 0x6f6a62 })
+  };
+  const down = {};
+  const downMat = (m) => down[m] || (down[m] = Object.assign(MAT[m].clone(), { side: THREE.BackSide }));
+
+  // ---- φώτα
+  const amb = new THREE.AmbientLight(0xffffff, 0.5), hemi = new THREE.HemisphereLight(0xffffff, 0xb9ac98, 0.2);
+  const sun = new THREE.DirectionalLight(0xfff4e2, 0.36); sun.position.set(3, 8, 2);
+  const sun2 = new THREE.DirectionalLight(0xffffff, 0.14); sun2.position.set(-4, 5, -6);
+  scene.add(amb, hemi, sun, sun2);
+
+  // ---- κατασκευή χώρου
+  function build(D) {
+    const root = new THREE.Group(), groups = D.groups.map((g) => ({ obj: new THREE.Group(), p: V(g.p), n: V(g.n) }));
+    groups.forEach((g) => root.add(g.obj));
+    const host = (g) => (g >= 0 ? groups[g].obj : root);
+    const bins = {};
+    D.quads.forEach((q) => {
+      const key = q.m + "|" + q.g, b = bins[key] || (bins[key] = { m: q.m, g: q.g, pos: [], nor: [], idx: [] });
+      let P = q.p.map(V); const n = V(q.n);
+      const gn = new THREE.Vector3().subVectors(P[1], P[0]).cross(new THREE.Vector3().subVectors(P[2], P[0]));
+      if (gn.dot(n) < 0) P = [P[0], P[3], P[2], P[1]];
+      const o = b.pos.length / 3;
+      P.forEach((v) => { b.pos.push(v.x, v.y, v.z); b.nor.push(n.x, n.y, n.z); });
+      b.idx.push(o, o + 1, o + 2, o, o + 2, o + 3);
+    });
+    Object.keys(bins).forEach((k) => {
+      const b = bins[k], geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.Float32BufferAttribute(b.pos, 3));
+      geo.setAttribute("normal", new THREE.Float32BufferAttribute(b.nor, 3));
+      geo.setIndex(b.idx);
+      host(b.g).add(new THREE.Mesh(geo, MAT[b.m]));
+    });
+    const shapeOf = (o) => { const s = new THREE.Shape(); o.forEach((p, i) => (i ? s.lineTo(p[0], -p[1]) : s.moveTo(p[0], -p[1]))); return s; };
+    D.prisms.forEach((pr) => {
+      const geo = new THREE.ExtrudeGeometry(shapeOf(pr.o), { depth: pr.z1 - pr.z0, bevelEnabled: false, curveSegments: 1 });
+      geo.rotateX(-Math.PI / 2); geo.translate(0, pr.z0, 0);
+      const mesh = new THREE.Mesh(geo, MAT[pr.m]);
+      if (pr.m === "glass" || pr.m === "shelf") mesh.renderOrder = 5;
+      host(pr.g).add(mesh);
+      if (pr.e) host(pr.g).add(new THREE.LineSegments(new THREE.EdgesGeometry(geo, 30), LMAT.edge));
+    });
+    D.polys.forEach((po) => {
+      const geo = new THREE.ShapeGeometry(shapeOf(po.o)); geo.rotateX(-Math.PI / 2); geo.translate(0, po.z, 0);
+      root.add(new THREE.Mesh(geo, po.down ? downMat(po.m) : MAT[po.m]));
+    });
+    Object.keys(D.lines).forEach((k) => {
+      const parts = k.split("|"), a = D.lines[k], pos = new Float32Array(a.length);
+      for (let i = 0; i < a.length; i += 3) { pos[i] = a[i]; pos[i + 1] = a[i + 2]; pos[i + 2] = a[i + 1]; }
+      const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+      host(+parts[1]).add(new THREE.LineSegments(geo, LMAT[parts[0]]));
+    });
+    const leds = D.lights.map((L) => {
+      const pl = new THREE.PointLight(0xffc477, 0, L.k === "niche" ? 0.9 : 2.3, 1.6); pl.position.copy(V(L.p)); root.add(pl); return pl;
+    });
+    const tags = D.labels.map((L) => {
+      const el = document.createElement("div"); el.className = "tag" + (L.k === "led" ? " led" : ""); el.textContent = L.t;
+      return { el: el, p: V(L.p), n: L.n ? V([L.n[0], L.n[1], 0]) : null };
+    });
+    return { D: D, root: root, groups: groups, leds: leds, tags: tags };
+  }
+  const rooms = SCENES.map(build);
+
+  // ---- κάμερα σε τροχιά γύρω από τον στόχο
+  const orb = { t: new THREE.Vector3(), r: 6, th: 0.8, ph: 1.0 };
+  let cur = null, viewKey = "dol", night = false, showTags = true, dirty = true;
+  function placeCam() {
+    const s = Math.sin(orb.ph);
+    cam.position.set(orb.t.x + orb.r * s * Math.sin(orb.th), orb.t.y + orb.r * Math.cos(orb.ph), orb.t.z + orb.r * s * Math.cos(orb.th));
+    cam.lookAt(orb.t); dirty = true;
+  }
+  function setView(key) {
+    viewKey = key; const v = cur.D.views[key], p = V(v.pos), t = V(v.target), d = p.clone().sub(t);
+    orb.t.copy(t); orb.r = d.length(); orb.ph = Math.acos(d.y / orb.r); orb.th = Math.atan2(d.x, d.z);
+    cam.fov = v.fov; fit(); placeCam(); syncUi();
+  }
+  function setRoom(i) {
+    if (cur) { scene.remove(cur.root); cur.tags.forEach((t) => t.el.remove()); }
+    cur = rooms[i]; scene.add(cur.root); cur.tags.forEach((t) => tagsEl.appendChild(t.el));
+    buildViewButtons(); setLight(); setView(viewKey in cur.D.views ? viewKey : "dol");
+  }
+  function cssColor(name) { return new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "#dfe2de"); }
+  function setLight() {
+    amb.intensity = night ? 0.3 : 0.5; hemi.intensity = night ? 0.06 : 0.2; sun.intensity = night ? 0 : 0.36; sun2.intensity = night ? 0 : 0.14;
+    rooms.forEach((r) => r.leds.forEach((l) => { l.intensity = night ? 0.52 : 0; }));
+    renderer.setClearColor(night ? new THREE.Color(0x121413) : cssColor("--stage"), 1); dirty = true;
+  }
+  function fit() {
+    const w = stage.clientWidth, h = stage.clientHeight; if (!w || !h) return;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.setSize(w, h, false);
+    cam.aspect = w / h;
+    // σε στενή οθόνη (όρθιο κινητό) ανοίγει το πεδίο ώστε να χωρά όλος ο χώρος
+    // οι λήψεις είναι στημένες για πλάτος : ύψος 1,66 – σε στενότερη οθόνη ανοίγει το πεδίο ώστε να χωρά το ίδιο πλάτος
+    const base = cur ? cur.D.views[viewKey].fov : 32, tb = Math.tan(base * Math.PI / 360);
+    cam.fov = Math.min(100, 2 * Math.atan(Math.max(tb, tb * 1.66 / cam.aspect)) * 180 / Math.PI);
+    cam.updateProjectionMatrix(); dirty = true;
+  }
+  const tmp = new THREE.Vector3();
+  function frame() {
+    requestAnimationFrame(frame);
+    if (!dirty || !cur) return; dirty = false;
+    cur.groups.forEach((g) => { g.obj.visible = g.n.dot(tmp.copy(cam.position).sub(g.p)) > 0; });
+    renderer.render(scene, cam);
+    const w = stage.clientWidth, h = stage.clientHeight;
+    cur.tags.forEach((t) => {
+      tmp.copy(t.p).project(cam);
+      const front = !t.n || t.n.dot(tmp.copy(cam.position).sub(t.p)) > 0;
+      tmp.copy(t.p).project(cam);
+      const on = showTags && front && tmp.z < 1 && Math.abs(tmp.x) < 1.05 && Math.abs(tmp.y) < 1.05;
+      t.el.hidden = !on;
+      if (on) { t.el.style.left = ((tmp.x + 1) / 2 * w).toFixed(1) + "px"; t.el.style.top = ((1 - tmp.y) / 2 * h).toFixed(1) + "px"; }
+    });
+    window.__frames = (window.__frames || 0) + 1;
+  }
+
+  // ---- χειρισμός: σύρσιμο = περιστροφή · δύο δάχτυλα / ροδέλα = ζουμ · δεξί κλικ ή Shift = μετατόπιση
+  const ptr = new Map(); let pinch = 0;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  function pan(dx, dy) {
+    const k = orb.r * 0.0016, right = new THREE.Vector3().setFromMatrixColumn(cam.matrix, 0), up = new THREE.Vector3().setFromMatrixColumn(cam.matrix, 1);
+    orb.t.addScaledVector(right, -dx * k).addScaledVector(up, dy * k);
+  }
+  canvas.addEventListener("pointerdown", (e) => { canvas.setPointerCapture(e.pointerId); ptr.set(e.pointerId, { x: e.clientX, y: e.clientY, b: e.button, s: e.shiftKey }); pinch = 0; });
+  canvas.addEventListener("pointermove", (e) => {
+    const p = ptr.get(e.pointerId); if (!p) return;
+    const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+    if (ptr.size === 1) {
+      if (p.b === 2 || p.s) pan(dx, dy);
+      else { orb.th -= dx * 0.006; orb.ph = clamp(orb.ph - dy * 0.006, 0.06, 2.6); }
+    } else if (ptr.size === 2) {
+      const a = Array.from(ptr.values()), d = Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y);
+      if (pinch) orb.r = clamp(orb.r * pinch / d, 0.4, 30);
+      pinch = d; pan(dx / 2, dy / 2);
+    }
+    placeCam();
+  });
+  const drop = (e) => { ptr.delete(e.pointerId); pinch = 0; };
+  canvas.addEventListener("pointerup", drop); canvas.addEventListener("pointercancel", drop);
+  canvas.addEventListener("wheel", (e) => { e.preventDefault(); orb.r = clamp(orb.r * Math.exp(e.deltaY * 0.0012), 0.4, 30); placeCam(); }, { passive: false });
+  canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // ---- κουμπιά
+  function seg(host, items, onPick) {
+    host.textContent = "";
+    items.forEach((it) => {
+      const b = document.createElement("button"); b.type = "button"; b.textContent = it.label; b.dataset.key = it.key; b.id = host.id + "-" + it.key;
+      b.addEventListener("click", () => onPick(it.key)); host.appendChild(b);
+    });
+  }
+  function buildViewButtons() { seg($("views"), Object.keys(cur.D.views).map((k) => ({ key: k, label: cur.D.views[k].name })), setView); }
+  function syncUi() {
+    Array.from($("rooms").children).forEach((b, i) => b.setAttribute("aria-pressed", String(rooms[i] === cur)));
+    Array.from($("views").children).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.key === viewKey)));
+    $("night").setAttribute("aria-pressed", String(night)); $("labels").setAttribute("aria-pressed", String(showTags));
+  }
+  seg($("rooms"), rooms.map((r, i) => ({ key: String(i), label: r.D.label })), (k) => setRoom(+k));
+  $("night").addEventListener("click", () => { night = !night; setLight(); syncUi(); });
+  $("labels").addEventListener("click", () => { showTags = !showTags; dirty = true; syncUi(); });
+  window.addEventListener("resize", fit);
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(stage);
+  const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  (mq.addEventListener ? mq.addEventListener.bind(mq, "change") : mq.addListener.bind(mq))(setLight);
+  new MutationObserver(setLight).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  // ---- λήψεις για τα φύλλα του PDF: #shot-<χώρος>-<λήψη>-<day|night>-<0|1 ετικέτες>
+  const m = /^#shot-(\d)-(\w+)-(day|night)-(\d)$/.exec(location.hash || "");
+  if (m) { document.documentElement.classList.add("shot"); night = m[3] === "night"; showTags = m[4] === "1"; viewKey = m[2]; }
+  window.__shot = function (room, view, isNight, tags) { night = isNight; showTags = tags; viewKey = view; setRoom(room); fit(); placeCam(); };
+  setRoom(m ? +m[1] : 0);
+  frame();
+})();
+</script>

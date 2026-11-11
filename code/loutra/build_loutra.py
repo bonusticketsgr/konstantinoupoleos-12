@@ -5,6 +5,8 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, "..", "toixopoiies"))
 import lt_typ as T
 import lt_sheets as S
+import lt_light as LT
+import build_3d as B3
 from lt_draw import new_canvas, frame_and_title, north_arrow, fm, PAGE_W, PAGE_H, DARK, GREY
 import b1_model as M
 
@@ -39,6 +41,28 @@ def sheet(c, R):
                     "Α΄ · Β΄ · Γ΄ · Δ΄ όροφος · " + R["sub_short"],
                     "πλακάκι 60 × 120 ως +2,40 · σκοτία ως την οροφή · ΠΡΟΤΑΣΗ προς έγκριση",
                     BASE, "ΚΛΙΜΑΚΑ 1:25 · A3", T.REV, T.DATE)
+    c.showPage()
+
+
+CAPS = [("1_apo_pano", "1 · ΑΠΟ ΠΑΝΩ", "χωρίς την οροφή και τους δύο μπροστινούς τοίχους"),
+        ("2_alli_plevra", "2 · ΑΠΟ ΤΗΝ ΑΛΛΗ ΠΛΕΥΡΑ", "οι απέναντι τοίχοι"),
+        ("3_apo_mesa", "3 · ΑΠΟ ΜΕΣΑ", "στο ύψος του ματιού"),
+        ("4_kryfos_fotismos", "4 · ΚΡΥΦΟΣ ΦΩΤΙΣΜΟΣ", "μόνο οι ταινίες LED αναμμένες")]
+
+
+def sheet_3d(c, R, code, sheet_no):
+    """Φύλλο με τέσσερις λήψεις του 3D μοντέλου (ΛΟΥΤΡΑ/3D/*.jpg από το build_3d.py)."""
+    w = 548.0; h = w * B3.H / B3.W
+    for i, (nm, t1, t2) in enumerate(CAPS):
+        x = 34 + (i % 2) * (w + 26); ytop = 792 - (i // 2) * (h + 24)
+        f = os.path.join(B3.SHOT_DIR, "%s_%s.jpg" % (code, nm))
+        if os.path.exists(f):
+            c.drawImage(f, x, ytop - h, w, h)
+        c.setStrokeColorRGB(*GREY); c.setLineWidth(0.5); c.rect(x, ytop - h, w, h, stroke=1, fill=0)
+        c.setFillColorRGB(*DARK); c.setFont("Inter-Bold", 8.2); c.drawString(x, ytop + 5, t1)
+        c.setFillColorRGB(*GREY); c.setFont("Inter", 6.4); c.drawString(x + 8 + c.stringWidth(t1, "Inter-Bold", 8.2), ytop + 5, t2)
+    frame_and_title(c, sheet_no, "%s – 3D" % R["name"], "Α΄ · Β΄ · Γ΄ · Δ΄ όροφος · από το ίδιο μοντέλο με τις όψεις",
+                    "χρώματα ενδεικτικά, όχι επιλογή πλακιδίου · ΠΡΟΤΑΣΗ προς έγκριση", BASE, "ΧΩΡΙΣ ΚΛΙΜΑΚΑ · A3", T.REV, T.DATE)
     c.showPage()
 
 
@@ -89,6 +113,8 @@ def check(R, out):
     fx = sorted(x for x in FX if not any(abs(x - w) < 3e-3 for w in WX))
     fy = sorted(y for y in FY if not any(abs(y - w) < 3e-3 for w in WY))
     out.append("        αρμοί δαπέδου που ΔΕΝ συνεχίζουν σε τοίχο 60 × 120: x %s · y %s" % ([fm(x) for x in fx] or "κανένας", [fm(y) for y in fy] or "κανένας"))
+    for kind, pos, vals in R.get("clear", []):
+        out.append("  ΚΑΘΑΡΗ ΑΠΟΣΤΑΣΗ μπροστά στη λεκάνη (προβολή λεκάνης %s): %s m" % (fm(T.WC_L), fm(abs(vals[1] - vals[0]))))
     out.append("  ΣΥΝΟΛΟ τοίχων: %d ολόκληρα · %d κομμένα / με εγκοπή · πλακάκι 60 × 120 τοίχων %.1f m²%s · δαπέδου %.1f m² (καθαρά, χωρίς φύρα)" % (
         tot_whole, tot_cut, area, " · μικρό πλακάκι %.1f m²" % mos if mos else "", farea))
     return bad
@@ -96,12 +122,16 @@ def check(R, out):
 
 def main():
     os.makedirs(OUT_DIR, exist_ok=True); os.makedirs(NOTES_DIR, exist_ok=True)
+    B3.main(shots="--no-3d" not in sys.argv)          # σελίδα 3D + λήψεις για τα φύλλα Λ-04 / Λ-05
     c = new_canvas(OUT, "Λουτρά τυπικού ορόφου – όψεις, εσοχές, πλακάκια %s" % T.REV)
     out = ["ΕΛΕΓΧΟΣ ΚΟΜΜΑΤΙΩΝ – λουτρά τυπικού ορόφου %s (%s) · πλακάκι 60 × 120 · κανόνας: κανένα κομμάτι κάτω από 20 cm" % (T.REV, T.DATE)]
     bad = 0
     for R in T.ROOMS:
         sheet(c, R)
         bad += check(R, out)
+    LT.sheet(c, M, BASE)
+    for R, code, no in zip(T.ROOMS, ("L1", "L2"), ("Λ-04", "Λ-05")):
+        sheet_3d(c, R, code, no)
     c.save()
     out.append("=" * 100)
     out.append("ΣΤΕΝΑ ΚΟΜΜΑΤΙΑ (< 20 cm, εκτός ειδικών): %d" % bad)
