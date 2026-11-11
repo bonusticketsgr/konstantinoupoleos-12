@@ -7,6 +7,7 @@
 Χρήση:
   merokamata.py add 2026-11-11 "καλούπια=5, σιδεράδες=3" [--note "κείμενο"]
   merokamata.py add 2026-11-15 0            # αργία / δεν δούλεψε κανείς
+  merokamata.py opening 2026-11 10 "καλούπια=46, σιδεράδες=5, εργάτες=8"   # μεταφορά συνόλων 1–10 του μήνα
   merokamata.py show 2026-11                # όλες οι μέρες του μήνα
   merokamata.py month 2026-11               # σύνολο μήνα ανά συνεργείο
   merokamata.py year 2026                   # σύνολα ανά μήνα
@@ -91,6 +92,16 @@ def cmd_add(day, crews_text, note=""):
     tot = sum(crews.values())
     print(f"Καταχωρήθηκε {day}: " + (", ".join(f"{c} {n}" for c, n in crews.items()) if crews else "αργία") + f" → {tot} μεροκάματα")
 
+def cmd_opening(ym, upto, crews_text):
+    """Μεταφορά συνόλων για τις μέρες 1–upto του μήνα (μία εγγραφή, όχι ανά μέρα)."""
+    tag = f"{ym}-01…{int(upto):02d}"
+    rows = [r for r in read_month(ym) if r["ημερομηνία"] != tag]
+    crews = parse_crews(crews_text)
+    for crew, n in crews.items():
+        rows.append({"ημερομηνία": tag, "συνεργείο": crew, "άτομα": str(n), "σημείωση": f"μεταφορά συνόλων 1–{int(upto)}/{int(ym[5:7])}"})
+    write_month(ym, rows)
+    print(f"Μεταφορά {tag}: " + ", ".join(f"{c} {n}" for c, n in crews.items()) + f" → {sum(crews.values())} μεροκάματα")
+
 def cmd_show(ym):
     rows = read_month(ym)
     if not rows:
@@ -152,6 +163,8 @@ def main(argv):
         if "--note" in argv:
             i = argv.index("--note"); note = argv[i + 1]; argv = argv[:i] + argv[i + 2:]
         cmd_add(argv[2], argv[3] if len(argv) > 3 else "0", note)
+    elif cmd == "opening":
+        cmd_opening(argv[2], argv[3], argv[4])
     elif cmd == "show":
         cmd_show(argv[2])
     elif cmd == "month":
