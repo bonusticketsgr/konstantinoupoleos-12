@@ -1,5 +1,5 @@
 """Οπτικός έλεγχος οπών πάνω στους ΠΡΩΤΟΤΥΠΟΥΣ ξυλοτύπους (Γιάννης 11/11/2026: «έλεγχος … και για τις τρύπες πάλι»).
-Για κάθε πλάκα Σ2 … Σ8 και κάθε κουτί 20 × 20 του apox_r20.HOLES: μεγέθυνση 1,3 × 1,3 m του ξυλοτύπου (PDF, διανυσματικό) με
+Για κάθε πλάκα Σ2 … Σ8 και κάθε κουτί 20 × 20 του apox_r21.HOLES: μεγέθυνση 1,3 × 1,3 m του ξυλοτύπου (PDF, διανυσματικό) με
 κάναβο 10 cm, το κουτί (κόκκινο) και τον σωλήνα (μπλε) → ένα PNG ανά πλάκα. Τυπώνει και το ποσοστό «μελανιού» μέσα στο κουτί
 (διαγράμμιση υποστυλώματος ≈ > 25 %· πλάκα με οπλισμό / κείμενα < 15 %).
 Χρήση: python3 check_holes_xyl.py <φάκελος με S2.pdf … S8.pdf> <φάκελος εξόδου>"""
@@ -9,8 +9,8 @@ from PIL import Image
 
 src, out = sys.argv[1], sys.argv[2]
 here = os.path.dirname(os.path.abspath(__file__))
-sys.argv = ["apox_r20.py", os.path.join(tempfile.mkdtemp(), "x.pdf")]
-ns = runpy.run_path(os.path.join(here, "apox_r20.py"), run_name="apox_build")
+sys.argv = ["apox_r21.py", os.path.join(tempfile.mkdtemp(), "x.pdf")]
+ns = runpy.run_path(os.path.join(here, "apox_r21.py"), run_name="apox_build")
 HOLES, EXIT_BOX = ns["HOLES"], ns["EXIT_BOX"]
 S_ = 56.693
 CAL = {"Σ2": ("S2", 1203.0, 617.5), "Σ3": ("S3", 877.5, 582.0), "Σ4": ("S4", 523.8, 759.3), "Σ5": ("S5", 462.7, 760.15), "Σ6": ("S6", 458.9, 760.15),

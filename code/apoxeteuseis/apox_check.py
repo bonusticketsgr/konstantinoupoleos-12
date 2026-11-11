@@ -231,7 +231,9 @@ def run(REG, models, stacks_in_walls, holes, slab_concrete, basement, rain):
         if r[2] != "rain" or not r[5]:
             continue
         x, y = r[4]; ins = any(in_poly((x, y), p) for p in list(T.ETICS) + list(T.ETICS5))
-        if r[5] in rain.get("slot", ()):
+        if r[5] in rain.get("chase", ()):
+            add("OK" if not ins else "ΛΑΘΟΣ", "Υδρορροές", "%s Φ75 %s / %s: σε κούτελο έξω από τη θερμοπρόσοψη, έξω από κάθε πλάκα" % (r[5], GR(x), GR(y)))
+        elif r[5] in rain.get("slot", ()):
             add("OK" if not ins else "ΛΑΘΟΣ", "Υδρορροές", "%s Φ75 %s / %s: στο κενό, κολλητά στη θερμοπρόσοψη (όχι μέσα της)" % (r[5], GR(x), GR(y)))
         else:
             add("OK" if ins else "ΟΡΙΑΚΟ", "Υδρορροές", "%s Φ75 %s / %s: %s" % (r[5], GR(x), GR(y), "μέσα στη θερμοπρόσοψη" if ins else "ΕΚΤΟΣ πολυγώνου θερμοπρόσοψης του μοντέλου"))
