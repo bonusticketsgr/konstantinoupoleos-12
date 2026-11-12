@@ -543,13 +543,13 @@ def cover_dims(D, FC, sides, inner, log, add=True):
     return left
 
 
-def choose_layout(bb, force_scale=None, force_layout=None, title_w=60.0, title_h=30.0, margin=6.0):
+def choose_layout(bb, force_scale=None, force_layout=None, title_w=60.0, title_h=30.0, margin=6.0, strip=0.0):
     """bb = (x0,y0,x1,y1) σε pt πηγής (1:50). Επιστρέφει (κλίμακα, διάταξη, διαθέσιμο ορθογώνιο σε mm)."""
     wm = (bb[2] - bb[0]) / S * 1000 / 1.0; hm = (bb[3] - bb[1]) / S * 1000        # mm στην πραγματικότητα
     opts = []
     for lay in (("right",) if force_layout == "right" else ("bottom",) if force_layout == "bottom" else ("right", "bottom")):
         if lay == "right": aw, ah = A3W - 2 * margin - title_w - 2, A3H - 2 * margin
-        else: aw, ah = A3W - 2 * margin, A3H - 2 * margin - title_h - 2
+        else: aw, ah = A3W - 2 * margin - (strip + 2 if strip else 0), A3H - 2 * margin - title_h - 2
         for sc in ([force_scale] if force_scale else SCALES):
             if wm / sc <= aw and hm / sc <= ah: opts.append((sc, lay, aw, ah)); break
     opts.sort(key=lambda o: (o[0], o[1] != "right"))
@@ -1096,10 +1096,14 @@ def build(cfg, out_pdf=None, date=None):
     DR = page.get_drawings()
     D = prep(page, DR, cfg)
     G = D["G"]; bb0 = D["bb"]
+    if cfg.get("bb_grow"):                 # R06: χώρος για σειρές διαστάσεων του μελετητή έξω από το περίγραμμα (pt πηγής: αριστερά, πάνω, δεξιά, κάτω) – Σ2: η πάνω σειρά έβγαινε εκτός φύλλου
+        g_ = cfg["bb_grow"]; bb0 = (bb0[0] - g_[0], bb0[1] - g_[1], bb0[2] + g_[2], bb0[3] + g_[3])
     GC, FC, sides, inner, datum = plan_chains(cfg, D)
     cover_left = cover_dims(D, FC, sides, inner, D["log0"]) if cfg.get("cover", True) else []
     for tp, v in cover_left: D["log0"].append("ΑΚΑΛΥΠΤΗ ΑΚΜΗ %s %.0f" % (tp, v))
     ROW_MM = 12.6 if datum else 8.6; TW = cfg.get("title_w", 46.0)
+    TMIN = cfg.get("title_min"); TH = cfg.get("title_h", 11.0); margin = cfg.get("margin", 6.0)
+    if TMIN: TW = 0.0        # R06: ελάχιστη πινακίδα = λεπτή λωρίδα κάτω (όροφος · στάθμη · κλίμακα · διεύθυνση) – καμία στήλη σημειώσεων δεξιά
     insets = list(cfg.get("insets", []))
     if cfg.get("sections"):
         for name, reg in X.find_sections(page):
@@ -1112,13 +1116,15 @@ def build(cfg, out_pdf=None, date=None):
                 bb_[2] + (rw if "right" in sides else 0), bb_[3] + (rw if "bottom" in sides else 0))
     lay = None
     for sc in ([cfg["scale"]] if cfg.get("scale") else SCALES):
-        try: lay = choose_layout(grow(bb0, sc), sc, cfg.get("layout"), title_w=TW + STRIP); break
+        try:
+            if TMIN: lay = choose_layout(grow(bb0, sc), sc, "bottom", title_h=(-2.0 if cfg.get("title_box") else TH), margin=margin, strip=STRIP)
+            else: lay = choose_layout(grow(bb0, sc), sc, cfg.get("layout"), title_w=TW + STRIP, margin=margin)
+            break
         except IndexError: continue
     if lay is None: raise RuntimeError("δεν χωράει σε Α3")
     scale, layout, aw, ah = lay
     K = 50.0 / scale; bb = grow(bb0, scale)
     cw, ch = (bb[2] - bb[0]) * K / MM, (bb[3] - bb[1]) * K / MM
-    margin = 6.0
     ox = margin + (aw - cw) / 2; oy = margin + (ah - ch) / 2
     sh = lib.Sheet(G, [], scale=scale, ox_mm=ox, oy_mm=oy, sx0=bb[0], sy0=bb[1], page_w=A3W, page_h=A3H)
     D["bb_out"] = bb
@@ -1133,7 +1139,7 @@ def build(cfg, out_pdf=None, date=None):
     free = list(info.get("free", (0, 0, 0, 0)))
     if STRIP:
         PW, PH = A3W * MM, A3H * MM
-        free = [PW - (margin + TW + STRIP) * MM, margin * MM + 4, PW - (margin + TW + 2) * MM, PH - margin * MM]
+        free = [PW - (margin + TW + STRIP) * MM, margin * MM + 4, PW - (margin + TW + 2) * MM, PH - (margin + (TH + 2 if TMIN and not cfg.get("title_box") else 0)) * MM]
     preps = [prep(page, DR, ins, S_loc=S * ins.get("src_scale", 1.0)) for ins in insets]   # τομές 1:20 στο αρχικό: 2.5 × 56.69 pt/m
     secs = [(ins, Di) for ins, Di in zip(insets, preps) if ins.get("section")]
     if secs and STRIP:
@@ -1207,7 +1213,54 @@ def title_block(sh, cfg, info, date=None):
     date = date or datetime.date.today().strftime("%d/%m/%Y")
     m = info["margin"] * MM
     PW, PH = A3W * MM, A3H * MM
-    sh.orect(m * 0.6, m * 0.6, PW - m * 0.6, PH - m * 0.6, 0.6)
+    fr = (m - 2.0 * MM) if cfg.get("title_min") else m * 0.6          # πλαίσιο φύλλου: στην ελάχιστη πινακίδα 2 mm έξω από το περιθώριο (≥ 6 mm από την άκρη – εκτύπωση)
+    sh.orect(fr, fr, PW - fr, PH - fr, 0.6)
+    if cfg.get("title_min") and cfg.get("title_box"):
+        # R06: φύλλο που δεν χωρά λωρίδα κάτω στο 1:50 (Σ2) – μικρό κουτί τίτλου σε άδεια γωνία της κάτοψης· title_box = (x, y) πάνω-αριστερή γωνία σε pt πηγής
+        bw = cfg.get("title_box_w", 64.0) * MM; x0 = sh.X(cfg["title_box"][0]); y0 = sh.Y(cfg["title_box"][1]); x1 = x0 + bw; pd = 2.4 * MM; x = x0 + pd; y = y0
+        def hr(yy): sh.oline(x0, yy, x1, yy, 0.4)
+        nw = FONT_B.text_length(cfg["number"], fontsize=22)
+        ya = y + 3.0 * MM; sh.otext(x, ya + 3.0, "ΞΥΛΟΤΥΠΟΣ ΕΡΓΟΤΑΞΙΟΥ", size=5.6, color=GRAY); ya += 14.5
+        for ln in cfg["title"]: sh.otext(x, ya, ln, size=11.0, bold=True); ya += 12.6
+        sh.otext(x1 - pd - nw, y + 3.0 * MM + 17, cfg["number"], size=22, bold=True)
+        y = ya - 4.0; hr(y)
+        if cfg.get("level_txt"):
+            sh.otext(x, y + 8.6, "ΣΤΑΘΜΗ ΑΝΩ ΠΛΑΚΑΣ", size=5.6, color=GRAY); sh.otext(x, y + 21.5, cfg["level_txt"], size=12.0, bold=True); y += 27.0; hr(y)
+        sh.otext(x, y + 8.6, "ΚΛΙΜΑΚΑ", size=5.6, color=GRAY); xe = x + FONT_B.text_length("1:%d" % info["scale"], fontsize=12.0) + 5 * MM
+        sh.otext(x, y + 21.5, "1:%d" % info["scale"], size=12.0, bold=True); u_ = S * info["K"]; yb_ = y + 13.0
+        for i in range(2): sh.orect(xe + i * u_, yb_, xe + (i + 1) * u_, yb_ + 1.4 * MM, 0.3, fill=(0, 0, 0) if i % 2 == 0 else (1, 1, 1))
+        for i in range(3): sh.otext(xe + i * u_, yb_ + 1.4 * MM + 6.6, str(i), size=5.6, align="center")
+        sh.otext(xe + 2 * u_ + 5, yb_ + 1.4 * MM + 6.6, "m", size=5.6)
+        y += 29.0; hr(y)
+        sh.otext(x, y + 8.6, "ΕΡΓΟ", size=5.6, color=GRAY)
+        sh.otext(x, y + 19.5, "ΚΩΝΣΤΑΝΤΙΝΟΥΠΟΛΕΩΣ 12 & ΑΓ. ΒΑΡΒΑΡΑΣ,", size=8.0, bold=True); sh.otext(x, y + 29.5, "ΑΡΓΥΡΟΥΠΟΛΗ", size=8.0, bold=True)
+        sh.otext(x1 - pd, y + 29.5, "%s · %s · %s 100 %%" % (cfg.get("rev", "R00"), date, cfg.get("paper", "Α3")), size=5.4, align="right", color=GRAY)
+        y1 = y + 33.5
+        sh.orect(x0, y0, x1, y1, 0.9)
+        info["title_rect"] = (x0, y0, x1, y1); info["free"] = (0, 0, 0, 0)
+        return
+    if cfg.get("title_min"):
+        # R06 (Γιάννης 12/11/2026: «βγάλε τις σημειώσεις από το πλάι, να πιάνουν λίγο χώρο, μόνο στοιχεία ορόφου, κλίμακα και διεύθυνση έργου»)
+        TH = cfg.get("title_h", 11.0) * MM; x0, x1, y1 = m, PW - m, PH - m; y0 = y1 - TH; yc = (y0 + y1) / 2
+        sh.orect(x0, y0, x1, y1, 0.9)
+        def cap(x, s_): sh.otext(x, y0 + 8.2, s_, size=5.6, color=GRAY)
+        def big(x, s_, size): sh.otext(x, y1 - 6.4, s_, size=size, bold=True); return x + FONT_B.text_length(s_, fontsize=size)
+        def sep(x): sh.oline(x, y0, x, y1, 0.4); return x + 3.2 * MM
+        x = x0 + 3.0 * MM
+        sh.otext(x, yc + 20 * 0.36, cfg["number"], size=20, bold=True); x = sep(x + FONT_B.text_length(cfg["number"], fontsize=20) + 3.2 * MM)
+        cap(x, "ΞΥΛΟΤΥΠΟΣ ΕΡΓΟΤΑΞΙΟΥ"); x = sep(big(x, " ".join(cfg["title"]), 12.5) + 3.2 * MM)
+        if cfg.get("level_txt"): cap(x, "ΣΤΑΘΜΗ ΑΝΩ ΠΛΑΚΑΣ"); x = sep(max(big(x, cfg["level_txt"], 12.5), x + 26 * MM) + 3.2 * MM)
+        cap(x, "ΚΛΙΜΑΚΑ"); xe = big(x, "1:%d" % info["scale"], 12.5) + 5 * MM
+        u_ = S * info["K"]
+        for i in range(2): sh.orect(xe + i * u_, yc - 1.2 * MM, xe + (i + 1) * u_, yc + 0.2 * MM, 0.3, fill=(0, 0, 0) if i % 2 == 0 else (1, 1, 1))
+        for i in range(3): sh.otext(xe + i * u_, yc + 0.2 * MM + 7.0, str(i), size=5.6, align="center")
+        sh.otext(xe + 2 * u_ + 5, yc + 0.2 * MM + 7.0, "m", size=5.6)
+        x = sep(xe + 2 * u_ + 7 * MM)
+        cap(x, "ΕΡΓΟ"); big(x, "ΚΩΝΣΤΑΝΤΙΝΟΥΠΟΛΕΩΣ 12 & ΑΓ. ΒΑΡΒΑΡΑΣ, ΑΡΓΥΡΟΥΠΟΛΗ", 10.5)
+        sh.otext(x1 - 2.6 * MM, y1 - 6.4, "%s · %s" % (cfg.get("rev", "R00"), date), size=6.4, align="right", color=GRAY)
+        sh.otext(x1 - 2.6 * MM, y0 + 8.2, "%s – εκτύπωση 100 %%" % cfg.get("paper", "Α3"), size=5.6, align="right", color=GRAY)
+        info["title_rect"] = (x0, y0, x1, y1); info["free"] = (0, 0, 0, 0)
+        return
     if info["layout"] == "right":
         x0 = PW - m - info["TW"] * MM; x1 = PW - m; y0 = m; y1 = PH - m
     else:
