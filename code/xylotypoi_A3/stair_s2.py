@@ -16,9 +16,9 @@ sys.path.insert(0, os.path.join(HERE, "..", "xylotypoi_S1_S2"))
 import lib
 from lib import MM, FONT_R, FONT_B, BLACK, GRAY, BLUE
 
-REV, DATE = "R00", "12/11/2026"
-OUT = os.path.join(HERE, "..", "..", "ΚΩΝΣΤΑΝΤΙΝΟΥΠΟΛΕΩΣ_12_ΑΡΓΥΡΟΥΠΟΛΗ", "ΞΥΛΟΤΥΠΟΙ", "ΕΡΓΟΤΑΞΙΟΥ_A2")
-NAME = "Σ2α_Λεπτομέρεια_σκάλας_υπογείου_A2_1-20_%s.pdf" % REV
+REV, DATE = "R01", "13/11/2026"
+OUT = os.path.join(HERE, "..", "..", "ΚΩΝΣΤΑΝΤΙΝΟΥΠΟΛΕΩΣ_12_ΑΡΓΥΡΟΥΠΟΛΗ", "ΞΥΛΟΤΥΠΟΙ")
+NAME = "Σ2α_Σκάλα_υπογείου_κάτοψη_A3_%s.pdf" % REV
 
 # ---------------------------------------------------------------- μοντέλο
 N = 16                                   # ρίχτια
@@ -53,6 +53,8 @@ for k_, (a_, b_) in RISERS.items():
     ip = WALK.intersection(LineString([a_, b_]))
     SPOS[k_] = WALK.project(ip if ip.geom_type == "Point" else ip.centroid)
 GOING = {k: SPOS[k + 1] - SPOS[k] for k in range(1, N)}
+# πλάτος πατήματος ΣΤΟ ΦΑΝΑΡΙ (εσωτερικό πλάτος): απόσταση διαδοχικών ριχτιών πάνω στην ακμή του φαναριού· το 8 = το στενό άκρο 0,10
+INNER = {k: math.dist(RISERS[k][0], RISERS[k + 1][0]) for k in range(1, N)}
 FFL = {k: FFL0 + k * RISE for k in range(1, N + 1)}
 SSL = {k: (FFL[k] - T_STEP if k < N else SSL1) for k in range(1, N + 1)}
 
@@ -121,17 +123,17 @@ def hatch_rect(v, x0, y0, x1, y1, step=0.07, w=0.2, color=(0.35, 0.35, 0.35)):
         c += step
 
 
-def draw_plan(sh):
-    v = View(sh, 30.0, 33.0, 9.25, 4.72, 20)
-    sh.otext(14 * MM, 17 * MM, "ΚΑΤΟΨΗ ΣΚΑΛΑΣ", size=12, bold=True); sh.otext(14 * MM + 104, 17 * MM, "κλίμακα 1:20 · διαστάσεις σε m, από παρειές μπετού", size=7.5, color=GRAY)
+def draw_plan(sh, big=False):
+    """big = μόνη της σε Α3: χωρίς επικεφαλίδα / σημειώσεις, πιο σφιχτές σειρές διαστάσεων."""
+    v = View(sh, 30.0, 33.0, 9.25, 4.72, 20); yb = 4.85 if big else 4.72
+    if not big: sh.otext(14 * MM, 17 * MM, "ΚΑΤΟΨΗ ΣΚΑΛΑΣ", size=12, bold=True); sh.otext(14 * MM + 104, 17 * MM, "κλίμακα 1:20 · διαστάσεις σε m, από παρειές μπετού", size=7.5, color=GRAY)
     # πλάκες (ελαφρύ γέμισμα): πλατύσκαλο Π6 και πλάκα σκάλας Π9
-    v.rect(9.70, 4.72, XL, YS, 0, (1, 1, 1), (0.955, 0.955, 0.93)); v.rect(9.70, 4.72, 11.05, YN, 0, (1, 1, 1), (0.955, 0.955, 0.93))
+    v.rect(9.70, yb, XL, YS, 0, (1, 1, 1), (0.955, 0.955, 0.93)); v.rect(9.70, yb, 11.05, YN, 0, (1, 1, 1), (0.955, 0.955, 0.93))
     # τοιχεία / υποστυλώματα
-    v.rect(9.40, 4.72, 9.70, 5.15, 1.3, BLACK, CONC); v.rect(11.05, 4.85, 13.35, YN, 1.3, BLACK, CONC)
-    v.rect(11.05, 4.72, 11.30, 4.85, 1.3, BLACK, CONC); v.rect(13.10, 4.72, 13.35, 4.85, 1.3, BLACK, CONC)
+    v.rect(9.40, yb, 9.70, 5.15, 1.3, BLACK, CONC); v.rect(11.05, 4.85, 13.35, YN, 1.3, BLACK, CONC)
+    if not big: v.rect(11.05, 4.72, 11.30, 4.85, 1.3, BLACK, CONC); v.rect(13.10, 4.72, 13.35, 4.85, 1.3, BLACK, CONC)
     v.rect(XE, YN, 13.35, 7.10, 0.9, BLACK, WALLC); hatch_rect(v, XE, 6.40, 13.35, 7.10)
     v.rect(XE, 7.10, 13.35, 7.85, 1.3, BLACK, CONC)
-    for (x0, y0, x1, y1) in ((9.40, 4.72, 9.70, 5.15), (11.05, 4.85, 13.35, YN), (XE, 7.10, 13.35, 7.85)): pass
     # δοκοί
     for x in (9.40, 9.70): v.line((x, 5.15), (x, 8.02), 0.8)
     for y in (YS, 7.85): v.line((9.70, y), (XE, y), 0.8)
@@ -140,7 +142,7 @@ def draw_plan(sh):
     for k, (a, b) in RISERS.items(): v.line(a, b, 0.85 if k in (1, N) else 0.55)
     v.line((XL, YN), (XL, YS), 0.85)
     # φανάρι
-    v.rect(XL, W0, WX, W1, 0.85, BLACK, (1, 1, 1)); v.line((XL, W0), (WX, W1), 0.3); v.line((XL, W1), (WX, W0), 0.3)
+    v.rect(XL, W0, WX, W1, 0.85, BLACK, (1, 1, 1))
     # γραμμή ανάβασης
     sh.shape.draw_polyline([pymupdf.Point(v.X(x), v.Y(y)) for x, y in WALK.coords]); sh.shape.finish(width=0.45, color=BLUE, dashes="[6 2 1 2] 0", closePath=False)
     sh.ocircle(v.X(XL - 0.12), v.Y(W1 + RW), 2.2, 0.5, BLUE, (1, 1, 1)); v.line((XL - 0.12, W1 + RW), (XL, W1 + RW), 0.45, BLUE)
@@ -166,7 +168,12 @@ def draw_plan(sh):
     v.text(12.72, 7.36, "Π9  h=15", size=8.5, bold=True, align="center", mask=True)
     v.text(10.30, 7.40, "κάτω: δάπεδο υπογείου", size=6.2, align="center", color=GRAY); v.text(10.30, 7.40, "μπετό %s · τελικό %s" % (lv(SSL0), lv(FFL0)), size=6.2, dy=7.4, align="center", color=GRAY)
     v.text(10.30, 4.98, "πλάκα ισογείου %s" % lv(SSL1), size=6.4, align="center", color=GRAY)
-    v.text(11.40, 6.35, "ΦΑΝΑΡΙ (κενό) 1,00 × 0,10", size=5.6, dy=2.0, align="center", mask=True)
+    # ΠΛΑΤΟΣ ΣΚΑΛΙΩΝ ΣΤΟ ΦΑΝΑΡΙ (cm): η ακμή του φαναριού είναι η γραμμή διάστασης, οι τιμές γράφονται μέσα στο κενό
+    for k in range(1, N):
+        a, b = RISERS[k][0], RISERS[k + 1][0]
+        if k == 8: sh.otext(v.X(WX) + 2.4, v.Y(YC) + 2.4, cm(INNER[k]), size=6.6, bold=True)
+        else: sh.otext(v.X((a[0] + b[0]) / 2), v.Y(a[1]) + (-1.4 if k < 8 else 6.0), cm(INNER[k]), size=6.4, bold=True, align="center")
+    v.text(XL - 0.05, YC, "ΦΑΝΑΡΙ 1,00 × 0,10 · πλάτος σκαλιού (cm)", size=5.3, dy=1.9, align="right", mask=True)
     v.text(9.55, 5.02, "Κ3", size=8.5, bold=True, align="center", dy=0); v.text(12.20, 4.975, "Κ6  230/25", size=8.5, bold=True, align="center", dy=3)
     sh.otext(v.X(13.225) + 3, v.Y(7.475) + 22, "Κ27 25/75", size=7.4, bold=True, rot=90)
     sh.otext(v.X(13.225) + 2.6, v.Y(6.35) + 40, "τοιχείο υπογείου 25", size=6.2, rot=90, mask=True)
@@ -175,22 +182,24 @@ def draw_plan(sh):
     v.text(XL - 0.06, W1 + RW + 0.16, "ΑΝΟΔΟΣ από −3,10", size=6.0, color=BLUE, align="right"); v.text(XL - 0.06, W0 - RW - 0.13, "ΑΦΙΞΗ στο +0,30", size=6.0, color=BLUE, align="right")
     # διαστάσεις: πάνω (ευθύγραμμα + σημεία στο τοιχείο Κ6), κάτω (σημεία στη δοκό Δ12.1), αριστερά, δεξιά (σημεία στο ανατολικό τοιχείο)
     top = [9.40, 9.70, XL, 11.165, 11.43, 11.775, 12.24, 12.82, XE, 13.35]
-    v.hdim(top, 4.72, off=-14); v.hdim([9.70, XL, XE], 4.72, off=-34)
-    v.hdim([XL, 11.165, 11.43, 11.775, 12.24, 12.82, XE], 7.85, off=22, side=1); v.hdim([XL, WX, XE], 7.85, off=44, side=1, vals=["1,00 φανάρι", "1,20"])
-    v.vdim([4.85, YN, W0, W1, YS, 7.85], 9.40, off=-16); v.vdim([YN, YS], 9.40, off=-38)
+    o1, o2 = (13, 27) if big else (14, 34); b1 = 15 if big else 22; l1, l2 = (13, 36) if big else (16, 38)
+    v.hdim(top, yb, off=-o1)
+    if big: v.hdim([9.70, XL, WX, XE], yb, off=-o2, vals=["1,20", "1,00 φανάρι", "1,20"])
+    else: v.hdim([9.70, XL, XE], yb, off=-o2); v.hdim([XL, WX, XE], 7.85, off=44, side=1, vals=["1,00 φανάρι", "1,20"])
+    v.hdim([XL, 11.165, 11.43, 11.775, 12.24, 12.82, XE], 7.85, off=b1, side=1)
+    v.vdim([4.85, YN, W0, W1, YS, 7.85], 9.40, off=-l1); v.vdim([YN, YS], 9.40, off=-l2)
     v.vdim([YN, 5.57, 6.135, 6.565, 7.13, YS], 13.35, off=17, side=1)
-    for x in top: v.line((x, 4.72), (x, 4.72 - 0.0), 0.2)
     # βοηθητικές γραμμές προέκτασης
-    for x in (11.775, 12.24, 12.82): sh.oline(v.X(x), v.Y(7.85) + 2, v.X(x), v.Y(7.85) + 24, 0.2, GRAY); sh.oline(v.X(x), v.Y(4.72) - 16, v.X(x), v.Y(4.85) - 2, 0.2, GRAY, "[1 1.5] 0")
-    for x in (11.165, 11.43): sh.oline(v.X(x), v.Y(7.85) + 2, v.X(x), v.Y(7.85) + 24, 0.2, GRAY); sh.oline(v.X(x), v.Y(4.72) - 16, v.X(x), v.Y(4.85) - 2, 0.2, GRAY, "[1 1.5] 0")
+    for x in (11.165, 11.43, 11.775, 12.24, 12.82):
+        sh.oline(v.X(x), v.Y(7.85) + 2, v.X(x), v.Y(7.85) + b1 + 2, 0.2, GRAY)
+        if not big: sh.oline(v.X(x), v.Y(yb) - o1 - 2, v.X(x), v.Y(4.85) - 2, 0.2, GRAY, "[1 1.5] 0")
     for y in (5.57, 6.135, 6.565, 7.13): sh.oline(v.X(13.35) + 2, v.Y(y), v.X(13.35) + 19, v.Y(y), 0.2, GRAY)
-    # σημεία ριχτιών στο φανάρι
-    v.text(11.76, 6.35, "", size=5)
-    yn = v.Y(7.85) + 64
-    for i, ln in enumerate(("Στο φανάρι: τα ρίχτια 4–8 (και 9–13) ξεκινούν 19 · 26 · 33 · 40 · 47 cm από το ρίχτι 3 (14) – το 8 και το 9 στις γωνίες του φαναριού.",
-                            "Κόκκινο = στάθμη ΜΠΕΤΟΥ πατήματος.   Μπλε = γραμμή ανάβασης, 60 cm από το φανάρι (πάτημα 26,5 cm σε όλα τα σκαλοπάτια).",
-                            "Ανατολικό τοιχείο, διαγραμμισμένο τμήμα 6,40–7,10: έως το ύψος της σκάλας (μελετητής).")):
-        sh.otext(14 * MM, yn + i * 9.2, ln, size=6.6)
+    if not big:
+        yn = v.Y(7.85) + 64
+        for i, ln in enumerate(("Μέσα στο φανάρι: πλάτος κάθε σκαλιού στο φανάρι (cm).",
+                                "Κόκκινο = στάθμη ΜΠΕΤΟΥ πατήματος.   Μπλε = γραμμή ανάβασης, 60 cm από το φανάρι (πάτημα 26,5 cm σε όλα τα σκαλοπάτια).",
+                                "Ανατολικό τοιχείο, διαγραμμισμένο τμήμα 6,40–7,10: έως το ύψος της σκάλας (μελετητής).")):
+            sh.otext(14 * MM, yn + i * 9.2, ln, size=6.6)
     sh.flush()
 
 
@@ -333,19 +342,68 @@ def title(sh):
     sh.otext(x1 - 2.6 * MM, y0 + 8.2, "Α2 – εκτύπωση 100 %", size=5.6, align="right", color=GRAY)
 
 
+def info_a3(sh, x, y0, y1, scale_txt):
+    """στενή στήλη στοιχείων δεξιά (Α3): τίτλος, κλίμακα, υπόμνημα χρωμάτων, στάθμες, έργο."""
+    sh.orect(x, y0, x + 40 * MM, y1, 0.9); xx = x + 2.4 * MM; y = y0 + 11 * MM
+    sh.otext(xx, y, "Σ2α", size=26, bold=True); y += 8 * MM
+    for ln in ("ΣΚΑΛΑ ΥΠΟΓΕΙΟΥ", "→ ΙΣΟΓΕΙΟΥ"): sh.otext(xx, y, ln, size=9.6, bold=True); y += 4.4 * MM
+    sh.otext(xx, y + 1, "ΚΑΤΟΨΗ ΞΥΛΟΤΥΠΟΥ", size=7.4); y += 8 * MM
+    sh.otext(xx, y, "ΚΛΙΜΑΚΑ", size=5.8, color=GRAY); y += 5.2 * MM; sh.otext(xx, y, scale_txt, size=13, bold=True); y += 3.6 * MM
+    sh.otext(xx, y, "Α3 – εκτύπωση 100 %", size=5.8, color=GRAY); y += 3.2 * MM
+    k = 1000.0 / float(scale_txt.split(":")[1].replace(",", ".")) * MM * 0.4             # γραφική κλίμακα 0,40 m
+    yb = y + 2.2 * MM; sh.oline(xx, yb, xx + k, yb, 0.8)
+    for i in range(0, 5): sh.oline(xx + k * i / 4, yb, xx + k * i / 4, yb - (5 if i in (0, 4) else 2.8), 0.4)
+    sh.otext(xx, yb + 7.2, "0", size=5.6); sh.otext(xx + k / 2, yb + 7.2, "20", size=5.6, align="center"); sh.otext(xx + k, yb + 7.2, "40 cm", size=5.6, align="right")
+    y = yb + 9 * MM; sh.oline(x, y - 4 * MM, x + 40 * MM, y - 4 * MM, 0.4)
+    def blk(head, lines, color=BLACK):
+        nonlocal y
+        sh.otext(xx, y, head, size=7.0, bold=True, color=color); y += 3.5 * MM
+        for ln in lines: sh.otext(xx, y, ln, size=6.5); y += 3.2 * MM
+        y += 2.0 * MM
+    blk("ΜΕΣΑ ΣΤΟ ΦΑΝΑΡΙ", ("πλάτος κάθε σκαλιού", "στο φανάρι, σε cm"))
+    blk("ΚΟΚΚΙΝΟ", ("στάθμη ΜΠΕΤΟΥ πατήματος", "(τελικό − επένδυση %s cm *)" % cm(T_STEP)), RED)
+    blk("ΜΠΛΕ", ("γραμμή ανάβασης, 60 cm από", "το φανάρι: πάτημα 26,5 cm", "σε όλα τα σκαλοπάτια"), BLUE)
+    blk("ΡΙΧΤΙΑ", ("%d × %s cm (τελικό)" % (N, cm(RISE, 2)), "μπετό: 1ο %s · 2ο–15ο %s" % (cm(SSL[1] - SSL0), cm(RISE, 2)), "16ο %s cm" % cm(SSL1 - SSL[N - 1])))
+    blk("ΣΤΑΘΜΕΣ", ("μπετό %s → %s" % (lv(SSL0), lv(SSL1)), "τελικό %s → %s" % (lv(FFL0), lv(FFL1)), "πλάκες Π6 / Π9 h = 15"))
+    blk("ΔΙΑΣΤΑΣΕΙΣ", ("σε m, από παρειές μπετού", "κλάδος 1,20 · φανάρι 1,00×0,10"))
+    sh.otext(xx, y, "* επένδυση βαθμίδας %s cm:" % cm(T_STEP), size=5.8, color=GRAY); y += 2.8 * MM
+    sh.otext(xx, y, "  παραδοχή – να επιβεβαιωθεί", size=5.8, color=GRAY)
+    y = y1 - 18.5 * MM; sh.oline(x, y - 4.2 * MM, x + 40 * MM, y - 4.2 * MM, 0.4)
+    for ln in ("ΚΩΝΣΤΑΝΤΙΝΟΥΠΟΛΕΩΣ 12", "& ΑΓ. ΒΑΡΒΑΡΑΣ", "ΑΡΓΥΡΟΥΠΟΛΗ"): sh.otext(xx, y, ln, size=6.6, bold=True); y += 3.3 * MM
+    sh.otext(xx, y + 1.2 * MM, "Βάση: Σ2_ΕΦ · A-10-B · Α-30-ΑΑ", size=5.4, color=GRAY); sh.otext(xx, y + 4.2 * MM, "%s · %s" % (REV, DATE), size=5.8, color=GRAY)
+
+
 def main():
-    sh = lib.Sheet({"region": (0, 0, 0, 0)}, [], scale=20, page_w=594, page_h=420, sx0=0, sy0=0)
-    draw_plan(sh); draw_step(sh); draw_table(sh); draw_dev(sh); title(sh); sh.flush()
+    """Α3: ΜΙΑ μεγάλη κάτοψη (η κάτοψη 1:20 μεγεθύνεται διανυσματικά ώστε να γεμίζει το φύλλο) + στενή στήλη στοιχείων."""
+    tmp = lib.Sheet({"region": (0, 0, 0, 0)}, [], scale=20, page_w=594, page_h=420, sx0=0, sy0=0)
+    draw_plan(tmp, big=True); tmp.flush()
+    bb = pymupdf.Rect()
+    for d in tmp.page.get_drawings(): bb |= d["rect"]
+    for r, _ in tmp.texts_out: bb |= r
+    bb = bb + (-2, -2, 2, 2)
+    PW, PH = 420 * MM, 297 * MM; m = 8 * MM; col = 40 * MM; gap = 3 * MM
+    aw, ah = PW - 2 * m - col - gap, PH - 2 * m
+    f = min(aw / bb.width, ah / bb.height)
+    for sc in (10, 12.5, 15, 20):                                                       # η μεγαλύτερη «στρογγυλή» κλίμακα που χωράει
+        if 20.0 / sc <= f + 1e-6: f = 20.0 / sc; break
+    scale_txt = "1:" + ("%g" % sc).replace(".", ",")
+    sh = lib.Sheet({"region": (0, 0, 0, 0)}, [], scale=sc, page_w=420, page_h=297, sx0=0, sy0=0)
+    w, h = bb.width * f, bb.height * f; x0 = m + (aw - w) / 2; y0 = m + (ah - h) / 2
+    src = pymupdf.open("pdf", tmp.doc.tobytes())
+    sh.page.show_pdf_page(pymupdf.Rect(x0, y0, x0 + w, y0 + h), src, 0, clip=bb)
+    sh.shape = sh.page.new_shape()
+    sh.orect(m - 2 * MM, m - 2 * MM, PW - m + 2 * MM, PH - m + 2 * MM, 0.6)
+    info_a3(sh, PW - m - col, m, PH - m, scale_txt); sh.flush()
     os.makedirs(OUT, exist_ok=True)
-    for f in os.listdir(OUT):
-        if f.startswith("Σ2α_"): os.remove(os.path.join(OUT, f))
+    for d_ in (OUT, os.path.join(OUT, "ΕΡΓΟΤΑΞΙΟΥ_A2")):
+        for fn in os.listdir(d_):
+            if fn.startswith("Σ2α_") and fn != NAME and REV in fn: os.remove(os.path.join(d_, fn))
     path = os.path.join(OUT, NAME)
-    sh.doc.set_metadata(dict(title="Σ2α – Λεπτομέρεια σκάλας υπογείου → ισογείου", author="ARKAD Ι.Κ.Ε."))
+    sh.doc.set_metadata(dict(title="Σ2α – Σκάλα υπογείου → ισογείου, κάτοψη", author="ARKAD Ι.Κ.Ε."))
     sh.doc.save(path, garbage=4, deflate=True)
-    print("->", NAME)
-    print("ρίχτι %.4f · πατήματα στη γραμμή ανάβασης:" % RISE, " ".join("%d:%.3f" % (k, GOING[k]) for k in range(1, N)), "· σύνολο %.3f" % (SPOS[N] - SPOS[1]))
-    print("μπετό:", " ".join("%d:%+.3f" % (k, SSL[k]) for k in range(1, N + 1)))
-    if len(sys.argv) > 1: pymupdf.open(path)[0].get_pixmap(dpi=130).save(sys.argv[1])
+    print("->", NAME, "· κλίμακα", scale_txt, "· κάτοψη %.0f × %.0f mm σε %.0f × %.0f" % (w / MM, h / MM, aw / MM, ah / MM))
+    print("πλάτος στο φανάρι (cm):", " ".join("%d:%s" % (k, cm(INNER[k])) for k in range(1, N)), "· σύνολο %s" % cm(sum(INNER.values())))
+    if len(sys.argv) > 1: pymupdf.open(path)[0].get_pixmap(dpi=int(sys.argv[2]) if len(sys.argv) > 2 else 110).save(sys.argv[1])
 
 
 if __name__ == "__main__":
