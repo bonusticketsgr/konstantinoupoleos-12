@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.join(HERE, "..", "xylotypoi_S1_S2"))
 import lib
 from lib import MM, FONT_R, FONT_B, BLACK, GRAY, BLUE
 
-REV, DATE = "R01", "13/11/2026"
+REV, DATE = "R02", "14/11/2026"
 OUT = os.path.join(HERE, "..", "..", "ΚΩΝΣΤΑΝΤΙΝΟΥΠΟΛΕΩΣ_12_ΑΡΓΥΡΟΥΠΟΛΗ", "ΞΥΛΟΤΥΠΟΙ")
 NAME = "Σ2α_Σκάλα_υπογείου_κάτοψη_A3_%s.pdf" % REV
 
@@ -32,6 +32,7 @@ YN, YS = 5.10, 7.60                      # παρειά τοιχείου ανε�
 W0, W1, WX = 6.30, 6.40, 11.90           # φανάρι 1,00 × 0,10
 YC = (W0 + W1) / 2
 RW = 0.60                                # γραμμή ανάβασης: 0,60 από το φανάρι
+ARCH_NUM = True                          # αρίθμηση όπως το A-10-B: ο αριθμός k γράφεται ΠΡΙΝ από το ρίχτι k (1 στο δάπεδο υπογείου … 16 στο τελευταίο πάτημα)
 _south = {1: ((10.90, W1), (10.90, YS)), 2: ((11.165, W1), (11.165, YS)), 3: ((11.43, W1), (11.43, YS)),
           4: ((11.62, W1), (11.775, YS)), 5: ((11.69, W1), (12.24, YS)), 6: ((11.76, W1), (12.82, YS)),
           7: ((11.83, W1), (XE, 7.13)), 8: ((11.90, W1), (XE, 6.565))}
@@ -145,7 +146,8 @@ def draw_plan(sh, big=False):
     v.rect(XL, W0, WX, W1, 0.85, BLACK, (1, 1, 1))
     # γραμμή ανάβασης
     sh.shape.draw_polyline([pymupdf.Point(v.X(x), v.Y(y)) for x, y in WALK.coords]); sh.shape.finish(width=0.45, color=BLUE, dashes="[6 2 1 2] 0", closePath=False)
-    sh.ocircle(v.X(XL - 0.12), v.Y(W1 + RW), 2.2, 0.5, BLUE, (1, 1, 1)); v.line((XL - 0.12, W1 + RW), (XL, W1 + RW), 0.45, BLUE)
+    if ARCH_NUM: v.line((XL - 0.26, W1 + RW), (XL, W1 + RW), 0.45, BLUE)
+    else: sh.ocircle(v.X(XL - 0.12), v.Y(W1 + RW), 2.2, 0.5, BLUE, (1, 1, 1)); v.line((XL - 0.12, W1 + RW), (XL, W1 + RW), 0.45, BLUE)
     ax, ay = v.X(XL - 0.20), v.Y(W0 - RW); v.line((XL, W0 - RW), (XL - 0.18, W0 - RW), 0.45, BLUE)
     sh.shape.draw_polyline([pymupdf.Point(ax, ay), pymupdf.Point(ax + 7, ay - 2.6), pymupdf.Point(ax + 7, ay + 2.6)]); sh.shape.finish(width=0.3, color=BLUE, fill=BLUE, closePath=True)
     sh.flush()
@@ -155,9 +157,10 @@ def draw_plan(sh, big=False):
         p = WALK.interpolate(s); q = WALK.interpolate(min(WALK.length, s + 0.02)); q0 = WALK.interpolate(max(0, s - 0.02))
         tx, ty = q.x - q0.x, q.y - q0.y; L = math.hypot(tx, ty) or 1; nx, ny = ty / L, -tx / L            # κάθετη προς τα έξω (μακριά από το φανάρι)
         if (p.x + nx - WX) ** 2 + (p.y + ny - YC) ** 2 < (p.x - nx - WX) ** 2 + (p.y - ny - YC) ** 2: nx, ny = -nx, -ny
-        if k == N: cx, cy = XL - 0.36, W0 - RW
+        if k == N: cx, cy = (XL - 0.14, W1 + RW) if ARCH_NUM else (XL - 0.36, W0 - RW)        # A-10-B: το «1» στο δάπεδο υπογείου, μπροστά στο 1ο ρίχτι
         else: cx, cy = p.x + nx * 0.02, p.y + ny * 0.02
-        sh.ocircle(v.X(cx), v.Y(cy), 5.6, 0.5, BLACK, (1, 1, 1)); sh.otext(v.X(cx), v.Y(cy) + 2.7, str(k), size=7.6, bold=True, align="center")
+        lab = (1 if k == N else k + 1) if ARCH_NUM else k
+        sh.ocircle(v.X(cx), v.Y(cy), 5.6, 0.5, BLACK, (1, 1, 1)); sh.otext(v.X(cx), v.Y(cy) + 2.7, str(lab), size=7.6, bold=True, align="center")
         if k < N:
             off = 0.33 if k not in (7, 8, 9, 10) else 0.36
             sh.otext(v.X(p.x + nx * off), v.Y(p.y + ny * off) + 2.2, lv(SSL[k]), size=6.2, bold=True, color=RED, align="center", mask=True)
@@ -360,6 +363,7 @@ def info_a3(sh, x, y0, y1, scale_txt):
         sh.otext(xx, y, head, size=7.0, bold=True, color=color); y += 3.5 * MM
         for ln in lines: sh.otext(xx, y, ln, size=6.5); y += 3.2 * MM
         y += 2.0 * MM
+    blk("ΑΡΙΘΜΗΣΗ 1–16", ("όπως ο αρχιτέκτονας (A-10-B):", "ο αριθμός είναι ΠΡΙΝ από το", "ρίχτι του · 16 ρίχτια =", "15 πατήματα + πλατύσκαλο"))
     blk("ΜΕΣΑ ΣΤΟ ΦΑΝΑΡΙ", ("πλάτος κάθε σκαλιού", "στο φανάρι, σε cm"))
     blk("ΚΟΚΚΙΝΟ", ("στάθμη ΜΠΕΤΟΥ πατήματος", "(τελικό − επένδυση %s cm *)" % cm(T_STEP)), RED)
     blk("ΜΠΛΕ", ("γραμμή ανάβασης, 60 cm από", "το φανάρι: πάτημα 26,5 cm", "σε όλα τα σκαλοπάτια"), BLUE)
