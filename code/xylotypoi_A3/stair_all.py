@@ -15,7 +15,7 @@ import stair_s2 as A
 import stair_s3 as B
 from stair_s2 import View, level_mark, cm, mt, lv, lv3, CONC, RED, FIN
 
-REV, DATE = "R05", "16/11/2026"
+REV, DATE = "R06", "16/11/2026"
 OUT = A.OUT
 NAME = "ΣΚ_Σκάλες_υπόγειο_ισόγειο_Α_όροφος_ΤΟΜΗ_A3_%s.pdf" % REV
 SC = 40
@@ -24,9 +24,7 @@ FILLC = (0.96, 0.93, 0.84); H = 0.15
 
 # ---------------------------------------------------------------- ανάπτυγμα (s = μήκος πάνω στη γραμμή ανάβασης, m)
 S_DOOR = 0.80                                    # δάπεδο υπογείου μπροστά στην πόρτα (σχηματικά)
-sA = {1: S_DOOR}                                 # ρίχτια του χωλ υπογείου: 1, 2, 3 = τα τρία φάλτσα μέσα στο πλατύσκαλο
-for k in range(2, A.NL + 1): sA[k] = sA[k - 1] + A.LGO[k - 1]
-for k in range(A.NL + 1, A.N + 1): sA[k] = sA[A.NL] + A.LGO[A.NL] + A.SPOS[k]
+sA = {k: S_DOOR + A.SPOS[k] for k in range(1, A.N + 1)}      # σκάλα υπογείου: ενιαία γραμμή ανάβασης (τα σκαλιά 1…NL πάνω στο συμπαγές πλατύσκαλο)
 LAND0 = 1.20                                     # πλατύσκαλο / χωλ ισογείου (πλάτος 1,20)
 sB = {k: sA[A.N] + LAND0 + B.SPOS[k] for k in range(1, B.N + 1)}
 LAND1 = B.XTOP - B.WALL1_X                       # πλατύσκαλο Α΄ 1,32
@@ -117,7 +115,7 @@ def draw(sh):
         sh.otext(v.X(s) + (0 if right else 0), yy, lv(zc) + " μπετό", size=7.4, bold=True, color=RED, align="left" if right else "right")
     sh.otext(v.X(0.02), v.Y(A.FFL0) - 25, lv(A.FFL0) + " τελικό", size=7.4, bold=True, color=FIN); sh.otext(v.X(0.02), v.Y(A.FFL0) - 15.5, lv(A.SSL0) + " μπετό", size=7.4, bold=True, color=RED)
     sh.otext(v.X(0.02), v.Y(A.FFL0) - 35, "ΥΠΟΓΕΙΟ", size=7.6, bold=True)
-    v.text((sA[1] + s3) / 2, A.SSL0, "%d ίσιο + %d φάλτσα" % (A.N_STR, A.N_WIN), size=5.0, bold=True, dy=-5, align="center")
+    v.text((sA[1] + s3) / 2, A.SSL0, "συμπαγές 1–%d" % A.NL, size=5.0, bold=True, dy=-5, align="center")
     # ισόγειο: το ΚΟΙΝΟ πλατύσκαλο των δύο σκαλών
     xm = (sN + sB[1]) / 2
     sh.orect(v.X(sN) + 3, v.Y(A.FFL1) - 53, v.X(sB[1]) - 3, v.Y(A.FFL1) - 17, 0.9, RED, (1, 1, 1))
@@ -171,7 +169,7 @@ def draw(sh):
     for i, r in enumerate(rows):
         for j, t in enumerate(r): sh.otext(x + cx[j] * MM, y + i * 4.6 * MM, t, size=7.4 if i else 6.2, bold=bool(i) and j > 0, color=BLACK if i else GRAY)
     y += len(rows) * 4.6 * MM + 1.5 * MM
-    for ln in ("Πάτημα %s cm στη γραμμή ανάβασης σε ΟΛΑ τα σκαλοπάτια (και στα φάλτσα)." % cm(A.G), "Οι δύο σκάλες δένουν στο ΙΔΙΟ πλατύσκαλο ισογείου:", "πλάκα Π6 (μπετό) %s  →  γέμισμα %s cm  →  τελικό %s" % (lv(A.SSL1), cm(A.FFL1 - A.SSL1, 0), lv(A.FFL1)),
+    for ln in ("Πάτημα στη γραμμή ανάβασης ίδιο σε όλα τα σκαλοπάτια κάθε σκάλας: υπόγειο %s · προς Α΄ %s cm." % (cm(A.G), cm(B.G)), "Οι δύο σκάλες δένουν στο ΙΔΙΟ πλατύσκαλο ισογείου:", "πλάκα Π6 (μπετό) %s  →  γέμισμα %s cm  →  τελικό %s" % (lv(A.SSL1), cm(A.FFL1 - A.SSL1, 0), lv(A.FFL1)),
                "(μελέτη: πλάκα %s · τελικό %s → χωλ %s cm ψηλότερα, 2 σκαλιά ακόμη στην εξωτερική σκάλα)" % (lv(A.SSL1_STUDY), lv(A.FFL_STUDY), cm(A.FFL1 - A.FFL_STUDY, 0))):
         sh.otext(x, y, ln, size=7.0, bold=ln.startswith("πλάκα")); y += 4.0 * MM
     sh.otext(12 * MM, 289 * MM - 4, "ΚΩΝΣΤΑΝΤΙΝΟΥΠΟΛΕΩΣ 12 & ΑΓ. ΒΑΡΒΑΡΑΣ, ΑΡΓΥΡΟΥΠΟΛΗ  ·  κατόψεις: Σ2α %s · Σ3β %s  ·  %s · %s" % (A.REV, B.REV, REV, DATE), size=6.0, color=GRAY)
@@ -187,17 +185,47 @@ def check():
     e = 1e-6; T = A.T_STEP
     assert abs(A.FFL0 + A.N * A.RISE - A.FFL1) < e and abs(B.FFL0 + B.N * B.RISE - B.FFL1) < e, "άθροισμα ριχτιών"
     assert abs(A.FFL1 - B.FFL0) < e and abs(A.SSL1 - B.SSL0) < e, "πλατύσκαλο ισογείου"
-    assert max(A.RISE, B.RISE) <= 0.18 + e, "ρίχτι > 18"
-    gs = list(A.GOING.values()) + list(A.LGO.values()) + list(B.GOING.values())
-    assert max(gs) - min(gs) < 0.001, "πάτημα όχι ίδιο παντού: %.4f … %.4f" % (min(gs), max(gs))
+    assert B.RISE <= 0.18 + e and A.RISE <= 0.19 + e, "ρίχτι"       # υπόγειο: 20 ρίχτια × 18,7 (απόφαση Γιάννη 16/11/2026 για μεγαλύτερο πάτημα)
+    for M in (A, B):
+        g_ = list(M.GOING.values()); assert max(g_) - min(g_) < 0.0015, "πάτημα όχι ίδιο: %s %.4f … %.4f" % (M.__name__, min(g_), max(g_))
+    gs = list(A.GOING.values()) + list(B.GOING.values())
     for M in (A, B):
         for k in range(1, M.N): assert abs(M.FFL[k] - (M.FFL0 + k * M.RISE)) < e and abs(M.SSL[k] - (M.FFL[k] - T)) < e, (M.__name__, k)
         assert abs(M.XE - M.WX - 1.20) < e and abs(M.YS - M.W1 - 1.20) < e and abs(M.W0 - M.YN - 1.20) < e, "κλάδοι / στροφή 1,20"
         assert min(M.INNER.values()) >= 0.07 - e, "πλάτος στο φανάρι < 7"
     assert B.STRAIGHT[1] - B.WALL_X >= 1.20 - e and B.XTOP - 9.70 >= 1.20 - e and A.RISERS[A.N][0][0] - 9.70 >= 1.20 - e, "πλατύσκαλα 1,20"
-    assert A.XS - A.WALL_X >= 1.20 - e
+    assert min(A.INNER.values()) >= 0.08 - e, "υπόγειο: φάλτσο < 8 cm στο φανάρι"
+    hr = headroom(); assert min(v_ for _, v_ in hr) >= 2.20, "ελεύθερο ύψος < 2,20"
+    print("ελεύθερο ύψος πάνω από τις μύτες της σκάλας υπογείου (κάτω από τη σκάλα προς Α΄): " + " · ".join("%s %.2f" % (n_, v_) for n_, v_ in hr))
     print("ΕΛΕΓΧΟΣ ΟΚ: ρίχτια %d × %.2f / %d × %.2f cm · πάτημα %.1f–%.1f cm · ισόγειο μπετό %+.2f / τελικό %+.2f · Α΄ %+.2f / %+.2f" % (
         A.N, A.RISE * 100, B.N, B.RISE * 100, min(gs) * 100, max(gs) * 100, A.SSL1, A.FFL1, B.SSL1, B.FFL1))
+
+
+def headroom():
+    """ελεύθερο ύψος πάνω από τις μύτες των σκαλιών της σκάλας υπογείου: κάτω παρειά της σκάλας προς Α΄ (Π9 h=15 κάθετα) / του
+    πλατύσκαλου ισογείου, σε 3 διαδρομές γύρω από το φανάρι (60 cm = γραμμή ανάβασης · 30 cm · 2 cm = κολλητά στο φανάρι)."""
+    from shapely.geometry import LineString
+    out = []
+    for name, d in (("γραμμή ανάβασης", 0.60), ("30 cm από το φανάρι", 0.30), ("στο φανάρι", 0.02)):
+        pts = [(A.XL, A.W1 + d), (A.WX, A.W1 + d)]
+        pts += [(A.WX + d * math.cos(math.radians(90 - i)), A.W1 + d * math.sin(math.radians(90 - i))) for i in range(1, 91)]
+        pts += [(A.WX + d * math.cos(math.radians(-i)), A.W0 + d * math.sin(math.radians(-i))) for i in range(0, 91)] + [(A.XL, A.W0 - d)]
+        path = LineString(pts)
+        def pos(M):
+            q = {}
+            for k, (a, b) in M.RISERS.items():
+                ip = path.intersection(LineString([a, b]))
+                if not ip.is_empty: q[k] = path.project(ip if ip.geom_type == "Point" else ip.centroid)
+            return q
+        qa, qb = pos(A), pos(B); land = B.SSL0 - H
+        cor = sorted((qb[j], B.SSL[1] - B.RISE if j == 1 else B.SSL[j - 1]) for j in qb)       # εσωτερικές γωνίες της σκάλας προς Α΄
+        def soff(q):
+            if q <= cor[0][0]: return land
+            for (q0, z0), (q1, z1) in zip(cor[:-1], cor[1:]):
+                if q <= q1: return max(land, z0 + (z1 - z0) * (q - q0) / (q1 - q0) - H * math.hypot(q1 - q0, z1 - z0) / (q1 - q0))
+            return B.SSL1 - H
+        out.append((name, min((soff(qa[k]) if k in qa else land) - A.FFL[k] for k in range(1, A.N))))
+    return out
 
 
 def merge(path_sk):

@@ -16,119 +16,95 @@ sys.path.insert(0, os.path.join(HERE, "..", "xylotypoi_S1_S2"))
 import lib
 from lib import MM, FONT_R, FONT_B, BLACK, GRAY, BLUE
 
-REV, DATE = "R12", "16/11/2026"
+REV, DATE = "R13", "16/11/2026"
 OUT = os.path.join(HERE, "..", "..", "ΚΩΝΣΤΑΝΤΙΝΟΥΠΟΛΕΩΣ_12_ΑΡΓΥΡΟΥΠΟΛΗ", "ΞΥΛΟΤΥΠΟΙ")
-NAME = "Σ2α_Σκάλα_υπογείου_%d_ρίχτια_A3_%s.pdf" % (21, REV)
 
 # ---------------------------------------------------------------- μοντέλο
-N = 21                                   # ρίχτια συνολικά – R08 (Γιάννης 16/11/2026: 20 × 18,0 με ένα ΦΑΛΤΣΟ σκαλί στο πλατύσκαλο): 3 στο χωλ + 17 στη σκάλα
+# R13 (Γιάννης 16/11/2026, υπόδειξη Αρτέμη Καραμολέγκου): 20 ΡΙΧΤΙΑ για μεγαλύτερο πάτημα + ΑΝΑΔΙΑΤΑΞΗ ΣΚΑΛΟΠΑΤΙΩΝ – καμία βεντάλια
+# σε μηδέν: κάθε φάλτσο έχει ≥ 8 cm στο φανάρι. ΕΝΙΑΙΟ μοντέλο: μία γραμμή ανάβασης από το ρίχτι 1 ως το 20, κάθε ρίχτι = ευθεία από
+# σημείο της περιμέτρου του φαναριού (U) μέσα από το σημείο της γραμμής ανάβασης στη θέση (k−1)·G ως τον τοίχο / τη δοκό / το τοιχείο.
+N = 20                                   # ρίχτια συνολικά
 N_DESIGN = 16                            # η μελέτη (Σ2_ΕΦ / A-10-B): 16 ρίχτια × 21,56 από το −3,00 ως το +0,45
-NL = 4                                   # ρίχτια στο χωλ – R09: ΟΛΑ μέσα στο πλατύσκαλο, 3 φάλτσα πατήματα γύρω από τη γωνία του φαναριού (χωρίς το ίσιο σκαλί)
-NS = N - NL                              # ρίχτια της σκάλας μέσα στο κλιμακοστάσιο
+NL = 4                                   # σκαλιά πάνω στο υπερυψωμένο πλατύσκαλο (συμπαγή, πάνω στην κοιτόστρωση)· τα υπόλοιπα στην πλάκα Π9
+NS = N - NL
 FFL_STUDY = 0.45                         # τελικό χωλ ισογείου κατά τη μελέτη
-FFL0, FFL1 = -3.00, 0.74                 # τελικό δάπεδο υπογείου / χωλ ισογείου (ΝΕΟ +0,60: ένα σκαλί ακόμη στην εξωτερική σκάλα εισόδου)
-SSL0, SSL1 = -3.10, 0.59                 # άνω στάθμη μπετού: κοιτόστρωση υπογείου (Σ1) / πλατύσκαλο Π6 ισογείου ΝΕΟ +0,45 (γέμισμα 15 όπως τα σπίτια – Κόγιας)
+FFL0, FFL1 = -3.00, 0.74                 # τελικό δάπεδο υπογείου / χωλ ισογείου (+0,74: 7 σκαλιά × 17 στην εξωτερική σκάλα εισόδου)
+SSL0, SSL1 = -3.10, 0.59                 # άνω στάθμη μπετού: κοιτόστρωση υπογείου (Σ1) / πλάκα χωλ ισογείου (γέμισμα 15 – Κόγιας)
 SSL1_STUDY = 0.30                        # Π6 κατά τον Σ2_ΕΦ
 T_STEP = 0.10                            # επένδυση σκαλιών και υπερυψωμένου πλατύσκαλου (Γιάννης 14/11/2026)
 H_SLAB = 0.15
-RISE = (FFL1 - FFL0) / N                 # 3,60 / 19 = 0,1895
+RISE = (FFL1 - FFL0) / N                 # 3,74 / 20 = 0,187
 XL, XE = 10.90, 13.10                    # αρχή φαναριού / παρειά ανατολικού τοιχείου
 YN, YS = 5.10, 7.60                      # παρειά τοιχείου ανελκυστήρα Κ6 / παρειά δοκού Δ12.1
 W0, W1, WX = 6.30, 6.40, 11.90           # φανάρι 1,00 × 0,10 (μελέτη) → κλάδοι και στροφή 1,20
-XS = 10.90                               # 1ο ρίχτι της σκάλας (ρίχτι 3): 3 cm πριν από το φανάρι → πάτημα ≥ 25 παντού
+XS = XL                                  # ανατολικό άκρο του πλατύσκαλου (αρχή του φαναριού)
 WALL_X = 9.50                            # παρειά του τοίχου parking (γυψοσανίδα 9,40–9,50, κάτω από τη Δ9.1)
 K3_Y = 5.15
 DOOR_Y = (5.20, 6.10)                    # πόρτα parking 0,90: 5 cm από την Κ3, ανοίγει μέσα, μεντεσές νότια
-XW = XS - 0.60                           # γραμμή ανάβασης στο χωλ: 60 cm από τη γωνία του φαναριού
-YC = (W0 + W1) / 2
 RW = 0.60
+XW = XL - RW                             # γραμμή ανάβασης στο πλατύσκαλο: 60 cm από τη γωνία του φαναριού
+Y1 = W0                                  # ρίχτι 1: ίσιο Α–Δ, περασιά με τη ΒΟΡΕΙΑ παρειά του φαναριού (20 cm από την πόρτα)
+YC = (W0 + W1) / 2
 ARCH_NUM = True
-# σκάλα 17 ριχτιών (j = 1…17 → ρίχτια 3…19) = η χάραξη της σκάλας ισογείου → Α΄ (stair_s3) κατοπτρικά
-G = (2 * (WX - XL) + math.pi * RW + (W1 - W0)) / 16          # ΙΔΙΟ πάτημα παντού: γραμμή ανάβασης 3,985 / 16 = 24,9 cm (1ο και τελευταίο ρίχτι ακριβώς στο 10,90)
-STRAIGHT = {1: XL, 2: round(XL + G, 3), 3: round(XL + 2 * G, 3), 15: round(XL + 2 * G, 3), 16: round(XL + G, 3), 17: XL}
-INNER_PT = {4: (11.54, W1), 5: (11.64, W1), 6: (11.72, W1), 7: (11.80, W1), 8: (11.88, W1), 9: (WX, 6.35),
-            10: (11.88, W0), 11: (11.80, W0), 12: (11.72, W0), 13: (11.64, W0), 14: (11.54, W0)}   # συμμετρικά – το ρίχτι 9 πάνω στον άξονα του φαναριού
+NAME = "Σ2α_Σκάλα_υπογείου_%d_ρίχτια_A3_%s.pdf" % (N, REV)
 
 
 def _walk_pts():
-    pts = [(XS, W1 + RW), (WX, W1 + RW)]
-    for i in range(1, 46): a = math.radians(90 - 2 * i); pts.append((WX + RW * math.cos(a), W1 + RW * math.sin(a)))
-    for i in range(0, 46): a = math.radians(-2 * i); pts.append((WX + RW * math.cos(a), W0 + RW * math.sin(a)))
+    """γραμμή ανάβασης από το ρίχτι 1 ως το ρίχτι 20: 60 cm από την περίμετρο του φαναριού (και γύρω από τη ΝΔ γωνία του)."""
+    pts = [(XW, Y1)]
+    for i in range(0, 91): a = math.radians(i); pts.append((XL - RW * math.cos(a), W1 + RW * math.sin(a)))
+    pts.append((WX, W1 + RW))
+    for i in range(1, 91): a = math.radians(90 - i); pts.append((WX + RW * math.cos(a), W1 + RW * math.sin(a)))
+    for i in range(0, 91): a = math.radians(-i); pts.append((WX + RW * math.cos(a), W0 + RW * math.sin(a)))
     pts.append((XL, W0 - RW))
     return LineString(pts)
 
 
+WALK = _walk_pts()
+G = WALK.length / (N - 1)                                    # ΙΔΙΟ πάτημα σε όλα τα σκαλοπάτια: 5,027 / 19 = 26,5 cm
+PERIM = 2 * (WX - XL) + 2 * (W1 - W0)                        # περίμετρος φαναριού 2,20 (από τη ΒΔ γωνία: δυτικό άκρο → νότια ακμή → ανατολικό άκρο → βόρεια ακμή)
+# θέση κάθε ριχτιού πάνω στην περίμετρο του φαναριού (m από τη ΒΔ γωνία) – ΑΝΑΔΙΑΤΑΞΗ: ελάχιστο πλάτος 8 cm
+U = {1: 0.00, 2: 0.10, 3: 0.18, 4: 0.26, 5: 0.34, 6: 0.48, 7: 0.62, 8: 0.76, 9: 0.86, 10: 0.94, 11: 1.02, 12: 1.10,
+     13: 1.20, 14: 1.28, 15: 1.36, 16: 1.44, 17: 1.54, 18: PERIM - round(2 * G, 3), 19: PERIM - round(G, 3), 20: PERIM}
+STRAIGHT_N = (18, 19, 20)                                    # ίσια ρίχτια του βόρειου κλάδου (άφιξη στο ισόγειο)
+
+
+def _pt(u):
+    if u <= W1 - W0 + 1e-9: return (XL, round(W0 + u, 4))
+    if u <= W1 - W0 + WX - XL + 1e-9: return (round(XL + u - (W1 - W0), 4), W1)
+    if u <= PERIM / 2 + (W1 - W0) + 1e-9: return (WX, round(W1 - (u - (W1 - W0) - (WX - XL)), 4))
+    return (round(WX - (u - PERIM / 2 - (W1 - W0)), 4), W0)
+
+
 def _make_risers():
-    """ευθύγραμμα από STRAIGHT· σφηνοειδή: από σημείο του φαναριού μέσα από το σημείο της γραμμής ανάβασης ως τη δοκό / το τοιχείο.
-    Το εξωτερικό άκρο στρογγυλεύεται στο 1 mm ώστε το πάτημα στη γραμμή ανάβασης να βγαίνει ΙΔΙΟ σε όλα τα σκαλοπάτια."""
-    wl = _walk_pts(); g = wl.length / (NS - 1); out = {}
-    for j, x in STRAIGHT.items(): out[j + NL] = ((x, W1), (x, YS)) if j <= 3 else ((x, W0), (x, YN))
-    r5 = lambda v_: round(v_, 3)
-    def cast(ix, iy, w):
-        dx, dy = w.x - ix, w.y - iy; cand = []
+    """το εξωτερικό άκρο στρογγυλεύεται στο 1 mm ώστε το πάτημα στη γραμμή ανάβασης να βγαίνει ΙΔΙΟ σε όλα τα σκαλοπάτια."""
+    out = {}; r3 = lambda v_: round(v_, 3)
+    for k in range(1, N + 1):
+        ix, iy = _pt(U[k])
+        if k == 1: out[k] = ((ix, iy), (WALL_X, iy)); continue
+        if k in STRAIGHT_N: out[k] = ((ix, W0), (ix, YN)); continue
+        w = WALK.interpolate((k - 1) * G); dx, dy = w.x - ix, w.y - iy; cand = []
         if dy > 1e-9: cand.append((YS - iy) / dy)
         if dy < -1e-9: cand.append((YN - iy) / dy)
         if dx > 1e-9: cand.append((XE - ix) / dx)
+        if dx < -1e-9: cand.append((WALL_X - ix) / dx)
         t = min(c for c in cand if c > 0); ox, oy = ix + t * dx, iy + t * dy
-        return (ox, r5(oy)) if abs(ox - XE) < 1e-6 else (r5(ox), oy)
-    for j, (ix, iy) in INNER_PT.items():
-        tgt = (j - 1) * g; w = wl.interpolate(tgt); best = None
-        for d in (0.0,):
-            on_end = abs(ix - WX) < 1e-9
-            cx, cy = (ix, iy + d) if on_end else (ix + d, iy)
-            if (on_end and not (W0 <= cy <= W1)) or (not on_end and not (XL < cx <= WX)): continue
-            o = cast(cx, cy, w); ip = wl.intersection(LineString([(cx, cy), o]))
-            if ip.is_empty: continue
-            err = abs(wl.project(ip if ip.geom_type == "Point" else ip.centroid) - tgt)
-            if best is None or err < best[0] - 1e-9: best = (err, (round(cx, 4), round(cy, 4)), o)
-        out[j + NL] = (best[1], best[2])
+        out[k] = ((ix, iy), (ox, r3(oy)) if min(abs(ox - XE), abs(ox - WALL_X)) < 1e-6 else (r3(ox), oy))
     return out
 
 
 RISERS = _make_risers()
-assert sorted(RISERS) == list(range(NL + 1, N + 1))
-
-
-def walk_path():
-    return _walk_pts()
-
-
-WALK = walk_path()
 SPOS = {}
 for k_, (a_, b_) in RISERS.items():
     ip = WALK.intersection(LineString([a_, b_]))
-    SPOS[k_] = WALK.project(ip if ip.geom_type == "Point" else ip.centroid)
-GOING = {k: SPOS[k + 1] - SPOS[k] for k in range(NL + 1, N)}                   # πάτημα στη γραμμή ανάβασης (σκάλα)
-# ΧΩΛ ΥΠΟΓΕΙΟΥ: ρίχτι 1 = η ακμή του πλατύσκαλου (y 6,40, από τον τοίχο ως το φανάρι)· ρίχτια 2, 3 = ΦΑΛΤΣΑ από τη γωνία του φαναριού
-# (30° / 60°, άκρα στο 0,5 cm: στον τοίχο 9,50 και στη δοκό Δ12.1)· ρίχτι 4 = το 1ο της σκάλας (x 10,87)
-# R10: ΙΔΙΟ ΠΑΤΗΜΑ 25 σε όλα τα σκαλοπάτια → και τα 3 ρίχτια του χωλ φάλτσα από τη γωνία (το 1ο δεν είναι πια η ακμή του πλατύσκαλου)
-CORNER = (XS, W1)
-G_LOB = G
-LSPOS = {k: math.pi / 2 * RW - (NL + 1 - k) * G_LOB for k in range(1, NL + 1)}    # θέση στη γραμμή ανάβασης του χωλ (0 = αρχή του τόξου, y 6,40)· < 0 = ίσιο ρίχτι πριν από το τόξο
-def _wind(k):
-    s = LSPOS[k]
-    if s < 0: return ((XL, round(W1 + s, 3)), (WALL_X, round(W1 + s, 3)))        # ίσιο ρίχτι Α–Δ, από το φανάρι ως τον τοίχο
-    a = s / RW; y = W1 + (XS - WALL_X) * math.tan(a)
-    if y <= YS: return (CORNER, (WALL_X, round(y, 3)))                 # φάλτσο που καταλήγει στον τοίχο 9,50
-    return (CORNER, (round(XS - (YS - W1) / math.tan(a), 3), YS))    # φάλτσο που καταλήγει στη δοκό Δ12.1
-WIND = {k: _wind(k) for k in range(1, NL + 1)}
-LGO = {k: G_LOB for k in range(1, NL + 1)}                                        # πατήματα του χωλ στη γραμμή ανάβασης = ίδια με της σκάλας
-N_STR = sum(1 for k in LSPOS if LSPOS[k] < 0); N_WIN = NL - N_STR
-def _lwalk(s):
-    """σημείο της γραμμής ανάβασης του χωλ στη θέση s"""
-    return (XW, W1 + s) if s < 0 else (XS - RW * math.cos(s / RW), W1 + RW * math.sin(s / RW))
+    SPOS[k_] = (0.0 if k_ == 1 else WALK.length) if ip.is_empty else WALK.project(ip if ip.geom_type == "Point" else ip.centroid)
+GOING = {k: SPOS[k + 1] - SPOS[k] for k in range(1, N)}                        # πάτημα στη γραμμή ανάβασης
+INNER = {k: U[k + 1] - U[k] for k in range(1, N)}                              # πλάτος πατήματος ΣΤΟ ΦΑΝΑΡΙ (εσωτερικό πλάτος)
 def _tread_poly(k):
-    (ia, a), (ib, b) = WIND[k], (WIND[k + 1] if k < NL else (CORNER, (XS, YS)))
+    (ia, a), (ib, b) = RISERS[k], RISERS[k + 1]
     return [ia, a] + ([(WALL_X, YS)] if abs(a[0] - WALL_X) < 1e-9 and abs(b[1] - YS) < 1e-9 and a[1] < YS else []) + [b, ib]
-# πλάτος πατήματος ΣΤΟ ΦΑΝΑΡΙ (εσωτερικό πλάτος): απόσταση διαδοχικών ριχτιών πάνω στην ακμή του φαναριού· το 8 = το στενό άκρο 0,10
-def _inner_t(p):
-    """θέση πάνω στην περίμετρο του φαναριού (m): νότια ακμή → άκρο → βόρεια ακμή."""
-    if abs(p[1] - W1) < 1e-9: return p[0] - XL
-    if abs(p[1] - W0) < 1e-9: return (WX - XL) + (W1 - W0) + (WX - p[0])
-    return (WX - XL) + (W1 - p[1])
-INNER = {k: _inner_t(RISERS[k + 1][0]) - _inner_t(RISERS[k][0]) for k in range(NL + 1, N)}
 FFL = {k: FFL0 + k * RISE for k in range(1, N + 1)}
-SSL = {k: (min(FFL[k] - T_STEP, SSL1) if k < N else SSL1) for k in range(1, N + 1)}      # το τελευταίο πάτημα δεν ξεπερνά την πλάκα Π6
+SSL = {k: (min(FFL[k] - T_STEP, SSL1) if k < N else SSL1) for k in range(1, N + 1)}      # το τελευταίο πάτημα δεν ξεπερνά την πλάκα του χωλ
 
 
 def cm(v, d=1):
@@ -202,9 +178,8 @@ def draw_plan(sh, big=False):
     v = View(sh, 30.0, 33.0, 9.25, 4.72, 20); yb = 4.85 if big else 4.72
     if not big: sh.otext(14 * MM, 17 * MM, "ΚΑΤΟΨΗ ΣΚΑΛΑΣ", size=12, bold=True); sh.otext(14 * MM + 104, 17 * MM, "κλίμακα 1:20 · διαστάσεις σε m, από παρειές μπετού", size=7.5, color=GRAY)
     # δάπεδα χωλ: δάπεδο πόρτας / ασανσέρ (−3,00), σκαλί, ΥΠΕΡΥΨΩΜΕΝΟ ΠΛΑΤΥΣΚΑΛΟ
-    v.rect(WALL_X, K3_Y, XL, W1, 0, (1, 1, 1), (0.955, 0.955, 0.93)); v.rect(9.70, yb, 11.05, YN, 0, (1, 1, 1), (0.955, 0.955, 0.93)); v.rect(9.70, YN, XL, K3_Y, 0, (1, 1, 1), (0.955, 0.955, 0.93))
-    v.poly([(WALL_X, min(W1, WIND[1][1][1])), (XL, min(W1, WIND[1][0][1])), WIND[1][0], WIND[1][1]], 0, (1, 1, 1), (0.955, 0.955, 0.93))
-    for k_ in range(1, NL + 1): v.poly(_tread_poly(k_), 0, (1, 1, 1), (STEPC, PLATA, PLATC, PLATD)[min(k_, 4) - 1 + (4 - min(NL, 4))])
+    v.rect(WALL_X, K3_Y, XL, Y1, 0, (1, 1, 1), (0.955, 0.955, 0.93)); v.rect(9.70, yb, 11.05, YN, 0, (1, 1, 1), (0.955, 0.955, 0.93)); v.rect(9.70, YN, XL, K3_Y, 0, (1, 1, 1), (0.955, 0.955, 0.93))
+    for k_ in range(1, NL + 1): v.poly(_tread_poly(k_), 0, (1, 1, 1), (STEPC, PLATA, PLATC, PLATD)[k_ - 1])
     # τοιχεία / υποστυλώματα
     v.rect(9.40, yb, 9.70, 5.15, 1.3, BLACK, CONC); v.rect(11.05, 4.85, 13.35, YN, 1.3, BLACK, CONC)
     if not big: v.rect(11.05, 4.72, 11.30, 4.85, 1.3, BLACK, CONC); v.rect(13.10, 4.72, 13.35, 4.85, 1.3, BLACK, CONC)
@@ -223,22 +198,19 @@ def draw_plan(sh, big=False):
     sh.shape.draw_polyline([pymupdf.Point(v.X(WALL_X + dw * math.sin(math.radians(a_))), v.Y(DOOR_Y[1] - dw * math.cos(math.radians(a_)))) for a_ in range(0, 91, 3)]); sh.shape.finish(width=0.35, color=DOORC, dashes="[2 2] 0", closePath=False)
     sh.otext(v.X(WALL_X - 0.05) + 2.3, v.Y((DOOR_Y[0] + DOOR_Y[1]) / 2) + 20, "ΠΟΡΤΑ 0,90", size=6.4, bold=True, rot=90, color=DOORC)
     # ρίχτια: σκαλί του χωλ (1, 2) και σκάλα του μελετητή (3 … 18)
-    for a_, b_ in WIND.values(): v.line(a_, b_, 0.85)
-    for k, (a, b) in RISERS.items(): v.line(a, b, 0.85 if k in (NL + 1, N) else 0.55)
+    for k, (a, b) in RISERS.items(): v.line(a, b, 0.85 if k in (1, N) else 0.55)
     # φανάρι
     v.rect(XL, W0, WX, W1, 0.85, BLACK, (1, 1, 1))
     # γραμμή ανάβασης
     sh.shape.draw_polyline([pymupdf.Point(v.X(x), v.Y(y)) for x, y in WALK.coords]); sh.shape.finish(width=0.45, color=BLUE, dashes="[6 2 1 2] 0", closePath=False)
-    lob = [(XW, 5.86)] + [(XS - RW * math.cos(math.radians(a_)), W1 + RW * math.sin(math.radians(a_))) for a_ in range(0, 91, 3)]
-    sh.shape.draw_polyline([pymupdf.Point(v.X(x), v.Y(y)) for x, y in lob]); sh.shape.finish(width=0.45, color=BLUE, dashes="[6 2 1 2] 0", closePath=False)
+    v.line((XW, 5.86), (XW, Y1), 0.45, BLUE, "[6 2 1 2] 0")
     ax, ay = v.X(XL - 0.20), v.Y(W0 - RW); v.line((XL, W0 - RW), (XL - 0.18, W0 - RW), 0.45, BLUE)
     sh.shape.draw_polyline([pymupdf.Point(ax, ay), pymupdf.Point(ax + 7, ay - 2.6), pymupdf.Point(ax + 7, ay + 2.6)]); sh.shape.finish(width=0.3, color=BLUE, fill=BLUE, closePath=True)
     sh.flush()
     # αρίθμηση πατημάτων + στάθμη μπετού
     def num(cx, cy, lab): sh.ocircle(v.X(cx), v.Y(cy), 5.6, 0.5, BLACK, (1, 1, 1)); sh.otext(v.X(cx), v.Y(cy) + 2.7, str(lab), size=7.6, bold=True, align="center")
-    num(XW, WIND[1][1][1] - 0.13 if LSPOS[1] < 0 else 6.27, 1)
-    for k_ in range(1, NL + 1): num(*_lwalk(LSPOS[k_] + G_LOB / 2), k_ + 1)
-    for k in range(NL + 1, N):
+    num(XW, Y1 - 0.13, 1)
+    for k in range(1, N):
         s = SPOS[k] + GOING[k] / 2
         p = WALK.interpolate(s); q = WALK.interpolate(min(WALK.length, s + 0.02)); q0 = WALK.interpolate(max(0, s - 0.02))
         tx, ty = q.x - q0.x, q.y - q0.y; L = math.hypot(tx, ty) or 1; nx, ny = ty / L, -tx / L            # κάθετη προς τα έξω (μακριά από το φανάρι)
@@ -254,14 +226,13 @@ def draw_plan(sh, big=False):
     # ετικέτες
     v.text(10.42, 5.19, "ΔΑΠΕΔΟ ΥΠΟΓΕΙΟΥ (πόρτα · ασανσέρ)", size=5.8, align="center", color=GRAY)
     level_mark(sh, v.X(10.05), v.Y(5.345), lv(SSL0) + " μπετό", 7.0, RED); v.text(10.53, 5.345, "(τελικό %s)" % lv(FFL0), size=6.2, dy=-6.6, color=FIN)
-    for k_, (lx_, ly_) in {1: (9.56, 6.555), 2: (9.56, 7.10), 3: (9.86, 7.45), 4: (10.50, 7.45)}.items():
-        v.text(lx_, ly_, lv(SSL[k_]) + " μπετό", size=7.0, bold=True, color=RED); v.text(lx_, ly_, "(τελικό %s)" % lv(FFL[k_]), size=6.0, dy=7.6, color=FIN)
     v.text(12.90, 7.49, "Π9  h=15", size=8.5, bold=True, align="center", mask=True)
     v.text(10.375, 4.94, "από πάνω: πλατύσκαλο ισογείου Π6 h=15", size=5.8, align="center", color=GRAY); v.text(10.375, 4.94, "μπετό %s · τελικό %s (μελέτη %s · %s)" % (lv(SSL1), lv(FFL1), lv(SSL1_STUDY), lv(FFL_STUDY)), size=5.8, dy=7.0, align="center", color=GRAY)
     # ΠΛΑΤΟΣ ΣΚΑΛΙΩΝ ΣΤΟ ΦΑΝΑΡΙ (cm): η ακμή του φαναριού είναι η γραμμή διάστασης, οι τιμές γράφονται μέσα στο κενό
-    for k in range(NL + 1, N):
+    for k in range(1, N):
         a, b = RISERS[k][0], RISERS[k + 1][0]; t_ = cm(INNER[k])
-        if abs(a[1] - W1) < 1e-9 and abs(b[1] - W1) < 1e-9: sh.otext(v.X((a[0] + b[0]) / 2), v.Y(W1) - 1.4, t_, size=6.4, bold=True, align="center")
+        if k == 1: sh.otext(v.X(XL) - 2.0, v.Y(YC) + 2.2, t_, size=6.0, bold=True, align="right", mask=True)          # δυτικό άκρο του φαναριού
+        elif abs(a[1] - W1) < 1e-9 and abs(b[1] - W1) < 1e-9: sh.otext(v.X((a[0] + b[0]) / 2), v.Y(W1) - 1.4, t_, size=6.4, bold=True, align="center")
         elif abs(a[1] - W0) < 1e-9 and abs(b[1] - W0) < 1e-9: sh.otext(v.X((a[0] + b[0]) / 2), v.Y(W0) + 6.0, t_, size=6.4, bold=True, align="center")
         else:                                                                             # γύρω από τη γωνία του φαναριού: στη μέση της σφήνας, 9 cm ανατολικά
             xq = WX + 0.09; ya, yb_ = [r_[0][1] + (r_[1][1] - r_[0][1]) * (xq - r_[0][0]) / (r_[1][0] - r_[0][0]) for r_ in (RISERS[k], RISERS[k + 1])]
@@ -281,8 +252,8 @@ def draw_plan(sh, big=False):
     v.hdim(top, yb, off=-o1)
     if big: v.hdim([9.70, XL, WX, XE], yb, off=-o2, vals=[mt(XL - 9.70), mt(WX - XL) + " φανάρι", mt(XE - WX)])
     else: v.hdim([9.70, XL, XE], yb, off=-o2); v.hdim([XL, WX, XE], 7.85, off=44, side=1, vals=["1,00 φανάρι", "1,20"])
-    _wy = sorted(b_[1] for a_, b_ in WIND.values() if abs(b_[0] - WALL_X) < 1e-9); _wx = sorted(b_[0] for a_, b_ in WIND.values() if abs(b_[1] - YS) < 1e-9 and b_[0] > WALL_X)
-    v.hdim([WALL_X] + _wx + sx + [XE], 7.85, off=b1, side=1)
+    _wy = sorted(b_[1] for a_, b_ in RISERS.values() if abs(b_[0] - WALL_X) < 1e-9); _wx = []
+    v.hdim([WALL_X] + sx + [XE], 7.85, off=b1, side=1)
     for x in _wx: sh.oline(v.X(x), v.Y(7.85) + 2, v.X(x), v.Y(7.85) + b1 + 2, 0.2, GRAY)
     sh.oline(v.X(WALL_X), v.Y(8.02) + 1, v.X(WALL_X), v.Y(7.85) + b1 + 2, 0.2, GRAY)
     v.vdim([K3_Y, DOOR_Y[0], DOOR_Y[1]] + _wy + [YS], 9.40, off=-l1); v.vdim([4.85, YN, W0, W1, YS, 7.85], 9.40, off=-l2, tight=True)
@@ -459,15 +430,16 @@ def info_a3(sh, x, y0, y1, scale_txt):
         sh.otext(xx, y, head, size=7.0, bold=True, color=color); y += 3.5 * MM
         for ln in lines: sh.otext(xx, y, ln, size=6.5); y += 3.2 * MM
         y += 2.0 * MM
-    blk("ΑΛΛΑΓΗ: %d ΡΙΧΤΙΑ × %s" % (N, cm(RISE, 2)), ("αντί %d της μελέτης (%s cm):" % (N_DESIGN, cm((FFL_STUDY - FFL0) / N_DESIGN, 1)), "πόρτα → 1 ίσιο + 3 ΦΑΛΤΣΑ στο", "πλατύσκαλο → σκάλα %d ριχτιών" % NS, "ΠΑΤΗΜΑ %s ΠΑΝΤΟΥ · 1,20" % cm(G), "ΜΕ ΕΓΚΡΙΣΗ ΜΕΛΕΤΗΤΩΝ"), RED)
-    blk("ΧΩΛ ΙΣΟΓΕΙΟΥ", ("ΤΕΛΙΚΟ %s · ΜΠΕΤΟ %s" % (lv(FFL1), lv(SSL1)), "γέμισμα %s cm · ίδια στο Σ3β" % cm(FFL1 - SSL1, 0), "(μελέτη: τελικό %s · μπετό" % lv(FFL_STUDY), "%s) → χωλ %s cm ψηλότερα:" % (lv(SSL1_STUDY), cm(FFL1 - FFL_STUDY, 0)), "έξω 7 σκαλιά × %s (μελέτη 5)" % cm((FFL1 + 0.45) / 7, 0)), RED)
-    blk("4 ΣΚΑΛΙΑ ΣΤΟ ΠΛΑΤΥΣΚΑΛΟ", ("%s × %s m · ρίχτι 1 ίσιο," % (mt(XS - WALL_X), mt(YS - W1)), "%s cm πριν από την ακμή" % cm(W1 - WIND[1][1][1]), "ρίχτια 2, 3, 4 φάλτσα από τη", "γωνία του φαναριού ως τον", "τοίχο / τη δοκό (βλ. αλυσίδες)", "μπετό " + " · ".join(lv(SSL[k_]) for k_ in range(1, NL + 1))))
+    blk("ΑΛΛΑΓΗ: %d ΡΙΧΤΙΑ × %s" % (N, cm(RISE, 2)), ("αντί %d της μελέτης (%s cm)" % (N_DESIGN, cm((FFL_STUDY - FFL0) / N_DESIGN, 1)), "ΠΑΤΗΜΑ %s cm ΠΑΝΤΟΥ" % cm(G), "κλάδοι / στροφή 1,20", "ΜΕ ΕΓΚΡΙΣΗ ΜΕΛΕΤΗΤΩΝ"), RED)
+    blk("ΑΝΑΔΙΑΤΑΞΗ ΣΚΑΛΟΠΑΤΙΩΝ", ("κανένα φάλτσο σε μηδέν:", "ΕΛΑΧΙΣΤΟ %s cm ΣΤΟ ΦΑΝΑΡΙ" % cm(min(INNER.values())), "κάθε ρίχτι = ευθεία από το", "σημείο του στο φανάρι ως το", "σημείο του στον τοίχο / δοκό", "(βλ. αλυσίδες διαστάσεων)"), RED)
+    blk("ΧΩΛ ΙΣΟΓΕΙΟΥ", ("ΤΕΛΙΚΟ %s · ΜΠΕΤΟ %s" % (lv(FFL1), lv(SSL1)), "γέμισμα %s cm · ίδια στο Σ3β" % cm(FFL1 - SSL1, 0), "(μελέτη: τελικό %s · μπετό" % lv(FFL_STUDY), "%s) · έξω 7 σκαλιά × %s" % (lv(SSL1_STUDY), cm((FFL1 + 0.45) / 7, 0))), RED)
+    blk("ΠΛΑΤΥΣΚΑΛΟ: ΣΚΑΛΙΑ 1–%d" % NL, ("%s × %s m, συμπαγές πάνω" % (mt(XS - WALL_X), mt(YS - Y1)), "στην κοιτόστρωση · ρίχτι 1 ίσιο,", "περασιά με τη Β παρειά του", "φαναριού (%s cm από πόρτα)" % cm(Y1 - DOOR_Y[1], 0), "μπετό " + " · ".join(lv(SSL[k_]) for k_ in range(1, NL + 1))))
     blk("ΠΟΡΤΑ PARKING 0,90", ("5 cm από την Κ3 (νέα θέση)", "ανοίγει μέσα, μεντεσές νότια"))
     blk("ΦΑΝΑΡΙ %s × %s" % (mt(WX - XL), mt(W1 - W0)), ("όπως η μελέτη · κλάδοι 1,20", "στροφή %s · πέρασμα ισογ. 1,20" % mt(XE - WX)))
     blk("ΜΕΣΑ ΣΤΟ ΦΑΝΑΡΙ", ("πλάτος κάθε σκαλιού", "στο φανάρι, σε cm"))
     blk("ΚΟΚΚΙΝΟ", ("στάθμη ΜΠΕΤΟΥ", "(τελικό − επένδυση %s cm)" % cm(T_STEP)), RED)
     blk("ΚΑΦΕ (σε παρένθεση)", ("ΤΕΛΙΚΗ στάθμη πατήματος",), FIN)
-    blk("ΜΠΛΕ", ("γραμμή ανάβασης, 60 cm από", "το φανάρι · πάτημα %s cm" % cm(G), "ΙΔΙΟ σε όλα (και στα φάλτσα)"), BLUE)
+    blk("ΜΠΛΕ", ("γραμμή ανάβασης, 60 cm από", "το φανάρι · πάτημα %s cm" % cm(G), "ΙΔΙΟ σε όλα τα σκαλοπάτια"), BLUE)
     blk("ΡΙΧΤΙΑ", ("%d × %s cm (τελικό)" % (N, cm(RISE, 2)), "μπετό: όλα %s · το τελευταίο" % cm(RISE, 2), "(στην πλάκα %s) %s cm" % (lv(SSL1), cm(SSL1 - SSL[N - 1]))))
     y = y1 - 18.5 * MM; sh.oline(x, y - 4.2 * MM, x + 40 * MM, y - 4.2 * MM, 0.4)
     for ln in ("ΚΩΝΣΤΑΝΤΙΝΟΥΠΟΛΕΩΣ 12", "& ΑΓ. ΒΑΡΒΑΡΑΣ", "ΑΡΓΥΡΟΥΠΟΛΗ"): sh.otext(xx, y, ln, size=6.6, bold=True); y += 3.3 * MM
@@ -503,10 +475,9 @@ def main():
     sh.doc.set_metadata(dict(title="Σ2α – Σκάλα υπογείου → ισογείου, κάτοψη", author="ARKAD Ι.Κ.Ε."))
     sh.doc.save(path, garbage=4, deflate=True)
     print("->", NAME, "· κλίμακα", scale_txt, "· κάτοψη %.0f × %.0f mm σε %.0f × %.0f" % (w / MM, h / MM, aw / MM, ah / MM))
-    print("ρίχτια χωλ:", {k: WIND[k] for k in WIND}, "· πάτημα %.2f cm" % (G * 100))
-    print("πάτημα στη γραμμή ανάβασης (cm):", " ".join("%d:%.1f" % (k, GOING[k] * 100) for k in range(NL + 1, N)), "· σύνολο %.3f" % (SPOS[N] - SPOS[NL + 1]), "· σκάλα")
+    print("πάτημα στη γραμμή ανάβασης (cm):", " ".join("%d:%.2f" % (k, GOING[k] * 100) for k in range(1, N)), "· σύνολο %.3f" % (SPOS[N] - SPOS[1]))
     print("στάθμες μπετού:", " ".join("%d:%+.3f" % (k, SSL[k]) for k in range(1, N + 1)), "· ρίχτι %.4f" % RISE)
-    print("πλάτος στο φανάρι (cm):", " ".join("%d:%s" % (k, cm(INNER[k])) for k in range(NL + 1, N)), "· σύνολο %s" % cm(sum(INNER.values())))
+    print("πλάτος στο φανάρι (cm):", " ".join("%d:%s" % (k, cm(INNER[k])) for k in range(1, N)), "· σύνολο %s" % cm(sum(INNER.values())))
     if len(sys.argv) > 1: pymupdf.open(path)[0].get_pixmap(dpi=int(sys.argv[2]) if len(sys.argv) > 2 else 110).save(sys.argv[1])
 
 
