@@ -15,7 +15,7 @@ import stair_s2 as A
 import stair_s3 as B
 from stair_s2 import View, level_mark, cm, mt, lv, lv3, CONC, RED, FIN
 
-REV, DATE = "R01", "16/11/2026"
+REV, DATE = "R02", "16/11/2026"
 OUT = A.OUT
 NAME = "ΣΚ_Σκάλες_υπόγειο_ισόγειο_Α_όροφος_ΤΟΜΗ_A3_%s.pdf" % REV
 SC = 40
@@ -24,9 +24,9 @@ FILLC = (0.96, 0.93, 0.84); H = 0.15
 
 # ---------------------------------------------------------------- ανάπτυγμα (s = μήκος πάνω στη γραμμή ανάβασης, m)
 S_DOOR = 0.80                                    # δάπεδο υπογείου μπροστά στην πόρτα (σχηματικά)
-sA = {1: S_DOOR, 2: S_DOOR + A.STEP_GO}          # ρίχτια του χωλ υπογείου: 1, 2 = σκαλί · 3 = φάλτσο
-sA[3] = sA[2] + A.GO_A
-for k in range(A.NL + 1, A.N + 1): sA[k] = sA[3] + A.GO_B + A.SPOS[k]
+sA = {1: S_DOOR}                                 # ρίχτια του χωλ υπογείου: 1, 2, 3 = τα τρία φάλτσα μέσα στο πλατύσκαλο
+for k in (2, 3): sA[k] = sA[k - 1] + A.LGO[k - 1]
+for k in range(A.NL + 1, A.N + 1): sA[k] = sA[3] + A.LGO[3] + A.SPOS[k]
 LAND0 = 1.20                                     # πλατύσκαλο / χωλ ισογείου (πλάτος 1,20)
 sB = {k: sA[A.N] + LAND0 + B.SPOS[k] for k in range(1, B.N + 1)}
 LAND1 = B.XTOP - B.WALL1_X                       # πλατύσκαλο Α΄ 1,32
@@ -116,7 +116,7 @@ def draw(sh):
         sh.otext(v.X(s) + (0 if right else 0), yy, lv(zc) + " μπετό", size=7.4, bold=True, color=RED, align="left" if right else "right")
     sh.otext(v.X(0.02), v.Y(A.FFL0) - 25, lv(A.FFL0) + " τελικό", size=7.4, bold=True, color=FIN); sh.otext(v.X(0.02), v.Y(A.FFL0) - 15.5, lv(A.SSL0) + " μπετό", size=7.4, bold=True, color=RED)
     sh.otext(v.X(0.02), v.Y(A.FFL0) - 35, "ΥΠΟΓΕΙΟ", size=7.6, bold=True)
-    v.text((sA[2] + s3) / 2, A.SSL0, "ΦΑΛΤΣΑ (πλατύσκαλο)", size=5.2, bold=True, dy=-5, align="center")
+    v.text((sA[1] + s3) / 2, A.SSL0, "3 ΦΑΛΤΣΑ (πλατύσκαλο)", size=5.2, bold=True, dy=-5, align="center")
     # ισόγειο: το ΚΟΙΝΟ πλατύσκαλο των δύο σκαλών
     xm = (sN + sB[1]) / 2
     sh.orect(v.X(sN) + 3, v.Y(A.FFL1) - 53, v.X(sB[1]) - 3, v.Y(A.FFL1) - 17, 0.9, RED, (1, 1, 1))
@@ -142,7 +142,7 @@ def draw(sh):
     # το ρίχτι 19 της σκάλας υπογείου γίνεται μέσα στο γέμισμα
     # ---------- διαστάσεις
     yb = Z0
-    v.hdim([sA[1], sA[2], sA[3], s3], yb, off=10, side=1, vals=[cm(A.STEP_GO, 0), cm(A.GO_A, 0), cm(A.GO_B, 0)], size=6.6)
+    v.hdim([sA[1], sA[2], sA[3], s3], yb, off=10, side=1, vals=[cm(A.LGO[1], 0), cm(A.LGO[2], 0), cm(A.LGO[3], 0)], size=6.6)
     v.hdim([s3, sN], yb, off=10, side=1, vals=["%d πατήματα × 25 = %s m στη γραμμή ανάβασης" % (A.NS - 1, mt(sN - s3))], size=6.8)
     v.hdim([sN, sB[1]], yb, off=10, side=1, vals=[mt(LAND0)], size=6.6)
     v.hdim([sB[1], sB[B.N]], yb, off=10, side=1, vals=["%d πατήματα × 25 = %s m στη γραμμή ανάβασης" % (B.N - 1, mt(sB[B.N] - sB[1]))], size=6.8)
@@ -164,7 +164,7 @@ def draw(sh):
     y += 6.5 * MM
     rows = (("", "ρίχτια", "ρίχτι", "πάτημα", "πλάτη"),
             ("Υπόγειο → ισόγειο  (Σ2α)", "%d" % A.N, cm(A.RISE, 2), "≥ 25", "1,20"),
-            ("Ισόγειο → Α΄  (Σ3β)", "%d" % B.N, cm(B.RISE, 2), "25", "1,20"))
+            ("Ισόγειο → Α΄  (Σ3β)", "%d" % B.N, cm(B.RISE, 2), "25", "1,20 · στροφή %s" % mt(B.XE - B.WX)))
     cx = (0, 47, 62, 77, 92)
     for i, r in enumerate(rows):
         for j, t in enumerate(r): sh.otext(x + cx[j] * MM, y + i * 4.6 * MM, t, size=7.4 if i else 6.2, bold=bool(i) and j > 0, color=BLACK if i else GRAY)
