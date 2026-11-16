@@ -15,7 +15,7 @@ import stair_s2 as A
 import stair_s3 as B
 from stair_s2 import View, level_mark, cm, mt, lv, lv3, CONC, RED, FIN
 
-REV, DATE = "R06", "16/11/2026"
+REV, DATE = "R07", "16/11/2026"
 OUT = A.OUT
 NAME = "ΣΚ_Σκάλες_υπόγειο_ισόγειο_Α_όροφος_ΤΟΜΗ_A3_%s.pdf" % REV
 SC = 40
@@ -135,6 +135,7 @@ def draw(sh):
     def rz(s, za, zb, side=1):
         xo = v.X(s) + side * 3.2; sh.oline(xo, v.Y(za), xo, v.Y(zb), 0.4, RED); sh.tick(xo, v.Y(za), RED); sh.tick(xo, v.Y(zb), RED)
         t = cm(zb - za); sh.otext(xo + (2.0 if side > 0 else -2.0), (v.Y(za) + v.Y(zb)) / 2 + 2.2, t, size=5.6, bold=True, color=RED, align="left" if side > 0 else "right")
+    rz(sA[1], A.SSL0, A.SSL[1], -1)                             # 1ο ρίχτι μπετού της σκάλας υπογείου (από την κοιτόστρωση)
     rz(sA[A.N], A.SSL[A.N - 1], A.SSL1, 1)          # τελευταίο ρίχτι μπετού της σκάλας υπογείου (φτάνει στην πλάκα)
     rz(sB[1], B.SSL0, B.SSL[1], 1)                              # 1ο ρίχτι μπετού της σκάλας προς Α΄
     rz(sB[B.N], B.SSL[B.N - 1], B.SSL1, 1)
