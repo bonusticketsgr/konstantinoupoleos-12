@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.join(HERE, "..", "xylotypoi_S1_S2"))
 import lib
 from lib import MM, FONT_R, FONT_B, BLACK, GRAY, BLUE
 
-REV, DATE = "R03", "16/11/2026"
+REV, DATE = "R04", "16/11/2026"
 OUT = os.path.join(HERE, "..", "..", "ΚΩΝΣΤΑΝΤΙΝΟΥΠΟΛΕΩΣ_12_ΑΡΓΥΡΟΥΠΟΛΗ", "ΞΥΛΟΤΥΠΟΙ")
 NAME = "Σ3β_Σκάλα_ισογείου_Α_ορόφου_A3_%s.pdf" % REV
 
@@ -24,7 +24,8 @@ N_DESIGN = 16
 NL = 0
 FFL_STUDY = 0.45                         # τελικό χωλ ισογείου κατά τη μελέτη
 FFL0, FFL1 = 0.60, 3.80                  # τελικό χωλ ισογείου (ΝΕΟ: +13 cm, 6 εξωτερικά σκαλιά × 17,2 από το −0,45) / τελικό Α΄
-SSL0, SSL1 = 0.30, 3.65                  # άνω στάθμη μπετού: Π6 ισογείου (Σ2) / Π6 Α΄ (Σ3)
+SSL0, SSL1 = 0.45, 3.65                  # άνω στάθμη μπετού: Π6 ισογείου ΝΕΟ +0,45 (γέμισμα 15 όπως τα σπίτια – Κόγιας· Σ2_ΕΦ: +0,30) / Π6 Α΄ (Σ3)
+SSL0_STUDY = 0.30
 T_STEP = 0.10                            # επένδυση σκαλιών (όπως η σκάλα υπογείου) – τα πλατύσκαλα γεμίζουν όσο τα σπίτια
 H_SLAB = 0.15
 RISE = (FFL1 - FFL0) / N
@@ -210,7 +211,7 @@ def draw_plan(sh, big=False):
     # ετικέτες
     v.text(10.28, 7.22, "ΧΩΛ ΙΣΟΓΕΙΟΥ", size=7.4, bold=True, align="center"); v.text(10.28, 7.22, "πέρασμα προς ασανσέρ %s" % mt(XL - WALL_X), size=5.8, dy=7.6, align="center", color=GRAY)
     level_mark(sh, v.X(9.80), v.Y(7.47), lv(SSL0) + " μπετό", 7.2, RED); v.text(10.30, 7.47, "(τελικό %s)" % lv(FFL0), size=6.6, bold=True, dy=-6.6, color=FIN)
-    v.text(10.28, 7.56, "πλάκα Π6 · γέμισμα %s cm (μελέτη %s)" % (cm(FFL0 - SSL0, 0), lv(FFL_STUDY)), size=5.6, align="center", color=GRAY)
+    v.text(10.28, 7.56, "πλάκα Π6 · γέμισμα %s cm (μελέτη: μπετό %s · τελικό %s)" % (cm(FFL0 - SSL0, 0), lv(SSL0_STUDY), lv(FFL_STUDY)), size=5.4, align="center", color=GRAY)
     v.text(10.10, 5.36, "ΠΛΑΤΥΣΚΑΛΟ Α΄ (από πάνω)", size=6.4, bold=True, align="center", color=DOORC)
     v.text(10.10, 5.36, "%s από τον τοίχο του Α΄ ως το %dο ρίχτι" % (mt(XTOP - WALL1_X), N), size=5.6, dy=7.4, align="center", color=DOORC)
     v.text(10.10, 5.36, "μπετό %s · τελικό %s" % (lv(SSL1), lv(FFL1)), size=5.6, dy=14.4, align="center", color=DOORC)
@@ -415,7 +416,7 @@ def info_a3(sh, x, y0, y1, scale_txt):
         for ln in lines: sh.otext(xx, y, ln, size=6.5); y += 3.2 * MM
         y += 2.0 * MM
     blk("ΑΛΛΑΓΗ: %d ΡΙΧΤΙΑ" % N, ("αντί %d της μελέτης (%s cm)" % (N_DESIGN, cm((FFL1 - FFL_STUDY) / N_DESIGN, 1)), "ρίχτι ≤ 19 · πάτημα 25 ·", "όλα τα πλάτη 1,20", "ΜΕ ΕΓΚΡΙΣΗ ΜΕΛΕΤΗΤΩΝ"), RED)
-    blk("ΧΩΛ ΙΣΟΓΕΙΟΥ", ("ΤΕΛΙΚΟ %s · ΜΠΕΤΟ %s" % (lv(FFL0), lv(SSL0)), "γέμισμα %s cm (μελέτη %s):" % (cm(FFL0 - SSL0, 0), lv(FFL_STUDY)), "ένα σκαλί ακόμη στην εξωτε-", "ρική σκάλα εισόδου: 6 × %s" % cm((FFL0 + 0.45) / 6, 1), "ίδιο πλατύσκαλο με τη Σ2α"), RED)
+    blk("ΧΩΛ ΙΣΟΓΕΙΟΥ", ("ΤΕΛΙΚΟ %s · ΜΠΕΤΟ %s" % (lv(FFL0), lv(SSL0)), "γέμισμα %s cm · ίδια στο Σ2α" % cm(FFL0 - SSL0, 0), "(μελέτη: τελικό %s · μπετό" % lv(FFL_STUDY), "%s) → η πλάκα του χωλ %s cm" % (lv(SSL0_STUDY), cm(SSL0 - SSL0_STUDY, 0)), "ψηλότερα · ένα σκαλί ακόμη", "στην εξωτερική σκάλα: 6 × %s" % cm((FFL0 + 0.45) / 6, 1)), RED)
     blk("ΠΛΑΤΥΣΚΑΛΑ", ("ισόγειο: %s ως τον τοίχο" % mt(XL - WALL_X), "Α΄: %s ως τον τοίχο" % mt(XTOP - WALL1_X)))
     blk("ΦΑΝΑΡΙ %s × %s" % (mt(WX - XL), mt(W1 - W0)), ("όπως η μελέτη · κλάδοι 1,20", "στροφή %s" % mt(XE - WX)))
     blk("ΜΕΣΑ ΣΤΟ ΦΑΝΑΡΙ", ("πλάτος κάθε σκαλιού", "στο φανάρι, σε cm"))
