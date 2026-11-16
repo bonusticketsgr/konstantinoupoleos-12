@@ -15,7 +15,7 @@ import stair_s2 as A
 import stair_s3 as B
 from stair_s2 import View, level_mark, cm, mt, lv, lv3, CONC, RED, FIN
 
-REV, DATE = "R03", "16/11/2026"
+REV, DATE = "R04", "16/11/2026"
 OUT = A.OUT
 NAME = "ΣΚ_Σκάλες_υπόγειο_ισόγειο_Α_όροφος_ΤΟΜΗ_A3_%s.pdf" % REV
 SC = 40
@@ -25,8 +25,8 @@ FILLC = (0.96, 0.93, 0.84); H = 0.15
 # ---------------------------------------------------------------- ανάπτυγμα (s = μήκος πάνω στη γραμμή ανάβασης, m)
 S_DOOR = 0.80                                    # δάπεδο υπογείου μπροστά στην πόρτα (σχηματικά)
 sA = {1: S_DOOR}                                 # ρίχτια του χωλ υπογείου: 1, 2, 3 = τα τρία φάλτσα μέσα στο πλατύσκαλο
-for k in (2, 3): sA[k] = sA[k - 1] + A.LGO[k - 1]
-for k in range(A.NL + 1, A.N + 1): sA[k] = sA[3] + A.LGO[3] + A.SPOS[k]
+for k in range(2, A.NL + 1): sA[k] = sA[k - 1] + A.LGO[k - 1]
+for k in range(A.NL + 1, A.N + 1): sA[k] = sA[A.NL] + A.LGO[A.NL] + A.SPOS[k]
 LAND0 = 1.20                                     # πλατύσκαλο / χωλ ισογείου (πλάτος 1,20)
 sB = {k: sA[A.N] + LAND0 + B.SPOS[k] for k in range(1, B.N + 1)}
 LAND1 = B.XTOP - B.WALL1_X                       # πλατύσκαλο Α΄ 1,32
@@ -57,13 +57,16 @@ def draw(sh):
     v.text(sA[A.NL + 1] + 1.1, A.SSL0 - 0.20, "ΚΟΙΤΟΣΤΡΩΣΗ ΥΠΟΓΕΙΟΥ", size=5.6, color=GRAY, align="center")
     # ---------- σκάλα υπογείου: σκαλί + υπερυψωμένο πλατύσκαλο (γέμισμα μπετού) + σκάλα + Π6 ισογείου
     s3 = sA[A.NL + 1]; sN = sA[A.N]; e0 = sN + LAND0
-    poly([(sA[1], A.SSL0), (sA[1], A.SSL[1]), (sA[2], A.SSL[1]), (sA[2], A.SSL[2]), (sA[3], A.SSL[2]), (sA[3], A.SSL[3]), (s3, A.SSL[3]), (s3, A.SSL0)], 0.9, BLACK, (0.88, 0.86, 0.80))
-    top = [(s3, A.SSL[3])]
+    lob_c = [(sA[1], A.SSL0)]; lob_f = [(0, A.FFL0), (sA[1], A.FFL0)]
+    for k in range(1, A.NL + 1):
+        nx = sA[k + 1]; lob_c += [(sA[k], A.SSL[k]), (nx, A.SSL[k])]; lob_f += [(sA[k], A.FFL[k]), (nx, A.FFL[k])]
+    poly(lob_c + [(s3, A.SSL0)], 0.9, BLACK, (0.88, 0.86, 0.80))
+    top = [(s3, A.SSL[A.NL])]
     for k in range(A.NL + 1, A.N):
         top += [(sA[k], A.SSL[k]), (sA[k + 1], A.SSL[k])]
     top += [(sN, A.SSL1), (e0, A.SSL1)]
     base = [(sA[k], A.SSL[k - 1]) for k in range(A.NL + 1, A.N + 1)]
-    und = soffit(base, A.SSL[3], A.SSL1 - H, e0)
+    und = soffit(base, A.SSL[A.NL], A.SSL1 - H, e0)
     poly(top + und[::-1], 1.0, BLACK, CONC)
     # ---------- σκάλα ισογείου → Α΄ (πάνω στην Π6 +0,30) + Π6 Α΄
     e1 = S_END
@@ -77,20 +80,18 @@ def draw(sh):
     # ---------- γεμίσματα / επενδύσεις (ανάμεσα στο μπετό και το τελικό)
     def fill(pts): poly(pts, 0, FILLC, FILLC)
     fill([(0, A.SSL0), (sA[1], A.SSL0), (sA[1], A.FFL0), (0, A.FFL0)])
-    fill([(sA[1], A.SSL[1]), (sA[2], A.SSL[1]), (sA[2], A.FFL[1]), (sA[1], A.FFL[1])])
-    fill([(sA[2], A.SSL[2]), (sA[3], A.SSL[2]), (sA[3], A.FFL[2]), (sA[2], A.FFL[2])]); fill([(sA[3], A.SSL[3]), (s3, A.SSL[3]), (s3, A.FFL[3]), (sA[3], A.FFL[3])])
-    for k in range(A.NL + 1, A.N): fill([(sA[k], A.SSL[k]), (sA[k + 1], A.SSL[k]), (sA[k + 1], A.FFL[k]), (sA[k], A.FFL[k])])
+    for k in range(1, A.N): fill([(sA[k], A.SSL[k]), (sA[k + 1], A.SSL[k]), (sA[k + 1], A.FFL[k]), (sA[k], A.FFL[k])])
     fill([(sN, A.SSL1), (sB[1], A.SSL1), (sB[1], A.FFL1), (sN, A.FFL1)])
     for k in range(1, B.N): fill([(sB[k], B.SSL[k]), (sB[k + 1], B.SSL[k]), (sB[k + 1], B.FFL[k]), (sB[k], B.FFL[k])])
     fill([(sB[B.N], B.SSL1), (e1, B.SSL1), (e1, B.FFL1), (sB[B.N], B.FFL1)])
     # ξαναπερνάμε τις γραμμές μπετού που σκεπάστηκαν και σχεδιάζουμε το τελικό
-    conc = [(0, A.SSL0), (sA[1], A.SSL0), (sA[1], A.SSL[1]), (sA[2], A.SSL[1]), (sA[2], A.SSL[2]), (sA[3], A.SSL[2]), (sA[3], A.SSL[3]), (s3, A.SSL[3])]
+    conc = [(0, A.SSL0)] + lob_c
     for k in range(A.NL + 1, A.N): conc += [(sA[k], A.SSL[k]), (sA[k + 1], A.SSL[k])]
     conc += [(sN, A.SSL1), (sB[1], B.SSL0)]
     for k in range(1, B.N): conc += [(sB[k], B.SSL[k]), (sB[k + 1], B.SSL[k])]
     conc += [(sB[B.N], B.SSL1), (e1, B.SSL1)]
     v.poly(conc, 1.0, BLACK, None, close=False)
-    fin = [(0, A.FFL0), (sA[1], A.FFL0), (sA[1], A.FFL[1]), (sA[2], A.FFL[1]), (sA[2], A.FFL[2]), (sA[3], A.FFL[2]), (sA[3], A.FFL[3]), (s3, A.FFL[3])]
+    fin = lob_f
     for k in range(A.NL + 1, A.N): fin += [(sA[k], A.FFL[k]), (sA[k + 1], A.FFL[k])]
     fin += [(sN, A.FFL1), (sB[1], B.FFL0)]
     for k in range(1, B.N): fin += [(sB[k], B.FFL[k]), (sB[k + 1], B.FFL[k])]
@@ -116,7 +117,7 @@ def draw(sh):
         sh.otext(v.X(s) + (0 if right else 0), yy, lv(zc) + " μπετό", size=7.4, bold=True, color=RED, align="left" if right else "right")
     sh.otext(v.X(0.02), v.Y(A.FFL0) - 25, lv(A.FFL0) + " τελικό", size=7.4, bold=True, color=FIN); sh.otext(v.X(0.02), v.Y(A.FFL0) - 15.5, lv(A.SSL0) + " μπετό", size=7.4, bold=True, color=RED)
     sh.otext(v.X(0.02), v.Y(A.FFL0) - 35, "ΥΠΟΓΕΙΟ", size=7.6, bold=True)
-    v.text((sA[1] + s3) / 2, A.SSL0, "3 ΦΑΛΤΣΑ", size=5.2, bold=True, dy=-5, align="center")
+    v.text((sA[1] + s3) / 2, A.SSL0, "%d ίσιο + %d φάλτσα" % (A.N_STR, A.N_WIN), size=5.0, bold=True, dy=-5, align="center")
     # ισόγειο: το ΚΟΙΝΟ πλατύσκαλο των δύο σκαλών
     xm = (sN + sB[1]) / 2
     sh.orect(v.X(sN) + 3, v.Y(A.FFL1) - 53, v.X(sB[1]) - 3, v.Y(A.FFL1) - 17, 0.9, RED, (1, 1, 1))
@@ -142,12 +143,12 @@ def draw(sh):
     # το ρίχτι 19 της σκάλας υπογείου γίνεται μέσα στο γέμισμα
     # ---------- διαστάσεις
     yb = Z0
-    v.hdim([sA[1], sA[2], sA[3], s3], yb, off=10, side=1, vals=[cm(A.LGO[1], 0), cm(A.LGO[2], 0), cm(A.LGO[3], 0)], size=6.6)
-    v.hdim([s3, sN], yb, off=10, side=1, vals=["%d πατήματα × 25 = %s m στη γραμμή ανάβασης" % (A.NS - 1, mt(round(sN - s3, 2)))], size=6.8)
+    v.hdim([sA[1], s3], yb, off=10, side=1, vals=["%d × %s" % (A.NL, cm(A.G))], size=6.6)
+    v.hdim([s3, sN], yb, off=10, side=1, vals=["%d πατήματα × %s = %s m στη γραμμή ανάβασης" % (A.NS - 1, cm(A.G), mt(round(sN - s3, 3)))], size=6.8)
     v.hdim([sN, sB[1]], yb, off=10, side=1, vals=[mt(LAND0)], size=6.6)
-    v.hdim([sB[1], sB[B.N]], yb, off=10, side=1, vals=["%d πατήματα × 25 = %s m στη γραμμή ανάβασης" % (B.N - 1, mt(round(sB[B.N] - sB[1], 2)))], size=6.8)
+    v.hdim([sB[1], sB[B.N]], yb, off=10, side=1, vals=["%d πατήματα × %s = %s m στη γραμμή ανάβασης" % (B.N - 1, cm(B.G), mt(round(sB[B.N] - sB[1], 3)))], size=6.8)
     v.hdim([sB[B.N], e1], yb, off=10, side=1, vals=[mt(LAND1)], size=6.6)
-    for s in (sA[1], sA[2], sA[3], s3, sN, sB[1], sB[B.N], e1): sh.oline(v.X(s), v.Y(yb) + 12, v.X(s), v.Y(yb) + 2, 0.2, GRAY)
+    for s in (sA[1], s3, sN, sB[1], sB[B.N], e1): sh.oline(v.X(s), v.Y(yb) + 12, v.X(s), v.Y(yb) + 2, 0.2, GRAY)
     for s, z in ((sN, A.SSL1 - H), (sB[1], A.SSL1 - H), (sB[B.N], B.SSL1 - H), (e1, B.SSL1 - H)): sh.oline(v.X(s), v.Y(yb) + 2, v.X(s), v.Y(z) + 3, 0.18, GRAY, "[1 2.5] 0")
     v.vdim([A.FFL0, A.FFL1], e1, off=14, side=1, color=FIN, vals=["ΥΠΟΓΕΙΟ → ΙΣΟΓΕΙΟ:  %d ρίχτια × %s = %s m" % (A.N, cm(A.RISE, 2), mt(A.FFL1 - A.FFL0))])
     v.vdim([B.FFL0, B.FFL1], e1, off=14, side=1, color=FIN, vals=["ΙΣΟΓΕΙΟ → Α΄:  %d ρίχτια × %s = %s m" % (B.N, cm(B.RISE, 2), mt(B.FFL1 - B.FFL0))])
@@ -163,14 +164,15 @@ def draw(sh):
     sh.otext(x, y, "ΚΟΚΚΙΝΟ = στάθμη ΜΠΕΤΟΥ", size=7.6, bold=True, color=RED); sh.otext(x + 49 * MM, y, "ΚΑΦΕ = ΤΕΛΙΚΗ στάθμη", size=7.6, bold=True, color=FIN)
     y += 6.5 * MM
     rows = (("", "ρίχτια", "ρίχτι", "πάτημα", "πλάτη"),
-            ("Υπόγειο → ισόγειο  (Σ2α)", "%d" % A.N, cm(A.RISE, 2), "25", "1,20"),
-            ("Ισόγειο → Α΄  (Σ3β)", "%d" % B.N, cm(B.RISE, 2), "25", "1,20 · στροφή %s" % mt(B.XE - B.WX)))
+            ("Υπόγειο → ισόγειο  (Σ2α)", "%d" % A.N, cm(A.RISE, 2), cm(A.G), "1,20 παντού"),
+            ("Ισόγειο → Α΄  (Σ3β)", "%d" % B.N, cm(B.RISE, 2), cm(B.G), "1,20 παντού"),
+            ("Έξω, είσοδος κτιρίου  (−0,45 → %s)" % lv(A.FFL1), "7", cm((A.FFL1 + 0.45) / 7, 1), "", "μελέτη: 5 × 18"))
     cx = (0, 47, 62, 77, 92)
     for i, r in enumerate(rows):
         for j, t in enumerate(r): sh.otext(x + cx[j] * MM, y + i * 4.6 * MM, t, size=7.4 if i else 6.2, bold=bool(i) and j > 0, color=BLACK if i else GRAY)
-    y += 3 * 4.6 * MM + 1.5 * MM
-    for ln in ("Πάτημα 25 cm στη γραμμή ανάβασης σε ΟΛΑ τα σκαλοπάτια (και στα φάλτσα).", "Οι δύο σκάλες δένουν στο ΙΔΙΟ πλατύσκαλο ισογείου:", "πλάκα Π6 (μπετό) %s  →  γέμισμα %s cm  →  τελικό %s" % (lv(A.SSL1), cm(A.FFL1 - A.SSL1, 0), lv(A.FFL1)),
-               "(μελέτη: πλάκα %s · τελικό %s → πλάκα χωλ %s cm ψηλότερα, ένα σκαλί ακόμη στην εξωτερική σκάλα)" % (lv(A.SSL1_STUDY), lv(A.FFL_STUDY), cm(A.SSL1 - A.SSL1_STUDY, 0))):
+    y += len(rows) * 4.6 * MM + 1.5 * MM
+    for ln in ("Πάτημα %s cm στη γραμμή ανάβασης σε ΟΛΑ τα σκαλοπάτια (και στα φάλτσα)." % cm(A.G), "Οι δύο σκάλες δένουν στο ΙΔΙΟ πλατύσκαλο ισογείου:", "πλάκα Π6 (μπετό) %s  →  γέμισμα %s cm  →  τελικό %s" % (lv(A.SSL1), cm(A.FFL1 - A.SSL1, 0), lv(A.FFL1)),
+               "(μελέτη: πλάκα %s · τελικό %s → χωλ %s cm ψηλότερα, 2 σκαλιά ακόμη στην εξωτερική σκάλα)" % (lv(A.SSL1_STUDY), lv(A.FFL_STUDY), cm(A.FFL1 - A.FFL_STUDY, 0))):
         sh.otext(x, y, ln, size=7.0, bold=ln.startswith("πλάκα")); y += 4.0 * MM
     sh.otext(12 * MM, 289 * MM - 4, "ΚΩΝΣΤΑΝΤΙΝΟΥΠΟΛΕΩΣ 12 & ΑΓ. ΒΑΡΒΑΡΑΣ, ΑΡΓΥΡΟΥΠΟΛΗ  ·  κατόψεις: Σ2α %s · Σ3β %s  ·  %s · %s" % (A.REV, B.REV, REV, DATE), size=6.0, color=GRAY)
     sh.orect(6 * MM, 6 * MM, 414 * MM, 291 * MM, 0.6)
