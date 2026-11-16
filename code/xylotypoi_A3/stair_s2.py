@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.join(HERE, "..", "xylotypoi_S1_S2"))
 import lib
 from lib import MM, FONT_R, FONT_B, BLACK, GRAY, BLUE
 
-REV, DATE = "R11", "16/11/2026"
+REV, DATE = "R12", "16/11/2026"
 OUT = os.path.join(HERE, "..", "..", "ΚΩΝΣΤΑΝΤΙΝΟΥΠΟΛΕΩΣ_12_ΑΡΓΥΡΟΥΠΟΛΗ", "ΞΥΛΟΤΥΠΟΙ")
 NAME = "Σ2α_Σκάλα_υπογείου_%d_ρίχτια_A3_%s.pdf" % (21, REV)
 
@@ -249,7 +249,8 @@ def draw_plan(sh, big=False):
             w_ = WALK.interpolate(SPOS[kk]); o_ = RISERS[kk][1]; L_ = math.hypot(o_[0] - w_.x, o_[1] - w_.y) or 1; d_ = min(0.34, 0.8 * L_)
             pts_.append((w_.x + (o_[0] - w_.x) / L_ * d_, w_.y + (o_[1] - w_.y) / L_ * d_))
         lx, ly = (pts_[0][0] + pts_[1][0]) / 2, (pts_[0][1] + pts_[1][1]) / 2
-        sh.otext(v.X(lx), v.Y(ly) + 2.2, lv(SSL[k]), size=6.2, bold=True, color=RED, align="center", mask=True)
+        sh.otext(v.X(lx), v.Y(ly) + 0.2, lv(SSL[k]), size=6.2, bold=True, color=RED, align="center", mask=True)
+        sh.otext(v.X(lx), v.Y(ly) + 6.4, "(%s)" % lv(FFL[k]), size=5.4, color=FIN, align="center", mask=True)        # ΤΕΛΙΚΗ στάθμη του πατήματος
     # ετικέτες
     v.text(10.42, 5.19, "ΔΑΠΕΔΟ ΥΠΟΓΕΙΟΥ (πόρτα · ασανσέρ)", size=5.8, align="center", color=GRAY)
     level_mark(sh, v.X(10.05), v.Y(5.345), lv(SSL0) + " μπετό", 7.0, RED); v.text(10.53, 5.345, "(τελικό %s)" % lv(FFL0), size=6.2, dy=-6.6, color=FIN)
@@ -465,6 +466,7 @@ def info_a3(sh, x, y0, y1, scale_txt):
     blk("ΦΑΝΑΡΙ %s × %s" % (mt(WX - XL), mt(W1 - W0)), ("όπως η μελέτη · κλάδοι 1,20", "στροφή %s · πέρασμα ισογ. 1,20" % mt(XE - WX)))
     blk("ΜΕΣΑ ΣΤΟ ΦΑΝΑΡΙ", ("πλάτος κάθε σκαλιού", "στο φανάρι, σε cm"))
     blk("ΚΟΚΚΙΝΟ", ("στάθμη ΜΠΕΤΟΥ", "(τελικό − επένδυση %s cm)" % cm(T_STEP)), RED)
+    blk("ΚΑΦΕ (σε παρένθεση)", ("ΤΕΛΙΚΗ στάθμη πατήματος",), FIN)
     blk("ΜΠΛΕ", ("γραμμή ανάβασης, 60 cm από", "το φανάρι · πάτημα %s cm" % cm(G), "ΙΔΙΟ σε όλα (και στα φάλτσα)"), BLUE)
     blk("ΡΙΧΤΙΑ", ("%d × %s cm (τελικό)" % (N, cm(RISE, 2)), "μπετό: όλα %s · το τελευταίο" % cm(RISE, 2), "(στην πλάκα %s) %s cm" % (lv(SSL1), cm(SSL1 - SSL[N - 1]))))
     y = y1 - 18.5 * MM; sh.oline(x, y - 4.2 * MM, x + 40 * MM, y - 4.2 * MM, 0.4)

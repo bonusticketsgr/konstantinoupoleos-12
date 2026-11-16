@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.join(HERE, "..", "xylotypoi_S1_S2"))
 import lib
 from lib import MM, FONT_R, FONT_B, BLACK, GRAY, BLUE
 
-REV, DATE = "R07", "16/11/2026"
+REV, DATE = "R08", "16/11/2026"
 OUT = os.path.join(HERE, "..", "..", "ΚΩΝΣΤΑΝΤΙΝΟΥΠΟΛΕΩΣ_12_ΑΡΓΥΡΟΥΠΟΛΗ", "ΞΥΛΟΤΥΠΟΙ")
 NAME = "Σ3β_Σκάλα_ισογείου_Α_ορόφου_A3_%s.pdf" % REV
 
@@ -219,7 +219,8 @@ def draw_plan(sh, big=False):
             w_ = WALK.interpolate(SPOS[kk]); o_ = RISERS[kk][1]; L_ = math.hypot(o_[0] - w_.x, o_[1] - w_.y) or 1; d_ = min(0.34, 0.8 * L_)
             pts_.append((w_.x + (o_[0] - w_.x) / L_ * d_, w_.y + (o_[1] - w_.y) / L_ * d_))
         lx, ly = (pts_[0][0] + pts_[1][0]) / 2, (pts_[0][1] + pts_[1][1]) / 2
-        sh.otext(v.X(lx), v.Y(ly) + 2.2, lv(SSL[k]), size=6.2, bold=True, color=RED, align="center", mask=True)
+        sh.otext(v.X(lx), v.Y(ly) + 0.2, lv(SSL[k]), size=6.2, bold=True, color=RED, align="center", mask=True)
+        sh.otext(v.X(lx), v.Y(ly) + 6.4, "(%s)" % lv(FFL[k]), size=5.4, color=FIN, align="center", mask=True)        # ΤΕΛΙΚΗ στάθμη του πατήματος
     # ετικέτες
     v.text(10.28, 7.22, "ΧΩΛ ΙΣΟΓΕΙΟΥ", size=7.4, bold=True, align="center"); v.text(10.28, 7.22, "πέρασμα προς ασανσέρ %s" % mt(XL - WALL_X), size=5.8, dy=7.6, align="center", color=GRAY)
     level_mark(sh, v.X(9.80), v.Y(7.47), lv(SSL0) + " μπετό", 7.2, RED); v.text(10.30, 7.47, "(τελικό %s)" % lv(FFL0), size=6.6, bold=True, dy=-6.6, color=FIN)
@@ -433,6 +434,7 @@ def info_a3(sh, x, y0, y1, scale_txt):
     blk("ΦΑΝΑΡΙ %s × %s" % (mt(WX - XL), mt(W1 - W0)), ("όπως η μελέτη · κλάδοι 1,20", "στη στροφή %s" % mt(XE - WX)))
     blk("ΜΕΣΑ ΣΤΟ ΦΑΝΑΡΙ", ("πλάτος κάθε σκαλιού", "στο φανάρι, σε cm"))
     blk("ΚΟΚΚΙΝΟ", ("στάθμη ΜΠΕΤΟΥ πατήματος", "(τελικό − επένδυση %s cm)" % cm(T_STEP)), RED)
+    blk("ΚΑΦΕ (σε παρένθεση)", ("ΤΕΛΙΚΗ στάθμη πατήματος",), FIN)
     blk("ΜΠΛΕ", ("γραμμή ανάβασης, 60 cm από", "το φανάρι · πάτημα %s cm" % cm(G), "ΙΔΙΟ σε όλα τα σκαλοπάτια"), BLUE)
     blk("ΡΙΧΤΙΑ", ("%d × %s cm (τελικό)" % (N, cm(RISE, 2)), "μπετό: 1ο %s · 2ο–%dο %s" % (cm(SSL[1] - SSL0), N - 1, cm(RISE, 2)), "%dο %s cm" % (N, cm(SSL1 - SSL[N - 1]))))
     y = y1 - 18.5 * MM; sh.oline(x, y - 4.2 * MM, x + 40 * MM, y - 4.2 * MM, 0.4)

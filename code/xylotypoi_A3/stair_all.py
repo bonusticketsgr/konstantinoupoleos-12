@@ -15,7 +15,7 @@ import stair_s2 as A
 import stair_s3 as B
 from stair_s2 import View, level_mark, cm, mt, lv, lv3, CONC, RED, FIN
 
-REV, DATE = "R04", "16/11/2026"
+REV, DATE = "R05", "16/11/2026"
 OUT = A.OUT
 NAME = "ΣΚ_Σκάλες_υπόγειο_ισόγειο_Α_όροφος_ΤΟΜΗ_A3_%s.pdf" % REV
 SC = 40
@@ -179,6 +179,35 @@ def draw(sh):
     sh.flush()
 
 
+FINAL = "ΣΚΑΛΕΣ_υπόγειο_ισόγειο_Α_όροφος_ΤΕΛΙΚΟ_A3.pdf"
+
+
+def check():
+    """τελικός έλεγχος σταθμών / διαστάσεων και των δύο σκαλών – σταματά αν κάτι δεν δένει."""
+    e = 1e-6; T = A.T_STEP
+    assert abs(A.FFL0 + A.N * A.RISE - A.FFL1) < e and abs(B.FFL0 + B.N * B.RISE - B.FFL1) < e, "άθροισμα ριχτιών"
+    assert abs(A.FFL1 - B.FFL0) < e and abs(A.SSL1 - B.SSL0) < e, "πλατύσκαλο ισογείου"
+    assert max(A.RISE, B.RISE) <= 0.18 + e, "ρίχτι > 18"
+    gs = list(A.GOING.values()) + list(A.LGO.values()) + list(B.GOING.values())
+    assert max(gs) - min(gs) < 0.001, "πάτημα όχι ίδιο παντού: %.4f … %.4f" % (min(gs), max(gs))
+    for M in (A, B):
+        for k in range(1, M.N): assert abs(M.FFL[k] - (M.FFL0 + k * M.RISE)) < e and abs(M.SSL[k] - (M.FFL[k] - T)) < e, (M.__name__, k)
+        assert abs(M.XE - M.WX - 1.20) < e and abs(M.YS - M.W1 - 1.20) < e and abs(M.W0 - M.YN - 1.20) < e, "κλάδοι / στροφή 1,20"
+        assert min(M.INNER.values()) >= 0.07 - e, "πλάτος στο φανάρι < 7"
+    assert B.STRAIGHT[1] - B.WALL_X >= 1.20 - e and B.XTOP - 9.70 >= 1.20 - e and A.RISERS[A.N][0][0] - 9.70 >= 1.20 - e, "πλατύσκαλα 1,20"
+    assert A.XS - A.WALL_X >= 1.20 - e
+    print("ΕΛΕΓΧΟΣ ΟΚ: ρίχτια %d × %.2f / %d × %.2f cm · πάτημα %.1f–%.1f cm · ισόγειο μπετό %+.2f / τελικό %+.2f · Α΄ %+.2f / %+.2f" % (
+        A.N, A.RISE * 100, B.N, B.RISE * 100, min(gs) * 100, max(gs) * 100, A.SSL1, A.FFL1, B.SSL1, B.FFL1))
+
+
+def merge(path_sk):
+    """ένα PDF 3 φύλλων Α3 για εκτύπωση: κάτοψη υπογείου · κάτοψη ισογείου → Α΄ · ενιαία τομή."""
+    out = pymupdf.open()
+    for p_ in (os.path.join(OUT, A.NAME), os.path.join(OUT, B.NAME), path_sk): out.insert_pdf(pymupdf.open(p_))
+    out.set_metadata(dict(title="Σκάλες υπόγειο → ισόγειο → Α΄ όροφος – τελικό (Σ2α %s · Σ3β %s · ΣΚ %s)" % (A.REV, B.REV, REV), author="ARKAD Ι.Κ.Ε."))
+    out.save(os.path.join(OUT, FINAL), garbage=4, deflate=True); print("->", FINAL, "(%d φύλλα)" % out.page_count)
+
+
 def main():
     sh = lib.Sheet({"region": (0, 0, 0, 0)}, [], scale=SC, page_w=420, page_h=297, sx0=0, sy0=0)
     draw(sh)
@@ -188,6 +217,7 @@ def main():
     sh.doc.save(path, garbage=4, deflate=True)
     print("->", NAME, "· μήκος αναπτύγματος %.2f m = %.0f mm" % (S_END, S_END / SC * 1000))
     print("ισόγειο: μπετό %+.2f · τελικό %+.2f | ρίχτια μπετού Σ2α τελευταίο %.1f · Σ3β 1ο %.1f / τελευταίο %.1f" % (A.SSL1, A.FFL1, (A.SSL1 - A.SSL[A.N - 1]) * 100, (B.SSL[1] - B.SSL0) * 100, (B.SSL1 - B.SSL[B.N - 1]) * 100))
+    check(); merge(path)
     if len(sys.argv) > 1: pymupdf.open(path)[0].get_pixmap(dpi=int(sys.argv[2]) if len(sys.argv) > 2 else 110).save(sys.argv[1])
 
 
