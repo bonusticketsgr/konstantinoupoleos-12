@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.join(HERE, "..", "xylotypoi_S1_S2"))
 import lib
 from lib import MM, FONT_R, FONT_B, BLACK, GRAY, BLUE
 
-REV, DATE = "R06", "14/11/2026"
+REV, DATE = "R07", "16/11/2026"
 OUT = os.path.join(HERE, "..", "..", "ΚΩΝΣΤΑΝΤΙΝΟΥΠΟΛΕΩΣ_12_ΑΡΓΥΡΟΥΠΟΛΗ", "ΞΥΛΟΤΥΠΟΙ")
 NAME = "Σ2α_Σκάλα_υπογείου_πλατύσκαλο_A3_%s.pdf" % REV
 
@@ -239,7 +239,7 @@ def draw_plan(sh, big=False):
     sh.otext(v.X(13.225) + 2.6, v.Y(6.35) + 40, "τοιχείο υπογείου 25", size=6.2, rot=90, mask=True)
     sh.otext(v.X(9.60) + 2.6, v.Y(7.82) + 26, "Δ9.1  30/50", size=6.6, bold=True, rot=90)
     v.text(11.75, 7.725, "Δ12.1  25/50", size=7.6, bold=True, align="center", dy=2.6)
-    v.text(XL - 0.05, W0 - RW - 0.21, "ΑΦΙΞΗ στο Π6 ισογείου", size=5.8, color=BLUE, align="right"); v.text(XL - 0.05, W0 - RW - 0.21, "%s (από πάνω)" % lv(SSL1), size=5.8, dy=7.0, color=BLUE, align="right")
+    v.text(XL - 0.05, W0 - RW - 0.21, "ΑΦΙΞΗ στο ΧΩΛ ΙΣΟΓΕΙΟΥ (από πάνω)", size=5.8, color=BLUE, align="right"); v.text(XL - 0.05, W0 - RW - 0.21, "τελικό %s · μπετό %s" % (lv(FFL1), lv(SSL1)), size=6.2, bold=True, dy=7.6, color=BLUE, align="right")
     # διαστάσεις: πάνω (ευθύγραμμα + σημεία στο τοιχείο Κ6), κάτω (σημεία στη δοκό Δ12.1), αριστερά, δεξιά (σημεία στο ανατολικό τοιχείο)
     sx = sorted(b[0] for a, b in RISERS.values() if abs(b[1] - YS) < 1e-9)              # σημεία ριχτιών στη δοκό Δ12.1
     nx_ = sorted(b[0] for a, b in RISERS.values() if abs(b[1] - YN) < 1e-9)             # … στο τοιχείο Κ6
@@ -426,7 +426,7 @@ def info_a3(sh, x, y0, y1, scale_txt):
         for ln in lines: sh.otext(xx, y, ln, size=6.5); y += 3.2 * MM
         y += 2.0 * MM
     blk("ΑΛΛΑΓΗ: %d ΡΙΧΤΙΑ" % N, ("αντί %d της μελέτης (%s cm):" % (N_DESIGN, cm((FFL_STUDY - FFL0) / N_DESIGN, 1)), "πόρτα → ένα σκαλί (2 ρίχτια)", "→ υπερυψωμένο πλατύσκαλο", "→ σκάλα %d ριχτιών" % NS, "ρίχτι ≤ 19 · πάτημα 25 · 1,20", "ΜΕ ΕΓΚΡΙΣΗ ΜΕΛΕΤΗΤΩΝ"), RED)
-    blk("ΧΩΛ ΙΣΟΓΕΙΟΥ %s" % lv(FFL1), ("(μελέτη %s): ένα σκαλί" % lv(FFL_STUDY), "ακόμη στην εξωτερική σκάλα", "εισόδου · γέμισμα χωλ %s cm" % cm(FFL1 - SSL1, 0)), RED)
+    blk("ΧΩΛ ΙΣΟΓΕΙΟΥ", ("ΤΕΛΙΚΟ %s · ΜΠΕΤΟ %s" % (lv(FFL1), lv(SSL1)), "γέμισμα %s cm (μελέτη %s):" % (cm(FFL1 - SSL1, 0), lv(FFL_STUDY)), "ένα σκαλί ακόμη στην εξωτε-", "ρική σκάλα εισόδου · ίδιο", "πλατύσκαλο με τη σκάλα Σ3β"), RED)
     blk("ΥΠΕΡΥΨ. ΠΛΑΤΥΣΚΑΛΟ", ("%s × %s m" % (mt(XS - WALL_X), mt(YS - LOBBY[2])), "μπετό %s · τελικό %s" % (lv(SSL[2]), lv(FFL[2])), "%s cm πάνω από το μπετό" % cm(SSL[2] - SSL0, 0), "του υπογείου (%s)" % lv(SSL0)))
     blk("ΠΟΡΤΑ PARKING 0,90", ("5 cm από την Κ3 (νέα θέση)", "ανοίγει μέσα, μεντεσές νότια"))
     blk("ΦΑΝΑΡΙ %s × %s" % (mt(WX - XL), mt(W1 - W0)), ("όπως η μελέτη · κλάδοι 1,20", "στροφή %s · πέρασμα ισογ. 1,20" % mt(XE - WX)))
