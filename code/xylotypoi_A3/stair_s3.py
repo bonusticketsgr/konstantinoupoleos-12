@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.join(HERE, "..", "xylotypoi_S1_S2"))
 import lib
 from lib import MM, FONT_R, FONT_B, BLACK, GRAY, BLUE
 
-REV, DATE = "R05", "16/11/2026"
+REV, DATE = "R06", "16/11/2026"
 OUT = os.path.join(HERE, "..", "..", "ΚΩΝΣΤΑΝΤΙΝΟΥΠΟΛΕΩΣ_12_ΑΡΓΥΡΟΥΠΟΛΗ", "ΞΥΛΟΤΥΠΟΙ")
 NAME = "Σ3β_Σκάλα_ισογείου_Α_ορόφου_A3_%s.pdf" % REV
 
@@ -22,6 +22,7 @@ NAME = "Σ3β_Σκάλα_ισογείου_Α_ορόφου_A3_%s.pdf" % REV
 N = 18                                   # ρίχτια – R05 (Γιάννης 16/11/2026: ρίχτι ≤ 18): 3,20 / 18 = 17,78 cm· η μελέτη έχει 16 × 20,94 από το +0,45
 N_DESIGN = 16
 NL = 0
+NS = N
 FFL_STUDY = 0.45                         # τελικό χωλ ισογείου κατά τη μελέτη
 FFL0, FFL1 = 0.60, 3.80                  # τελικό χωλ ισογείου (ΝΕΟ: +13 cm, 6 εξωτερικά σκαλιά × 17,2 από το −0,45) / τελικό Α΄
 SSL0, SSL1 = 0.45, 3.65                  # άνω στάθμη μπετού: Π6 ισογείου ΝΕΟ +0,45 (γέμισμα 15 όπως τα σπίτια – Κόγιας· Σ2_ΕΦ: +0,30) / Π6 Α΄ (Σ3)
@@ -34,16 +35,16 @@ YN, YS = 5.10, 7.60                      # παρειά τοιχείου ανε�
 W0, W1, WX = 6.30, 6.40, 11.96           # φανάρι 1,06 × 0,10 (μελέτη 1,00): 6 cm μακρύτερο → στη στροφή 1,14· οι κλάδοι μένουν 1,20
 WALL_X = 9.70                            # παρειά τοίχου χωλ ισογείου (Τ6-01) – πέρασμα είσοδος → ασανσέρ 1,20
 WALL1_X = 9.55                           # παρειά τοίχου πλατύσκαλου Α΄ (Τ6Α)
-XTOP = 10.75                             # 18ο ρίχτι: 15 cm μέσα στο πλατύσκαλο του Α΄ → μένει 1,20 ως τον τοίχο 9,55
+XTOP = 10.755                            # 18ο ρίχτι: 15 cm μέσα στο πλατύσκαλο του Α΄ → μένει 1,20 ως τον τοίχο 9,55
 K3_Y = 5.15
 YC = (W0 + W1) / 2
 RW = 0.60
 ARCH_NUM = True
 # 18 ρίχτια, πάτημα 25 στη γραμμή ανάβασης: ευθύγραμμα 1–3 (Ν) και 15–18 (Β)· σφηνοειδή 4–14 από σημείο στο φανάρι (INNER_X / INNER_END)
 # μέσα από το σημείο της γραμμής ανάβασης ως τη δοκό / το τοιχείο – τα εξωτερικά άκρα στρογγυλεμένα στο 0,5 cm για τη χάραξη
-STRAIGHT = {1: 10.90, 2: 11.15, 3: 11.40, 15: 11.50, 16: 11.25, 17: 11.00, 18: XTOP}
-INNER_PT = {4: (11.55, W1), 5: (11.65, W1), 6: (11.73, W1), 7: (11.82, W1), 8: (11.90, W1), 9: (WX, 6.39), 10: (WX, 6.31),
-            11: (11.88, W0), 12: (11.81, W0), 13: (11.73, W0), 14: (11.63, W0)}
+STRAIGHT = {1: 10.90, 2: 11.15, 3: 11.40, 15: XTOP + 0.75, 16: XTOP + 0.50, 17: XTOP + 0.25, 18: XTOP}
+INNER_PT = {4: (11.55, W1), 5: (11.65, W1), 6: (11.73, W1), 7: (11.81, W1), 8: (11.89, W1), 9: (WX, 6.39), 10: (WX, 6.31),
+            11: (11.89, W0), 12: (11.81, W0), 13: (11.73, W0), 14: (11.63, W0)}
 
 
 def _walk_pts():
@@ -55,19 +56,29 @@ def _walk_pts():
 
 
 def _make_risers():
-    wl = _walk_pts(); g = wl.length / (N - 1); out = {}
-    for k, x in STRAIGHT.items(): out[k] = ((x, W1), (x, YS)) if k <= 3 else ((x, W0), (x, YN))
-    for k, (ix, iy) in INNER_PT.items():
-        w = wl.interpolate((k - 1) * g); dx, dy = w.x - ix, w.y - iy
-        cand = []                                                                         # τομή της ημιευθείας με δοκό (YS), τοιχείο (XE), Κ6 (YN)
+    """ευθύγραμμα από STRAIGHT· σφηνοειδή: από σημείο του φαναριού μέσα από το σημείο της γραμμής ανάβασης ως τη δοκό / το τοιχείο.
+    Το εξωτερικό άκρο στρογγυλεύεται στο 1 mm ώστε το πάτημα στη γραμμή ανάβασης να βγαίνει ΙΔΙΟ σε όλα τα σκαλοπάτια."""
+    wl = _walk_pts(); g = wl.length / (NS - 1); out = {}
+    for j, x in STRAIGHT.items(): out[j + NL] = ((x, W1), (x, YS)) if j <= 3 else ((x, W0), (x, YN))
+    r5 = lambda v_: round(v_, 3)
+    def cast(ix, iy, w):
+        dx, dy = w.x - ix, w.y - iy; cand = []
         if dy > 1e-9: cand.append((YS - iy) / dy)
         if dy < -1e-9: cand.append((YN - iy) / dy)
         if dx > 1e-9: cand.append((XE - ix) / dx)
         t = min(c for c in cand if c > 0); ox, oy = ix + t * dx, iy + t * dy
-        r5 = lambda v_: round(v_ * 200) / 200.0
-        if abs(ox - XE) < 1e-6: oy = r5(oy)
-        else: ox = r5(ox)
-        out[k] = ((ix, iy), (ox, oy))
+        return (ox, r5(oy)) if abs(ox - XE) < 1e-6 else (r5(ox), oy)
+    for j, (ix, iy) in INNER_PT.items():
+        tgt = (j - 1) * g; w = wl.interpolate(tgt); best = None
+        for d in (0.0,):
+            on_end = abs(ix - WX) < 1e-9
+            cx, cy = (ix, iy + d) if on_end else (ix + d, iy)
+            if (on_end and not (W0 <= cy <= W1)) or (not on_end and not (XL < cx <= WX)): continue
+            o = cast(cx, cy, w); ip = wl.intersection(LineString([(cx, cy), o]))
+            if ip.is_empty: continue
+            err = abs(wl.project(ip if ip.geom_type == "Point" else ip.centroid) - tgt)
+            if best is None or err < best[0] - 1e-9: best = (err, (round(cx, 4), round(cy, 4)), o)
+        out[j + NL] = (best[1], best[2])
     return out
 
 
@@ -415,10 +426,10 @@ def info_a3(sh, x, y0, y1, scale_txt):
         sh.otext(xx, y, head, size=7.0, bold=True, color=color); y += 3.5 * MM
         for ln in lines: sh.otext(xx, y, ln, size=6.5); y += 3.2 * MM
         y += 2.0 * MM
-    blk("ΑΛΛΑΓΗ: %d ΡΙΧΤΙΑ" % N, ("αντί %d της μελέτης (%s cm)" % (N_DESIGN, cm((FFL1 - FFL_STUDY) / N_DESIGN, 1)), "ρίχτι ≤ 18 · πάτημα 25 ·", "κλάδοι / πλατύσκαλα 1,20", "ΜΕ ΕΓΚΡΙΣΗ ΜΕΛΕΤΗΤΩΝ"), RED)
+    blk("ΑΛΛΑΓΗ: %d ΡΙΧΤΙΑ" % N, ("αντί %d της μελέτης (%s cm)" % (N_DESIGN, cm((FFL1 - FFL_STUDY) / N_DESIGN, 1)), "ρίχτι ≤ 18 · ΠΑΤΗΜΑ 25 ΠΑΝΤΟΥ ·", "κλάδοι / πλατύσκαλα 1,20", "ΜΕ ΕΓΚΡΙΣΗ ΜΕΛΕΤΗΤΩΝ"), RED)
     blk("ΧΩΛ ΙΣΟΓΕΙΟΥ", ("ΤΕΛΙΚΟ %s · ΜΠΕΤΟ %s" % (lv(FFL0), lv(SSL0)), "γέμισμα %s cm · ίδια στο Σ2α" % cm(FFL0 - SSL0, 0), "(μελέτη: τελικό %s · μπετό" % lv(FFL_STUDY), "%s) → η πλάκα του χωλ %s cm" % (lv(SSL0_STUDY), cm(SSL0 - SSL0_STUDY, 0)), "ψηλότερα · ένα σκαλί ακόμη", "στην εξωτερική σκάλα: 6 × %s" % cm((FFL0 + 0.45) / 6, 1)), RED)
     blk("ΠΛΑΤΥΣΚΑΛΑ", ("ισόγειο: %s ως τον τοίχο" % mt(XL - WALL_X), "Α΄: %s ως τον τοίχο" % mt(XTOP - WALL1_X)))
-    blk("ΦΑΝΑΡΙ %s × %s" % (mt(WX - XL), mt(W1 - W0)), ("(μελέτη 1,00) · κλάδοι 1,20", "στη στροφή %s" % mt(XE - WX), "%dο ρίχτι %s cm μέσα στο" % (N, cm(XL - XTOP, 0)), "πλατύσκαλο του Α΄"))
+    blk("ΦΑΝΑΡΙ %s × %s" % (mt(WX - XL), mt(W1 - W0)), ("(μελέτη 1,00) · κλάδοι 1,20", "στη στροφή %s" % mt(XE - WX), "%dο ρίχτι %s cm μέσα στο" % (N, cm(XL - XTOP)), "πλατύσκαλο του Α΄"))
     blk("ΜΕΣΑ ΣΤΟ ΦΑΝΑΡΙ", ("πλάτος κάθε σκαλιού", "στο φανάρι, σε cm"))
     blk("ΚΟΚΚΙΝΟ", ("στάθμη ΜΠΕΤΟΥ πατήματος", "(τελικό − επένδυση %s cm)" % cm(T_STEP)), RED)
     blk("ΜΠΛΕ", ("γραμμή ανάβασης, 60 cm από", "το φανάρι · πάτημα %s cm" % cm(sum(GOING.values()) / len(GOING), 0)), BLUE)
