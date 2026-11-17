@@ -467,6 +467,60 @@ def prep_holes(G, T, cfg, log):
     return out
 
 
+STAIRC = (0.22, 0.22, 0.22)
+_STAIRS = None
+
+
+def prep_stair(G, cfg, log):
+    """R07 – ΤΕΛΙΚΗ ΣΚΑΛΑ του τεύχους σκαλών στη θέση της σχηματικής του μελετητή: cfg["stair"] = κλειδί του code/toixopoiies/data/stairs.json
+    (S2 / S3 / S4 / S7 – το γράφει το export_stairs.py από τα μοντέλα stair_s2 / stair_s3 / stair_s7).
+    Από το άνοιγμα της σκάλας (cfg["stair_open"], m του κοινού συστήματος) ΦΕΥΓΟΥΝ μόνο τα σχηματικά του μελετητή – τα λοξά σφηνοειδή 0.28,
+    τα τόξα 0.57 και οι παύλες τους – και μπαίνουν ΟΛΑ τα ρίχτια της τελικής σκάλας, κομμένα στο άνοιγμα (ό,τι πέφτει κάτω από πλάκα / πάνω σε
+    ακμή πλάκας δεν σχεδιάζεται). Το φανάρι, οι ακμές πλακών, οι δοκοί και οι διαστάσεις του μελετητή ΔΕΝ αγγίζονται."""
+    global _STAIRS
+    key = cfg.get("stair")
+    if not key: return None
+    cal = calibrate(G)
+    if cal is None: log.append("STAIR: NO CALIBRATION (Κ2 / Κ3)"); return None
+    if _STAIRS is None:
+        pj = os.path.join(HERE, "..", "toixopoiies", "data", "stairs.json")
+        _STAIRS = json.load(open(pj, encoding="utf-8")) if os.path.exists(pj) else {}
+    d = _STAIRS.get(key)
+    if not d: log.append("STAIR: λείπει το %s από το stairs.json  <-- ΛΑΘΟΣ" % key); return None
+    def PX(x): return cal[0] + x * S
+    def PY(y): return cal[1] + y * S
+    rects = cfg.get("stair_open", [(10.90, 5.10, 13.10, 7.60)]); minus = cfg.get("stair_minus", [])
+    opn = unary_union([box(PX(a), PY(b), PX(c), PY(e_)) for a, b, c, e_ in rects])
+    for a, b, c, e_ in minus: opn = opn.difference(box(PX(a), PY(b), PX(c), PY(e_)))
+    for a, b, c, e_, cx_, cy_, r_ in cfg.get("stair_minus_corner", []):      # γωνιακό κομμάτι καμπύλου τοιχείου: ορθογώνιο ΕΚΤΟΣ του κύκλου (κέντρο, ακτίνα)
+        opn = opn.difference(box(PX(a), PY(b), PX(c), PY(e_)).difference(Point(PX(cx_), PY(cy_)).buffer(r_ * S, 64)))
+    zone = opn.buffer(0.03 * S, join_style=2); clip = opn.buffer(-0.012 * S, join_style=2)
+    def inz(x, y): return zone.contains(Point(x, y))
+    keep = []; nl = 0
+    for l in G["lines"]:
+        dx, dy = l["x1"] - l["x0"], l["y1"] - l["y0"]; L = math.hypot(dx, dy)
+        axis = abs(dx) < 0.6 or abs(dy) < 0.6
+        sym = (l["w"] == 0.28 and not l.get("hatch")) or (l["w"] == 0.85 and L < 0.10 * S)
+        if sym and not axis and not l["blue"] and not l.get("dashed") and inz(l["x0"], l["y0"]) and inz(l["x1"], l["y1"]): nl += 1; continue
+        keep.append(l)
+    G["lines"] = keep
+    nc = len(G["curves"])
+    G["curves"] = [c for c in G["curves"] if not (c["w"] == 0.57 and not c["blue"] and all(inz(x, y) for x, y in c["pts"]))]
+    nc -= len(G["curves"])
+    segs = []
+    for k_ in sorted(d["risers"], key=int):
+        a, b = d["risers"][k_]
+        g = LineString([(PX(a[0]), PY(a[1])), (PX(b[0]), PY(b[1]))]).intersection(clip)
+        for q in (g.geoms if hasattr(g, "geoms") else [g]):
+            if q.geom_type == "LineString" and q.length > 0.04 * S:
+                (x0, y0), (x1, y1) = q.coords[0], q.coords[-1]; segs.append((round(x0, 2), round(y0, 2), round(x1, 2), round(y1, 2), int(k_)))
+    lab = cfg.get("stair_label", (11.02, 7.00, True))      # προεπιλογή: κατακόρυφα στο 1ο πάτημα του νότιου κλάδου (ανάμεσα σε δύο ίσια ρίχτια)
+    log.append("STAIR %s (%s %s): %d ρίχτια × %.2f cm – στο άνοιγμα σχεδιάζονται %d · αφαιρέθηκαν σχηματικά του μελετητή: %d γραμμές, %d τόξα"
+               % (key, cfg.get("stair_sheet") or d["sheet"], d["rev"], d["n"], d["rise"] * 100, len(set(q[4] for q in segs)), nl, nc))
+    return dict(key=key, segs=segs, n=d["n"], text="ΣΚΑΛΑ: φύλλο %s" % (cfg.get("stair_sheet") or d["sheet"]), at=(PX(lab[0]), PY(lab[1])), vert=bool(lab[2]),
+                removed=(nl, nc), drawn=len(set(q[4] for q in segs)))
+
+
 def plan_chains(cfg, D):
     """Αλυσίδες παρειών του φύλλου: (GC, FC εξωτερικές ανά πλευρά, sides, inner εσωτερικές, datum)."""
     G = D["G"]
@@ -597,8 +651,9 @@ def prep(page, DR, cfg, S_loc=S):
             if t["text"] == mv[0]:
                 for k_ in ("cx", "x0", "x1"): t[k_] += mv[1]
                 for k_ in ("cy", "y0", "y1"): t[k_] += mv[2]
-    log0 = []; fills = []; holes = []
+    log0 = []; fills = []; holes = []; stair = None
     if not cfg.get("section"):
+        stair = prep_stair(G, cfg, log0)           # R07: τελική σκάλα του τεύχους σκαλών αντί για τα σχηματικά του μελετητή
         if not cfg.get("show_ez"): remove_ez(G, T, log0, all_=cfg.get("ez_all", False))
         fills = fill_regions(G, cfg)
         if cfg.get("beam_len", True): beam_lengths(G, T, log0)
@@ -667,7 +722,7 @@ def prep(page, DR, cfg, S_loc=S):
             xs += [t["x0"], t["x1"]]; ys += [t["y0"], t["y1"]]
     pad = cfg.get("pad", 10)
     bb = (max(min(xs) - pad, bbr[0] - 40), max(min(ys) - pad, bbr[1] - 40), min(max(xs) + pad, bbr[2] + 40), min(max(ys) + pad, bbr[3] + 40))
-    return dict(G=G, T=T, dims=dims, unres=unres, bb=bb, cfg=cfg, dropped=locals().get("D_drop", []), fills=fills, holes=holes, log0=log0)
+    return dict(G=G, T=T, dims=dims, unres=unres, bb=bb, cfg=cfg, dropped=locals().get("D_drop", []), fills=fills, holes=holes, stair=stair, log0=log0)
 
 
 def draw(sh, D, bb_in, FC=None, sides=(), log=None, datum=None, inner=()):
@@ -703,6 +758,9 @@ def draw(sh, D, bb_in, FC=None, sides=(), log=None, datum=None, inner=()):
     sh.draw_geometry(wmap={1.7: 1.25, 0.85: 0.7 if not cfg.get("section") else 1.0, 0.57: 0.35, 0.28: 0.2}, drop=lambda l: l.get("band"))
     for l in G["lines"]:
         if l.get("band"): sh.sline(l["x0"], l["y0"], l["x1"], l["y1"], w=0.55, dashes="[2.6 1.8] 0")
+    STR = D.get("stair")
+    if STR:                                            # R07: ρίχτια της τελικής σκάλας (τεύχος σκαλών), λεπτά όπως τα σχηματικά του μελετητή
+        for x0_, y0_, x1_, y1_, k_ in STR["segs"]: sh.sline(x0_, y0_, x1_, y1_, w=0.22, color=STAIRC)
     for f in D.get("fills", []):
         if f["kind"] == "seed":
             pts = [sh.P(x, y) for x, y in f["poly"].exterior.coords]
@@ -858,6 +916,10 @@ def draw(sh, D, bb_in, FC=None, sides=(), log=None, datum=None, inner=()):
         for (xa, xb), tx_ in zip(zip(xs[:-1], xs[1:]), SHF["vals"]):
             w = FONT_B.text_length(tx_, fontsize=HSZ); cx = (sh.X(xa) + sh.X(xb)) / 2; cy = sh.Y(yc) - HSZ * 0.37 - 2.0
             otext_c(sh, cx, cy, tx_, HSZ, bold=True, color=SHAFTC, mask=True); pl.rects.append(Placer.rect(cx, cy, w, HSZ, False))
+    dtexts = []                                        # R07: πριν από τις ετικέτες των οπών – οι τιμές διαστάσεων του μελετητή κρατούν τη θέση τους
+    for d in dims:
+        t = dict(cx=d["tx"], cy=d["ty"], dir=(1.0, 0.0) if d["dir"] == "H" else (0.0, -1.0), text=d["value"], size=7.9)
+        dtexts.append(t); pl.pending[id(t)] = orig_rect(t)
     def early_label(s_, x_src, y_src, color, bx_=None):
         fs = SZ["hole"][0]; w_ = FONT_B.text_length(s_, fontsize=fs); cx0, cy0 = sh.X(x_src) + 5 + w_ / 2, sh.Y(y_src)
         if bx_ is not None:                            # R05: δοκιμή θέσεων γύρω από το κουτί (δεξιά, δεξιά-πάνω / κάτω, αριστερά, αριστερά-πάνω / κάτω, πάνω, κάτω) – η πρώτη ελεύθερη
@@ -873,10 +935,6 @@ def draw(sh, D, bb_in, FC=None, sides=(), log=None, datum=None, inner=()):
         s_ = "S1 SHAFT Η/Μ – άνοιγμα 90 × 15 cm"; w_ = FONT_B.text_length(s_, fontsize=SZ["hole"][0])
         early_label(s_, (SHF["box"][0] + SHF["box"][2]) / 2 - (5 + w_ / 2) / K, SHF["ych"] - 13 / K, SHAFTC)
     sh.flush()
-    dtexts = []
-    for d in dims:
-        t = dict(cx=d["tx"], cy=d["ty"], dir=(1.0, 0.0) if d["dir"] == "H" else (0.0, -1.0), text=d["value"], size=7.9)
-        dtexts.append(t); pl.pending[id(t)] = orig_rect(t)
     def P(t, kind, text=None, bold=False, color=BLACK, mask=True, anchor=None, skip=None, sizes=None, nudge=None):
         vert = (t["dir"] == (0.0, -1.0))
         s, x, y, w, n = pl.place(sh.X(t["cx"]), sh.Y(t["cy"]), text or t["text"], kind, vert, bold, anchor, skip, sizes, own=id(t), nudge=nudge)
@@ -946,6 +1004,9 @@ def draw(sh, D, bb_in, FC=None, sides=(), log=None, datum=None, inner=()):
             txt = t["text"] + ("  L=%s" % sh.fmt(t["L"]) if t.get("L") else "")
             if not straight(t): otext_rot(sh, sh.X(t["cx"]), sh.Y(t["cy"]), txt, SZ[t["kind"]][1] + 0.6, rot_of(t))
             else: P(t, t["kind"], text=txt, bold=(t["kind"] == "beam"), mask=True, nudge="along")
+    if STR:                                            # R07: παραπομπή στο φύλλο της σκάλας
+        t = dict(cx=STR["at"][0], cy=STR["at"][1], dir=(0.0, -1.0) if STR["vert"] else (1.0, 0.0), text=STR["text"])
+        P(t, "other", color=STAIRC, nudge="any")
     # 5β. ετικέτες γεμίσματος / μπαζώματος και οπών
     for f in D.get("fills", []):
         if not f.get("label"): continue

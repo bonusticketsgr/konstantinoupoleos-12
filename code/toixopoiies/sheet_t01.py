@@ -262,10 +262,64 @@ def equip(v, item, with_text=True):
         v.text(cx, cy, lab, size=3.4, color=tcol, rot=90 if (y1 - y0) > (x1 - x0) * 1.3 else 0)
 
 
+_STAIRS = None
+
+
+def stair_data(key):
+    """Γεωμετρία των ΤΕΛΙΚΩΝ σκαλών (τεύχος σκαλών) από το data/stairs.json – το γράφει το code/xylotypoi_A3/export_stairs.py."""
+    global _STAIRS
+    if _STAIRS is None:
+        import json, os
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "stairs.json")
+        _STAIRS = json.load(open(p, encoding="utf-8")) if os.path.exists(p) else {}
+    return _STAIRS.get(key)
+
+
+def draw_stair_model(v, S, d, col, lw):
+    """Σκάλα αχνά ΟΠΩΣ ΣΤΟ ΤΕΥΧΟΣ ΣΚΑΛΩΝ: φανάρι, όλα τα ρίχτια (ως την τομή συνεχή, πάνω από την τομή διακεκομμένα), γραμμή ανάβασης.
+    S["model"] = κλειδί του stairs.json · S["top"]: η σκάλα φτάνει σε αυτό το επίπεδο (όλα συνεχή) · S["cut"]: τελευταίο ρίχτι κάτω από την τομή ·
+    S["up_label"] = (x, y) θέση του «ΑΝΟΔΟΣ»."""
+    import math
+    n = d["n"]; top = S.get("top"); cut = S.get("cut", (n + 1) // 2)
+    dash = [1.5, 1.2]
+    wx0, wy0, wx1, wy1 = d["well"]
+    v.rect(wx0, wy0, wx1, wy1, stroke=col, lw=lw)
+    for k, (a, b) in d["risers"].items():
+        v.line(a[0], a[1], b[0], b[1], color=col, lw=lw, dash=None if (top or int(k) <= cut) else dash)
+    w = d["walk"]
+    # γραμμή ανάβασης: συνεχής ως το ρίχτι της τομής (περίπου στη μέση της διαδρομής), μετά διακεκομμένη
+    half = len(w) // 2
+    for i, (p_, q_) in enumerate(zip(w, w[1:])):
+        v.line(p_[0], p_[1], q_[0], q_[1], color=col, lw=0.5, dash=None if (top or i < half) else dash)
+    (ax, ay), (bx, by) = w[-2], w[-1]
+    ang = math.atan2(by - ay, bx - ax)
+    for sg in (+1, -1):
+        v.line(bx, by, bx - 0.16 * math.cos(ang + sg * 0.5), by - 0.16 * math.sin(ang + sg * 0.5), color=col, lw=0.5)
+    v.circle(w[0][0], w[0][1], 0.05, stroke=col, lw=0.5)
+    lab = S.get("up_label", (w[0][0] + 0.30, w[0][1] - 0.12))
+    if lab:
+        v.text(lab[0], lab[1], "ΑΝΟΔΟΣ", size=3.8, color=col)
+
+
+def draw_lift(v, col, lw):
+    L = M.LIFT; sx0, sy0, sx1, sy1 = L["shaft"]; c0, c1, c2, c3 = L["cabin"]
+    v.rect(c0, c1, c2, c3, stroke=col, lw=lw)
+    v.line(c0, c1, c2, c3, color=col, lw=0.25); v.line(c0, c3, c2, c1, color=col, lw=0.25)
+    dx_, dy0, dy1 = L["door"]      # δίφυλλη συρόμενη πόρτα 0,90 στον άξονα του μετώπου Τ10 (x 11,175)
+    v.rect(dx_ - 0.03, dy0, dx_ + 0.01, (dy0 + dy1) / 2, stroke=(0.45, 0.45, 0.5), lw=0.5)
+    v.rect(dx_ - 0.01, (dy0 + dy1) / 2, dx_ + 0.03, dy1, stroke=(0.45, 0.45, 0.5), lw=0.5)
+    v.text(dx_ + 0.22, (dy0 + dy1) / 2, "0,90", size=3.8, color=col, rot=90)
+
+
 def draw_core(v):
-    """Σκάλα και ανελκυστήρας αχνά (γκρι)."""
+    """Σκάλα και ανελκυστήρας αχνά (γκρι). Αν το μοντέλο δίνει STAIR["model"], η σκάλα σχεδιάζεται από το τεύχος σκαλών (stairs.json)."""
     import math
     col = (0.70, 0.70, 0.74); lw = 0.35
+    d_ = stair_data(M.STAIR.get("model")) if M.STAIR.get("model") else None
+    if d_:
+        draw_stair_model(v, M.STAIR, d_, col, lw)
+        draw_lift(v, col, lw)
+        return
     S = M.STAIR; x0, y0, x1, y1 = S["hall"]; lx = S["landing_x"]; wy = S["well_y"]; tr = S["tread"]
     cx, cy = S["fan_center"]
     lx0 = S.get("lower_x0", lx)                                   # σοφίτα: το κάτω σκέλος ξεκινά ανατολικά του καμπύλου τοίχου

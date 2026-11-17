@@ -133,11 +133,27 @@ def plan(v):
     v.c.setDash([])
 
 
+AC_EDGE = (0.55, 0.42, 0.22)
+
+
+def ac_outline(v):
+    """Όριο της χαμήλωσης της καναλάτης στα φύλλα ΑΝ-02 / ΑΝ-03 (εκεί οι ζώνες δεν χρωματίζονται): A.AC_OUTLINE = [ορθογώνια]."""
+    for r in getattr(A, "AC_OUTLINE", []):
+        v.c.setDash([5, 2.5])
+        v.rect(*r, stroke=AC_EDGE, lw=0.7)
+        v.c.setDash([])
+
+
+def _ac_legend(c_, x, y):
+    c_.setStrokeColorRGB(*AC_EDGE); c_.setLineWidth(0.7); c_.setDash([5, 2.5]); c_.rect(x - 5, y - 3, 10, 6); c_.setDash([]); c_.setLineWidth(0.5)
+
+
 def tall_marks(v):
     for name, (x0, y0, x1, y1) in A.TALL:
         if name.startswith("τοίχος κλιματιστικού"):
             continue
-        v.text((x0 + x1) / 2, (y0 + y1) / 2, "έως οροφή", size=3.8, color=GREY, font="Inter-Medium", bg=True)
+        mx, my = getattr(A, "TALL_MARK_AT", {}).get(name, ((x0 + x1) / 2, (y0 + y1) / 2))      # θέση της ένδειξης (όταν το κέντρο πέφτει σε άλλο κείμενο)
+        v.text(mx, my, "έως οροφή", size=3.8, color=GREY, font="Inter-Medium", bg=True)
 
 
 def level_tag(v, x, y, lvl, size=6.2, sub=None, txt=None):
@@ -228,8 +244,13 @@ def texts(v, items):
 
 
 def dims(v, chains, size=4.4):
-    for o, p, pts in chains:
-        v.dim_chain(o, p, pts, size=size, side=-1)
+    """Αλυσίδες διαστάσεων του μοντέλου: (προσανατολισμός, θέση, σημεία[, {side, ext}]) – ext = βοηθητικές γραμμές ως το στοιχείο."""
+    for ch in chains:
+        o, p, pts = ch[:3]
+        kw = dict(side=-1)
+        if len(ch) > 3:
+            kw.update(ch[3])
+        v.dim_chain(o, p, pts, size=size, **kw)
 
 
 def wall_unit_block(v, detailed=False):
@@ -475,6 +496,7 @@ def sheet_an02(c, no="ΑΝ-02"):
     plan(v)
     wall_unit_block(v, detailed=True)
     tall_marks(v)
+    ac_outline(v)
     for name, r in A.DUCTS:
         v.rect(*r, fill=BLUE_F, stroke=BLUE, lw=0.5)
     for name, r in A.RETURN_BOX:
@@ -486,8 +508,7 @@ def sheet_an02(c, no="ΑΝ-02"):
         v.rect(x0, y0, x1, y1, fill=(0.80, 0.88, 0.97), stroke=BLUE, lw=0.8)
         c.setDash([])
         v.line(x0, y0, x1, y1, color=BLUE, lw=0.4); v.line(x0, y1, x1, y0, color=BLUE, lw=0.4)
-        v.text((x0 + x1) / 2, (y0 + y1) / 2 - 0.08, u["id"], size=5.6, font="Inter-Bold", color=BLUE, bg=True)
-        v.text((x0 + x1) / 2, (y0 + y1) / 2 + 0.10, u["btu"].replace(".000 Btu/h", "k"), size=4.4, color=BLUE, bg=True)
+        u["_lab"] = u.get("lab_at", ((x0 + x1) / 2, (y0 + y1) / 2))
     for d in A.DIFFUSERS:
         x0, y0, x1, y1 = d["rect"]
         horiz = (x1 - x0) >= (y1 - y0)
@@ -535,12 +556,20 @@ def sheet_an02(c, no="ΑΝ-02"):
                 for k in range(1, 6):
                     xx = x0 + k * (x1 - x0) / 6
                     v.line(xx, y0, xx, y1, color=GREEN, lw=0.3)
+            elif (y1 - y0) > 0.5:               # επιστροφή με τον μακρύ άξονα Β–Ν (Β1 R19)
+                for k in range(1, 6):
+                    yy = y0 + k * (y1 - y0) / 6
+                    v.line(x0, yy, x1, yy, color=GREEN, lw=0.3)
     for h in A.HATCHES:
         x0, y0, x1, y1 = h["rect"]
         c.setDash([2, 1.2]); v.rect(x0, y0, x1, y1, stroke=DARK, lw=0.6); c.setDash([])
         v.line(x0, y0, x1, y1, color=DARK, lw=0.3); v.line(x0, y1, x1, y0, color=DARK, lw=0.3)
         lx, ly = h.get("lab_at", ((x0 + x1) / 2, (y0 + y1) / 2 + 0.36))
         v.text(lx, ly, "%s %s" % (h["id"], h["size"]), size=4.4, font="Inter-SemiBold", bg=True)
+    for u in A.UNITS:          # ετικέτα μονάδας πάνω από στόμια / θυρίδες (θέση: u["lab_at"] ή το κέντρο)
+        lx, ly = u.pop("_lab")
+        v.text(lx, ly - 0.08, u["id"], size=5.6, font="Inter-Bold", color=BLUE, bg=True)
+        v.text(lx, ly + 0.10, u["btu"].replace(".000 Btu/h", "k"), size=4.4, color=BLUE, bg=True)
     for u in getattr(A, "SPLITS", []):
         split_sym(v, u)
         x0, y0, x1, y1 = u["rect"]
@@ -574,6 +603,8 @@ def sheet_an02(c, no="ΑΝ-02"):
         col = COLORS[rd.get("color", "MAG")]
         for (a, b) in zip(rd["pts"], rd["pts"][1:]):
             v.line(*a, *b, color=col, lw=rd.get("lw", 0.9), dash=[4, 1.2, 1, 1.2])
+    for a_, b_ in getattr(A, "LEADERS_AN02", []):      # οδηγοί ετικετών
+        v.line(*a_, *b_, color=GREY, lw=0.35)
     texts(v, getattr(A, "TEXTS_AN02", []))
     dims(v, getattr(A, "DIMS_AN02", []))
     for u in getattr(A, "WALL_UNITS", []):
@@ -590,6 +621,8 @@ def sheet_an02(c, no="ΑΝ-02"):
     if getattr(A, "WALL_UNITS", []):
         items.append((lambda c_, x, y: (c_.setFillColorRGB(0.93, 0.95, 0.99), c_.setStrokeColorRGB(*BLUE), c_.rect(x - 5, y - 3, 10, 6, stroke=1, fill=1),
                                         c_.setLineWidth(2), c_.line(x - 4, y - 3, x + 4, y - 3), c_.setLineWidth(0.5)), A.LEG_WALLUNIT))
+    if getattr(A, "AC_OUTLINE", []):
+        items.append((_ac_legend, A.LEG_AC_OUTLINE))
     if A.DUCTS:
         items.append((_sw(BLUE_F, BLUE), "αεραγωγός / plenum προσαγωγής (μονωμένος, στο κενό)"))
     if "slot" in kinds:
@@ -631,6 +664,7 @@ def sheet_an03(c, no="ΑΝ-03"):
     roof_hatch(v)
     cables(v)
     tall_marks(v)
+    ac_outline(v)
     # ζώνες κάλυψης / απόστασης ανιχνευτών 0,50
     for did, kind, x, y, room in A.DETECTORS:
         c.setDash([1.5, 1.5]); v.circle(x, y, 0.50, stroke=(0.90, 0.55, 0.55), lw=0.4); c.setDash([])
@@ -638,7 +672,7 @@ def sheet_an03(c, no="ΑΝ-03"):
         x0, y0, x1, y1 = h["rect"]
         c.setDash([2, 1.2]); v.rect(x0, y0, x1, y1, stroke=GREY, lw=0.4); c.setDash([])
     for d in A.DIFFUSERS:
-        if d["kind"] == "slot" or (d["kind"] == "ret" and (d["rect"][2] - d["rect"][0]) > 0.5):
+        if d["kind"] == "slot" or (d["kind"] == "ret" and max(d["rect"][2] - d["rect"][0], d["rect"][3] - d["rect"][1]) > 0.5):
             v.rect(*d["rect"], stroke=(0.55, 0.65, 0.80), lw=0.4)
     for sid, kind, x, y, circ in A.SPOTS:
         spot_sym(v, kind, x, y)
@@ -712,6 +746,8 @@ def sheet_an03(c, no="ΑΝ-03"):
                                         c_.setFillColorRGB(*ORANGE), c_.rect(x - 7.5, y - 1.8, 3.6, 3.6, stroke=0, fill=1)), A.LEG_TRACK))
     if getattr(A, "WALL_LIGHTS", []):
         items.append((lambda c_, x, y: (c_.setStrokeColorRGB(*ORANGE), c_.circle(x, y, 3.2), c_.setFillColorRGB(*ORANGE), c_.circle(x, y, 1.3, fill=1)), A.LEG_WALLLIGHT))
+    if getattr(A, "AC_OUTLINE", []):
+        items.append((_ac_legend, A.LEG_AC_OUTLINE))
     if getattr(A, "SPLITS", []):
         items.append((lambda c_, x, y: (c_.setStrokeColorRGB(0.55, 0.65, 0.80), c_.rect(x - 5, y - 2, 10, 4)), "split τοίχου (για συντονισμό – βλ. φύλλο κλιματισμού)"))
     if getattr(A, "WALL_UNITS", []):

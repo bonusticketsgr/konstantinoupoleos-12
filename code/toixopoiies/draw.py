@@ -227,11 +227,24 @@ def frame_and_title(c, sheet_no, theme, sub1, sub2, base, scale_txt, rev, date):
     t(xs[1] + 10, top - 31, sub1, "Inter-Medium", 7.5)
     t(xs[1] + 10, top - 42, sub2, "Inter-Medium", 7.5)
     t(xs[2] + 10, top, "ΒΑΣΗ", "Inter-Medium", 6.5, GREY)
-    t(xs[2] + 10, top - 16, base, "Inter", 7.2)
+    # η «Βάση» αναδιπλώνεται μέσα στο κελί της (μακριά κείμενα έμπαιναν στο κελί του αριθμού σχεδίου – τελικός έλεγχος 17/11)
+    bl, cur = [], ""
+    for wd in base.split(" "):
+        tt = (cur + " " + wd).strip()
+        if c.stringWidth(tt, "Inter", 7.2) > xs[3] - xs[2] - 20 and cur:
+            bl.append(cur); cur = wd
+        else:
+            cur = tt
+    for i_, ln_ in enumerate((bl + [cur])[:5]):
+        t(xs[2] + 10, top - 16 - i_ * 10, ln_, "Inter", 7.2)
     t(xs[3] + 10, top, "ΑΡ. ΣΧΕΔΙΟΥ", "Inter-Medium", 6.5, GREY)
     t(xs[3] + 10, top - 28, sheet_no, "Inter-Bold", 22)
     t(xs[3] + 10, top - 42, scale_txt, "Inter-SemiBold", 8)
-    t(xs[3] + 10, top - 54, "%s · %s" % (date, rev), "Inter", 7.5)
+    dr = "%s · %s" % (date, rev)                     # πολλές αναθεωρήσεις (ενιαία τεύχη): μικρότερα γράμματα ώστε να μένει μέσα στο κελί
+    fs = 7.5
+    while fs > 5.0 and c.stringWidth(dr, "Inter", fs) > xs[4] - xs[3] - 16:
+        fs -= 0.25
+    t(xs[3] + 10, top - 54, dr, "Inter", fs)
 
 
 def north_arrow(c, x, y, r=10):
