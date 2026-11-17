@@ -19,9 +19,9 @@ sys.path.insert(0, os.path.join(HERE, "..", "toixopoiies"))
 import b1_anopsi as B
 import f4_model as W   # τοιχοποιίες Δ΄ R04
 
-REV = "R06"
+REV = "R07"
 DATE = "17/11/2026"
-REV_PREV = "R05 (09/11/2026)"
+REV_PREV = "R06 (17/11/2026)"
 
 TOP_SLAB = B.TOP_SLAB
 SLABS = dict(B.SLABS, **{"Σ7 σκάλα h15": 2.83, "Π5 h15": 2.83})
@@ -35,7 +35,7 @@ ZONES = copy.deepcopy(B.ZONES)
 for z in ZONES:
     if z["id"] == "Ζ3":
         z["room"] = "ΚΟΥΖΙΝΑ – ΞΕΚΙΝΗΜΑ ΣΚΑΛΑΣ"
-        z["rects"] = [(9.40, 6.60, 10.90, 7.70)] + [(9.40, 7.70, 13.76, 9.15) if r_ == (9.40, 7.66, 13.76, 9.15) else r_ for r_ in z["rects"]]   # R06: Τ2-10 στο 7,60–7,70
+        z["rects"] = [(9.40, 6.60, 10.90, 7.70)] + [(9.40, 7.70, 13.76, 9.15) if r_ == (9.40, 7.75, 13.76, 9.15) else r_ for r_ in z["rects"]]   # R06: Τ2-10 στο 7,60–7,70
         z["role"] = ("ενιαία με το ξεκίνημα της ιδιωτικής σκάλας (9,40–10,90) · περασιά Δ9.1 · κρύβει Δ12.2 / Δ4.6 / Δ10.1 · "
                      "ανατολικά του 10,90 άνοιγμα πλάκας Σ7 (σκάλα → σοφίτα)")
         z["slab_parts"] = list(z.get("slab_parts", [])) + [((9.40, 6.60, 10.90, 7.70), "Σ7 σκάλα h15")]
@@ -57,7 +57,7 @@ for z in ZONES:
 ZONES = [z for z in ZONES if z["id"] != "Ζ14"]          # η Δ2.1 του Σ7 (25/50) είναι πάνω από το μέτωπο του shaft – δεν προεξέχει στο lobby
 BASE_LEVELS = set(B.BASE_LEVELS)
 
-_ky = lambda r_: tuple(round(v_ + 0.04, 2) if abs(v_ - 7.66) < 1e-6 or abs(v_ - 8.26) < 1e-6 or abs(v_ - 8.01) < 1e-6 else v_ for v_ in r_)   # R06: Τ2-10 4 cm νοτιότερα
+_ky = lambda r_: tuple(round(v_ - 0.05, 2) if abs(v_ - 7.75) < 1e-6 or abs(v_ - 8.35) < 1e-6 or abs(v_ - 8.10) < 1e-6 else v_ for v_ in r_)   # Δ΄: Τ2-10 στο 7,60–7,70 (Β1 R27: Τ6Α-02 7,60–7,75)
 TALL = [(n_, _ky(r_)) if r_[1] < 8.5 and r_[0] > 9.5 else (n_, r_) for n_, r_ in B.TALL]
 KITCHEN = []                         # η κουζίνα του Δ΄ R04 σχεδιάζεται ήδη από το f4_model (EQUIP)
 UPPER_CAB = [_ky(r_) if r_[1] < 8.5 else r_ for r_ in B.UPPER_CAB]
@@ -97,7 +97,7 @@ SPOTS = [s_ for s_ in B.SPOTS if s_[0] not in ("ΚΛ1", "ΚΛ2")] + [
 ]
 PENDANTS = list(B.PENDANTS)
 PENDANT_OVER = dict(B.PENDANT_OVER)
-LED = list(B.LED)
+LED = [(l_[0], (l_[1][0], 8.05) if abs(l_[1][1] - 8.10) < 1e-6 else l_[1]) + tuple(l_[2:]) for l_ in B.LED]   # ντουλάπια έρκερ Α από το 8,05 στο Δ΄
 SPOT_BODY, SPOT_R = B.SPOT_BODY, B.SPOT_R
 DETECTORS = [d for d in B.DETECTORS if d[0] != "ΑΚ6"] + [("ΑΚ6", "smoke", 10.45, 5.75, "κλιμακοστάσιο – πλατύσκαλο (κοινόχρηστο, κατά ΕΠ04)")]
 AP = []
@@ -151,7 +151,7 @@ LEVEL_CHANGES[2] = ("Ζ1 +2,68 ↔ Ζ3 +2,48", "στη γραμμή της δο�
 LEVELS_NOTE = B.LEVELS_NOTE
 
 # ================================================================ φύλλα
-BASE_TXT = "Βάση: τοιχοποιίες Δ΄ R06 · ξυλότυπος Σ7_ΕΦ (+16,05) · ανόψη Β1 R17"
+BASE_TXT = "Βάση: τοιχοποιίες Δ΄ R06 · ξυλότυπος Σ7_ΕΦ (+16,05) · ανόψη Β1 R18"
 SHEET_FLOOR = "Δ΄ ΟΡΟΦΟΣ – Δ1 κάτω επίπεδο (μεζονέτα)"
 FLOOR_SHORT = "Δ΄ – Δ1"
 PLAN_MASKS = []
