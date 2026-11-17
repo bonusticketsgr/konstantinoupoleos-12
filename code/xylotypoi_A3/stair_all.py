@@ -15,7 +15,7 @@ import stair_s2 as A
 import stair_s3 as B
 from stair_s2 import View, level_mark, cm, mt, lv, lv3, CONC, RED, FIN
 
-REV, DATE = "R07", "16/11/2026"
+REV, DATE = "R08", "17/11/2026"
 OUT = A.OUT
 NAME = "ΣΚ_Σκάλες_υπόγειο_ισόγειο_Α_όροφος_ΤΟΜΗ_A3_%s.pdf" % REV
 SC = 40
@@ -73,13 +73,14 @@ def draw(sh):
         top += [(sB[k], B.SSL[k]), (sB[k + 1], B.SSL[k])]
     top += [(sB[B.N], B.SSL1), (e1, B.SSL1)]
     base = [(sB[k], B.SSL[1] - B.RISE if k == 1 else B.SSL[k - 1]) for k in range(1, B.N + 1)]      # k=1: νοητή γωνία, ώστε η πλάκα να έχει σταθερή κλίση
-    und = soffit(base, B.SSL0 - H, B.SSL1 - H, e1)
-    poly(top + und[::-1] + [(e0, B.SSL0 - H)], 1.0, BLACK, CONC)
-    # ---------- γεμίσματα / επενδύσεις (ανάμεσα στο μπετό και το τελικό)
     def fill(pts): poly(pts, 0, FILLC, FILLC)
+    fill([(sN, A.SSL1), (sB[1], A.SSL1), (sB[1], A.FFL1), (sN, A.FFL1)])                           # γέμισμα χωλ ισογείου (πριν από τη σκάλα: το πόδι της περνά μέσα του)
+    kick = B.SSL[1] - B.RISE - H > B.SSL0 + 1e-6            # χοντρό γέμισμα: η πλάκα της σκάλας ξεκινά ΠΑΝΩ από την πλάκα του χωλ, με πόδι μέσα στο γέμισμα
+    und = soffit(base, B.SSL0 if kick else B.SSL0 - H, B.SSL1 - H, e1)
+    poly(top + und[::-1] + ([] if kick else [(e0, B.SSL0 - H)]), 1.0, BLACK, CONC)
+    # ---------- γεμίσματα / επενδύσεις (ανάμεσα στο μπετό και το τελικό)
     fill([(0, A.SSL0), (sA[1], A.SSL0), (sA[1], A.FFL0), (0, A.FFL0)])
     for k in range(1, A.N): fill([(sA[k], A.SSL[k]), (sA[k + 1], A.SSL[k]), (sA[k + 1], A.FFL[k]), (sA[k], A.FFL[k])])
-    fill([(sN, A.SSL1), (sB[1], A.SSL1), (sB[1], A.FFL1), (sN, A.FFL1)])
     for k in range(1, B.N): fill([(sB[k], B.SSL[k]), (sB[k + 1], B.SSL[k]), (sB[k + 1], B.FFL[k]), (sB[k], B.FFL[k])])
     fill([(sB[B.N], B.SSL1), (e1, B.SSL1), (e1, B.FFL1), (sB[B.N], B.FFL1)])
     # ξαναπερνάμε τις γραμμές μπετού που σκεπάστηκαν και σχεδιάζουμε το τελικό
@@ -136,7 +137,8 @@ def draw(sh):
         xo = v.X(s) + side * 3.2; sh.oline(xo, v.Y(za), xo, v.Y(zb), 0.4, RED); sh.tick(xo, v.Y(za), RED); sh.tick(xo, v.Y(zb), RED)
         t = cm(zb - za); sh.otext(xo + (2.0 if side > 0 else -2.0), (v.Y(za) + v.Y(zb)) / 2 + 2.2, t, size=5.6, bold=True, color=RED, align="left" if side > 0 else "right")
     rz(sA[1], A.SSL0, A.SSL[1], -1)                             # 1ο ρίχτι μπετού της σκάλας υπογείου (από την κοιτόστρωση)
-    rz(sA[A.N], A.SSL[A.N - 1], A.SSL1, 1)          # τελευταίο ρίχτι μπετού της σκάλας υπογείου (φτάνει στην πλάκα)
+    rz(sA[A.KL + 1], A.SSL[A.KL], A.SSL1, 1)        # τελευταίο ρίχτι μπετού της σκάλας υπογείου (φτάνει στην πλάκα)
+    if A.BUILT: v.text(sA[A.N] - 0.05, A.SSL1 - H - 0.16, "σκαλιά %d–%d χτιστά πάνω στην πλάκα" % (A.KL + 2, A.N), size=5.0, bold=True, dy=0, align="left")
     rz(sB[1], B.SSL0, B.SSL[1], 1)                              # 1ο ρίχτι μπετού της σκάλας προς Α΄
     rz(sB[B.N], B.SSL[B.N - 1], B.SSL1, 1)
     # το ρίχτι 19 της σκάλας υπογείου γίνεται μέσα στο γέμισμα
@@ -191,7 +193,7 @@ def check():
         g_ = list(M.GOING.values()); assert max(g_) - min(g_) < 0.0015, "πάτημα όχι ίδιο: %s %.4f … %.4f" % (M.__name__, min(g_), max(g_))
     gs = list(A.GOING.values()) + list(B.GOING.values())
     for M in (A, B):
-        for k in range(1, M.N): assert abs(M.FFL[k] - (M.FFL0 + k * M.RISE)) < e and abs(M.SSL[k] - (M.FFL[k] - T)) < e, (M.__name__, k)
+        for k in range(1, M.N): assert abs(M.FFL[k] - (M.FFL0 + k * M.RISE)) < e and abs(M.SSL[k] - min(M.FFL[k] - T, M.SSL1)) < e, (M.__name__, k)
         assert abs(M.XE - M.WX - 1.20) < e and abs(M.YS - M.W1 - 1.20) < e and abs(M.W0 - M.YN - 1.20) < e, "κλάδοι / στροφή 1,20"
         assert min(M.INNER.values()) >= 0.07 - e, "πλάτος στο φανάρι < 7"
     assert B.STRAIGHT[1] - B.WALL_X >= 1.20 - e and B.XTOP - 9.70 >= 1.20 - e and A.RISERS[A.N][0][0] - 9.70 >= 1.20 - e, "πλατύσκαλα 1,20"
@@ -226,6 +228,11 @@ def headroom():
                 if q <= q1: return max(land, z0 + (z1 - z0) * (q - q0) / (q1 - q0) - H * math.hypot(q1 - q0, z1 - z0) / (q1 - q0))
             return B.SSL1 - H
         out.append((name, min((soff(qa[k]) if k in qa else land) - A.FFL[k] for k in range(1, A.N))))
+    # σκαλιά που πέφτουν (έστω εν μέρει) κάτω από το πλατύσκαλο ισογείου (x < 10,90) και κάτω από τη δοκό Δ9.1 30/50 (λωρίδα 9,50–9,70 στον τοίχο)
+    land = B.SSL0 - H; beam = A.SSL1_STUDY - 0.50
+    xmin = {k: min(p[0] for p in A._tread_poly(k)) for k in range(1, A.N)}
+    out.append(("κάτω από το πλατύσκαλο ισογείου", min(land - A.FFL[k] for k in xmin if xmin[k] < A.XL - 1e-6)))
+    out.append(("κάτω από τη Δ9.1 (20 cm στον τοίχο)", min(beam - A.FFL[k] for k in xmin if xmin[k] < 9.70 - 1e-6)))
     return out
 
 
@@ -245,7 +252,7 @@ def main():
     sh.doc.set_metadata(dict(title="ΣΚ – Σκάλες υπόγειο → ισόγειο → Α΄, ενιαία τομή", author="ARKAD Ι.Κ.Ε."))
     sh.doc.save(path, garbage=4, deflate=True)
     print("->", NAME, "· μήκος αναπτύγματος %.2f m = %.0f mm" % (S_END, S_END / SC * 1000))
-    print("ισόγειο: μπετό %+.2f · τελικό %+.2f | ρίχτια μπετού Σ2α τελευταίο %.1f · Σ3β 1ο %.1f / τελευταίο %.1f" % (A.SSL1, A.FFL1, (A.SSL1 - A.SSL[A.N - 1]) * 100, (B.SSL[1] - B.SSL0) * 100, (B.SSL1 - B.SSL[B.N - 1]) * 100))
+    print("ισόγειο: μπετό %+.2f · τελικό %+.2f | ρίχτια μπετού Σ2α τελευταίο %.1f · Σ3β 1ο %.1f / τελευταίο %.1f" % (A.SSL1, A.FFL1, (A.SSL1 - A.SSL[A.KL]) * 100, (B.SSL[1] - B.SSL0) * 100, (B.SSL1 - B.SSL[B.N - 1]) * 100))
     check(); merge(path)
     if len(sys.argv) > 1: pymupdf.open(path)[0].get_pixmap(dpi=int(sys.argv[2]) if len(sys.argv) > 2 else 110).save(sys.argv[1])
 
