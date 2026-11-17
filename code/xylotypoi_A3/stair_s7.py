@@ -17,7 +17,7 @@ from shapely.geometry import LineString
 import stair_s3 as S
 from stair_s3 import lib, MM, FONT_R, FONT_B, BLACK, GRAY, BLUE, View, level_mark, cm, mt, lv, CONC, WALLC, RED, FIN, PLATC, DOORC
 
-REV, DATE = "R00", "17/11/2026"
+REV, DATE = "R01", "17/11/2026"
 OUT = S.OUT
 NAME = "Σ7β_Σκάλα_Δ_ορόφου_σοφίτας_A3_%s.pdf" % REV
 
@@ -26,7 +26,7 @@ SSL0, FFL0 = 12.95, 12.95 + S.T_FLOOR     # Δ΄: πλάκα +12,95 · τελι�
 SSL1, T_ATTIC = 16.05, 0.20               # σοφίτα: πλάκα +16,05 · γέμισμα 20 (Γιάννης 17/11/2026)
 FFL1 = SSL1 + T_ATTIC
 FFL0_STUDY, FFL1_STUDY = 13.10, 16.20     # A-10-4F +13,10 · A-10-S / Α-30 +16,20 … +16,25
-T_STEP = S.T_STEP
+T_STEP = 0.03                             # επένδυση σκαλιών ιδιωτικής σκάλας: ΞΥΛΟ 3 cm σύνολο (Γιάννης 17/11/2026)
 RISE = (FFL1 - FFL0) / N
 XL, WXA, WX, XE = 10.90, 11.15, 12.10, 13.10     # 1ο / 17ο ρίχτι · φανάρι 11,15–12,10 · ανατολικός τοίχος
 W0, W1, YN, YS = 6.10, 6.60, 5.10, 7.60          # φανάρι 6,10–6,60 · κλάδοι 5,10–6,10 και 6,60–7,60
@@ -128,7 +128,7 @@ def draw_plan(sh):
     v.text(10.30, 5.25, "ΠΛΑΤΥΣΚΑΛΟ ΣΟΦΙΤΑΣ = ΣΚΑΛΙ 17", size=6.6, bold=True, align="center")
     v.text(10.30, 5.25, "πόρτα ασανσέρ ↑", size=5.6, dy=7.0, align="center", color=DOORC)
     level_mark(sh, v.X(9.78), v.Y(5.93), lv(SSL1) + " μπετό (πλάκα Π5)", 6.6, RED)
-    v.text(9.80, 5.93, "τελικό %s · ξύλο κολλητό %s cm" % (lv3(FFL[17]), cm(T17)), size=5.8, bold=True, dy=7.0, color=FIN)
+    v.text(9.80, 5.93, "τελικό %s · ξύλο %s cm" % (lv3(FFL[17]), cm(T17)), size=5.8, bold=True, dy=7.0, color=FIN)
     v.text(9.33, 5.38, "ΣΟΦΙΤΑ", size=6.6, bold=True, align="center"); v.text(9.33, 5.38, "τελικό %s" % lv(FFL1), size=5.8, bold=True, dy=7.2, align="center", color=FIN)
     v.text(9.33, 5.38, "μπετό %s" % lv(SSL1), size=5.8, bold=True, dy=14.0, align="center", color=RED)
     v.text(9.33, 5.99, "γέμισμα %s cm · ξύλο" % cm(T_ATTIC, 0), size=5.4, align="center", color=GRAY)
@@ -190,9 +190,9 @@ def info_a3(sh, x, y0, y1, scale_txt):
     blk("%d ΡΙΧΤΙΑ × %s cm" % (N, cm(RISE, 2)), ("χάραξη όπως η μελέτη", "ΠΑΤΗΜΑ %s ΠΑΝΤΟΥ" % cm(G), "κλάδοι / στροφή 1,00", "2υ + π = %s" % cm(2 * RISE + G)))
     blk("Δ΄ ΟΡΟΦΟΣ (κάτω)", ("ΤΕΛΙΚΟ %s · ΜΠΕΤΟ %s" % (lv(FFL0), lv(SSL0)), "γέμισμα %s cm" % cm(FFL0 - SSL0, 0)))
     blk("ΣΟΦΙΤΑ (πάνω)", ("ΤΕΛΙΚΟ %s · ΜΠΕΤΟ %s" % (lv(FFL1), lv(SSL1)), "γέμισμα %s cm" % cm(T_ATTIC, 0)))
-    blk("ΠΛΑΤΥΣΚΑΛΟ = ΣΚΑΛΙ 17", ("πλάκα Π5 %s · τελικό %s" % (lv(SSL1), lv3(FFL[17])), "μένουν %s cm → ΞΥΛΙΝΟ δάπεδο" % cm(T17), "κολλητό στην πλάκα (σοφίτα:", "ξύλο, όχι πλακάκι)", "ίδια στάθμη το lobby ασανσέρ"), RED)
+    blk("ΠΛΑΤΥΣΚΑΛΟ = ΣΚΑΛΙ 17", ("πλάκα Π5 %s · τελικό %s" % (lv(SSL1), lv3(FFL[17])), "μένουν %s cm για το ξύλο" % cm(T17), "(όχι 3: 7 mm λιγότερο εκεί)", "ίδια στάθμη το lobby ασανσέρ"), RED)
     blk("ΦΑΝΑΡΙ %s × %s" % (mt(WX - WXA), mt(W1 - W0)), ("μέσα / δίπλα: πλάτος κάθε", "σκαλιού στο φανάρι (cm)"))
-    blk("ΚΟΚΚΙΝΟ", ("στάθμη ΜΠΕΤΟΥ πατήματος", "(τελικό − %s cm:" % cm(T_STEP), "μάρμαρο 3 + λάσπη 2)"), RED)
+    blk("ΚΟΚΚΙΝΟ", ("στάθμη ΜΠΕΤΟΥ πατήματος", "(τελικό − %s cm:" % cm(T_STEP, 0), "ΞΥΛΟ, 3 cm σύνολο)"), RED)
     blk("ΚΑΦΕ (σε παρένθεση)", ("ΤΕΛΙΚΗ στάθμη πατήματος",), FIN)
     blk("ΜΠΛΕ", ("γραμμή ανάβασης στη μέση", "του κλάδου · πάτημα %s cm" % cm(G)), BLUE)
     blk("ΜΕΤΩΠΑ ΚΑΛΟΥΠΙΟΥ", ("1ο %s · 2ο–16ο %s" % (cm(SSL[1] - SSL0), cm(RISE, 2)), "17ο %s (ως την πλάκα)" % cm(SSL1 - SSL[16]), "18ο: μέσα στο γέμισμα"))
