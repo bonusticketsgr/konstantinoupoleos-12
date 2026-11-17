@@ -399,12 +399,7 @@ def main():
     doc.save(path, garbage=4, deflate=True); print("->", NAME, "(%d φύλλα)" % doc.page_count)
     for nm, hr in allhr.items():
         print("τομή %s: ελεύθερα ύψη" % nm, " ".join("%d:%.2f" % (k + 1, h) for k, h in hr))
-    parts = [os.path.join(OUT, A.NAME), os.path.join(OUT, B.NAME)] + [os.path.join(OUT, f) for f in sorted(os.listdir(OUT)) if f.startswith("ΣΚ_Σκάλες_υπόγειο") and f.endswith(".pdf")] + [path]
-    if all(os.path.exists(p) for p in parts):
-        fin = pymupdf.open()
-        for p in parts: fin.insert_pdf(pymupdf.open(p))
-        fin.set_metadata(dict(title="Σκάλες υπόγειο → ισόγειο → Α΄ όροφος – κατόψεις, ανάπτυγμα και τομές", author="ARKAD Ι.Κ.Ε."))
-        fin.save(os.path.join(OUT, FINAL), garbage=4, deflate=True); print("->", FINAL, "(%d φύλλα)" % fin.page_count)
+    import stair_book; stair_book.build()                 # από 17/11/2026: ένα τεύχος για ΟΛΕΣ τις σκάλες (ΣΚΑΛΕΣ_ΤΕΥΧΟΣ_A3.pdf)
     if len(sys.argv) > 1:
         d = pymupdf.open(path)
         for i in range(d.page_count): d[i].get_pixmap(dpi=int(sys.argv[2]) if len(sys.argv) > 2 else 110).save("%s_%s.png" % (sys.argv[1], CUTS[i][0]))

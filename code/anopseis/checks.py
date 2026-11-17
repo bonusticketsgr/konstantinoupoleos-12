@@ -216,7 +216,7 @@ def run():
                 continue        # τοίχοι / διέλευση κάτω από δοκό: χωριστά
             worst = min(worst, slab_at(z, pt.x, pt.y) - z["level"] - A.SYSTEM)
         add(rt["id"], rt.get("grp", "Κλιματισμός"), rt["text"], "καθαρό κενό πάνω από τον σκελετό ≥ 50 mm",
-            "ελάχιστο %d mm" % round(worst * 1000), "OK" if worst >= 0.05 + 0.01 else ("ΟΡΙΑΚΟ" if worst >= 0.05 else "ΑΠΟΚΛΙΣΗ"))
+            "ελάχιστο %d mm" % round(worst * 1000), "OK" if worst >= 0.06 - 1e-6 else ("ΟΡΙΑΚΟ" if worst >= 0.05 - 1e-6 else "ΑΠΟΚΛΙΣΗ"))   # ανοχή στρογγύλευσης (όπως πιο πάνω)
     for cr in getattr(A, "CROSSINGS", []):
         bsec = [b for b in A.BEAMS if b[0] == cr["beam"]][0][1]
         clear = A.beam_soffit(bsec) - ZONES[cr["zone"]]["level"] - C["board"]

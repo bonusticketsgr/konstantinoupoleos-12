@@ -238,11 +238,7 @@ def headroom():
 
 def merge(path_sk):
     """ένα PDF Α3 για εκτύπωση: κάτοψη υπογείου · κάτοψη ισογείου → Α΄ · ενιαία τομή (ανάπτυγμα) · τομές Α-Α … ΣΤ-ΣΤ (stair_sections.py, αν έχουν βγει)."""
-    out = pymupdf.open()
-    extra = sorted(os.path.join(OUT, f) for f in os.listdir(OUT) if f.startswith("ΣΚ_Σκάλες_ΤΟΜΕΣ_A3_") and f.endswith(".pdf"))
-    for p_ in [os.path.join(OUT, A.NAME), os.path.join(OUT, B.NAME), path_sk] + extra[-1:]: out.insert_pdf(pymupdf.open(p_))
-    out.set_metadata(dict(title="Σκάλες υπόγειο → ισόγειο → Α΄ όροφος – τελικό (Σ2α %s · Σ3β %s · ΣΚ %s)" % (A.REV, B.REV, REV), author="ARKAD Ι.Κ.Ε."))
-    out.save(os.path.join(OUT, FINAL), garbage=4, deflate=True); print("->", FINAL, "(%d φύλλα)" % out.page_count)
+    import stair_book; stair_book.build()                 # από 17/11/2026: ένα τεύχος για ΟΛΕΣ τις σκάλες (ΣΚΑΛΕΣ_ΤΕΥΧΟΣ_A3.pdf)
 
 
 def main():
