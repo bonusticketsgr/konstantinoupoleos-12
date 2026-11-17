@@ -21,7 +21,7 @@ import stair_s2 as A
 import stair_s3 as B
 from stair_s2 import View, cm, mt, lv, CONC, RED, FIN
 
-REV, DATE = "R00", "17/11/2026"
+REV, DATE = "R01", "17/11/2026"
 OUT = A.OUT
 NAME = "ΣΚ_Σκάλες_ΤΟΜΕΣ_A3_%s.pdf" % REV
 FINAL = "ΣΚΑΛΕΣ_υπόγειο_ισόγειο_Α_όροφος_ΤΕΛΙΚΟ_A3.pdf"
@@ -33,6 +33,7 @@ LAND0 = B.SSL0 - H                       # κάτω παρειά πλατύσκ�
 LAND1 = B.SSL1 - H                       # κάτω παρειά πλατύσκαλου Α΄
 BEAM_B = A.SSL1_STUDY - 0.50             # κάτω παρειά δοκών 50 της οροφής υπογείου (Δ9.1 30/50 · Δ12.1 25/50)
 PERIM = A.PERIM
+GF_APT = A.SSL1_STUDY + B.T_FLOOR          # τελικό δάπεδο διαμερίσματος ισογείου: πλάκα +0,30 + γέμισμα 12
 
 CUTS = [  # όνομα, άξονας που μένει σταθερός, τιμή, εύρος του άλλου άξονα, περιγραφή
     ("Α", "y", 7.00, (9.15, 13.50), "κατά μήκος του ΝΟΤΙΟΥ κλάδου, στη γραμμή ανάβασης", "βλέποντας ΒΟΡΕΙΑ"),
@@ -236,7 +237,7 @@ def section(sh, cut):
         v.poly([(t0, A.SSL0), (9.40, A.SSL0), (9.40, A.FFL0), (t0, A.FFL0)], 0, FILLC, FILLC); v.line((t0, A.FFL0), (9.40, A.FFL0), 0.8, FIN)
         # οροφή υπογείου: δοκός Δ9.1, πλάκα διαμερίσματος δυτικά, πλατύσκαλο ισογείου Π6 με το γέμισμα
         v.poly([(t0, A.SSL1_STUDY - 0.18), (9.40, A.SSL1_STUDY - 0.18), (9.40, A.SSL1_STUDY), (t0, A.SSL1_STUDY)], 0.9, BLACK, CONC)
-        v.poly([(t0, A.SSL1_STUDY), (9.54, A.SSL1_STUDY), (9.54, 0.45), (t0, 0.45)], 0, FILLC, FILLC); v.line((t0, 0.45), (9.54, 0.45), 0.8, FIN)
+        v.poly([(t0, A.SSL1_STUDY), (9.54, A.SSL1_STUDY), (9.54, GF_APT), (t0, GF_APT)], 0, FILLC, FILLC); v.line((t0, GF_APT), (9.54, GF_APT), 0.8, FIN)
         landing(v, 9.70, A.XL, B.SSL0, B.FFL0)
         v.poly([(9.40, BEAM_B), (9.70, BEAM_B), (9.70, A.SSL1_STUDY), (9.40, A.SSL1_STUDY)], 0.9, BLACK, CONC)
         v.poly([(9.54, A.SSL1_STUDY), (9.70, A.SSL1_STUDY), (9.70, B.SSL1 - 0.50), (9.54, B.SSL1 - 0.50)], 0.5, BLACK, WALLC)      # τοίχος ισογείου Τ6 / Τ7
