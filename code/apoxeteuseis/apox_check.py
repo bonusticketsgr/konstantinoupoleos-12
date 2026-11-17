@@ -4,11 +4,15 @@
 ό,τι τυπώνεται.  run(...) επιστρέφει λίστα (κατάσταση, ομάδα, κείμενο) με κατάσταση OK / ΟΡΙΑΚΟ / ΛΑΘΟΣ.
 Παραδοχές (γράφονται και στο φύλλο ελέγχου): τοίχος λεκάνης Τ7 = 2 γυψ. 2,5 + CW 50 + ΚΕΝΟ 12 + CW 30 + 2 γυψ. 2,5 από την
 πλευρά του λουτρού · εξωτ. διάμετροι Φ100 → 110, Φ90 → 90, Φ75 → 75, Φ50 → 50, Φ40 → 40 mm · κλίση ακαθάρτων 2 % ·
-γέμισμα δαπέδου 15 cm (σοφίτα 20), ωφέλιμο για σωλήνες = γέμισμα − 3 cm · πρέκια ισογείου +2,85 (0,45 + 2,40)."""
+γέμισμα δαπέδου 12 cm (Γιάννης 17/11/2026 – ήταν 15· σοφίτα 20), ωφέλιμο για σωλήνες = γέμισμα − 3 cm · κλίση των
+αγωγών ΜΕΣΑ στο γέμισμα 12 cm: 1,5 % (I_FILL), εκτός αν ο αγωγός δηλώνει δική του (pipe(..., slope=…)) · σοφίτα 2 % · πρέκια ισογείου +2,85 (0,45 + 2,40)."""
 import math
 
 OD = {32: 0.032, 40: 0.040, 50: 0.050, 63: 0.063, 75: 0.075, 90: 0.090, 100: 0.110, 110: 0.110, 125: 0.125}
-FILL = {"gf": 0.15, "typ": 0.15, "d4": 0.15, "attic": 0.20}
+FILL = {"gf": 0.12, "typ": 0.12, "d4": 0.12, "attic": 0.20}
+I_FILL = {"gf": 0.015, "typ": 0.015, "d4": 0.015, "attic": 0.02}
+SL = lambda ctx, r: (r[6] if len(r) > 6 and r[6] else I_FILL[ctx])
+PC = lambda s: ("%.1f" % (s * 100)).rstrip("0").rstrip(".").replace(".", ",")
 LINTEL = 2.85
 GR = lambda z, n=3: ("%.*f" % (n, z)).replace(".", ",").replace("-", "−")
 CM = lambda z: ("%.1f" % (z * 100)).replace(".", ",").replace("-", "−")
@@ -115,21 +119,21 @@ def run(REG, models, stacks_in_walls, holes, slab_concrete, basement, rain):
         fill = FILL[ctx]; pipes = [r for r in by(ctx, "pipe") if r[2] in ("waste",) and r[5] == "fill"]
         worst = None
         for r in pipes:
-            L = plen(r[4]); need = L * 0.02 + OD[r[3]]
+            L = plen(r[4]); need = L * SL(ctx, r) + OD[r[3]]
             if worst is None or need > worst[0]:
-                worst = (need, L, r[3])
+                worst = (need, L, r[3], SL(ctx, r))
             if need > fill - 0.03:
                 add("ΛΑΘΟΣ", "Γέμισμα", "%s Φ%d %s m: θέλει %s cm > ωφέλιμο %s" % (ctx, r[3], GR(L, 2), CM(need), CM(fill - 0.03)))
         if worst:
-            add("OK" if worst[0] <= fill - 0.03 else "ΛΑΘΟΣ", "Γέμισμα", "%s: δυσμενέστερος αγωγός στο γέμισμα Φ%d %s m → πτώση 2 %% + διάμετρος = %s cm (ωφέλιμο %s από γέμισμα %s)" % (
-                {"gf": "Ισόγειο", "typ": "Όροφοι", "d4": "Δ΄", "attic": "Σοφίτα"}[ctx], worst[2], GR(worst[1], 2), CM(worst[0]), CM(fill - 0.03), CM(fill)))
+            add("OK" if worst[0] <= fill - 0.03 else "ΛΑΘΟΣ", "Γέμισμα", "%s: δυσμενέστερος αγωγός στο γέμισμα Φ%d %s m → πτώση %s %% + διάμετρος = %s cm (ωφέλιμο %s από γέμισμα %s)" % (
+                {"gf": "Ισόγειο", "typ": "Όροφοι", "d4": "Δ΄", "attic": "Σοφίτα"}[ctx], worst[2], GR(worst[1], 2), PC(worst[3]), CM(worst[0]), CM(fill - 0.03), CM(fill)))
         for t in by(ctx, "trap"):
             tp = t[4]; ins = [r for r in by(ctx, "pipe") if r[2] == "waste" and math.hypot(r[4][-1][0] - tp[0], r[4][-1][1] - tp[1]) < 0.16]
             outs = [r for r in by(ctx, "pipe") if r[2] == "waste" and math.hypot(r[4][0][0] - tp[0], r[4][0][1] - tp[1]) < 0.16]
             if not ins or not outs:
                 add("ΛΑΘΟΣ", "Πατοσίφωνα", "%s %s: %d είσοδοι / %d έξοδοι" % (ctx, t[5], len(ins), len(outs))); continue
             o = outs[0]; Lo = math.hypot(o[4][1][0] - o[4][0][0], o[4][1][1] - o[4][0][1]) if o[5] == "wall" else plen(o[4])
-            need = max(plen(r[4]) * 0.02 + OD[r[3]] for r in ins) + 0.02 + Lo * 0.02
+            need = max(plen(r[4]) * SL(ctx, r) + OD[r[3]] for r in ins) + 0.02 + Lo * SL(ctx, o)
             add("OK" if need <= fill - 0.015 else "ΟΡΙΑΚΟ" if need <= fill else "ΛΑΘΟΣ", "Πατοσίφωνα",
                 "%s %s: %d υποδοχείς → έξοδος Φ%d · βάθος αλυσίδας %s cm σε γέμισμα %s cm" % (ctx, t[5], len(ins), o[3], CM(need), CM(fill)))
             # πατοσίφωνο όχι κάτω από λεκάνη
