@@ -14,28 +14,43 @@ sys.path.insert(0, os.path.join(HERE, "..", "xylotypoi_S1_S2"))
 import lib
 from lib import MM, FONT_R, FONT_B, BLACK, GRAY, BLUE
 
-REV, DATE = "R11", "17/11/2026"
+# ---------------------------------------------------------------- ποια σκάλα: STAIR_FLOOR = gf (προεπιλογή) | a | b | c
+# Οι σκάλες των ορόφων (17/11/2026, «πάμε να δουλέψουμε όλες τις σκάλες») έχουν ΤΗΝ ΙΔΙΑ χάραξη με τη σκάλα ισογείου → Α΄
+# (17 ρίχτια, φανάρι 1,00 × 0,10, 1ο και 17ο ρίχτι στο 10,90)· αλλάζουν μόνο οι στάθμες και ο τοίχος του κάτω πλατύσκαλου (9,55).
+FLOOR = os.environ.get("STAIR_FLOOR", "gf")
+T_FLOOR = 0.12                           # ΓΕΜΙΣΜΑ δαπέδων διαμερισμάτων / πλατύσκαλων ορόφων: 12 cm (Γιάννης 17/11/2026· η μελέτη 15)
+CFGS = {
+    "gf": dict(sheet="Σ3β", rev="R11", lo="ΙΣΟΓΕΙΟΥ", hi="Α΄ ΟΡΟΦΟΥ", lo_s="ισόγειο", hi_s="Α΄", file="Σ3β_Σκάλα_ισογείου_Α_ορόφου", ssl0=0.30, ffl0=0.74,
+               ffl0_study=0.45, ssl1=3.65, wall=9.70, beam="Δ13.1  25/40", east="τοίχος / Δ10.2 25/50", base="Σ3_ΕΦ · A-10-GF · A-10-1F"),
+    "a": dict(sheet="Σ4β", rev="R00", lo="Α΄ ΟΡΟΦΟΥ", hi="Β΄ ΟΡΟΦΟΥ", lo_s="Α΄", hi_s="Β΄", file="Σ4β_Σκάλα_Α_Β_ορόφου", ssl0=3.65, ssl1=6.75,
+              wall=9.55, beam="Δ12.2  25/40", east="τοίχος / Δ10.2 25/40", base="Σ4_ΕΦ · A-10-1F · A-10-2F"),
+    "b": dict(sheet="Σ5β", rev="R00", lo="Β΄ ΟΡΟΦΟΥ", hi="Γ΄ ΟΡΟΦΟΥ", lo_s="Β΄", hi_s="Γ΄", file="Σ5β_Σκάλα_Β_Γ_ορόφου", ssl0=6.75, ssl1=9.85,
+              wall=9.55, beam="Δ12.2  25/40", east="τοίχος / Δ10.2 25/40", base="Σ5_ΕΦ · A-10-2F · A-10-3F"),
+    "c": dict(sheet="Σ6β", rev="R00", lo="Γ΄ ΟΡΟΦΟΥ", hi="Δ΄ ΟΡΟΦΟΥ", lo_s="Γ΄", hi_s="Δ΄", file="Σ6β_Σκάλα_Γ_Δ_ορόφου", ssl0=9.85, ssl1=12.95,
+              wall=9.55, beam="Δ12.2  25/40", east="τοίχος / Δ10.2 25/40", base="Σ6_ΕΦ · A-10-3F · A-10-4F"),
+}
+CFG = CFGS[FLOOR]; TYP = FLOOR != "gf"
+REV, DATE = CFG["rev"], "17/11/2026"
 OUT = os.path.join(HERE, "..", "..", "ΚΩΝΣΤΑΝΤΙΝΟΥΠΟΛΕΩΣ_12_ΑΡΓΥΡΟΥΠΟΛΗ", "ΞΥΛΟΤΥΠΟΙ")
-NAME = "Σ3β_Σκάλα_ισογείου_Α_ορόφου_A3_%s.pdf" % REV
+NAME = "%s_A3_%s.pdf" % (CFG["file"], REV)
 
 # ---------------------------------------------------------------- μοντέλο
 N = 17                                   # ρίχτια – R05 (Γιάννης 16/11/2026: ρίχτι ≤ 18): 3,20 / 18 = 17,78 cm· η μελέτη έχει 16 × 20,94 από το +0,45
 N_DESIGN = 16
 NL = 0
 NS = N
-FFL_STUDY = 0.45                         # τελικό χωλ ισογείου κατά τη μελέτη
-T_FLOOR = 0.12                           # ΓΕΜΙΣΜΑ δαπέδων διαμερισμάτων / πλατύσκαλων ορόφων: 12 cm (Γιάννης 17/11/2026· η μελέτη 15)
-FFL1_STUDY = 3.80
-FFL0, FFL1 = 0.74, 3.65 + T_FLOOR                  # τελικό χωλ ισογείου (ΝΕΟ: +13 cm, 6 εξωτερικά σκαλιά × 17,2 από το −0,45) / τελικό Α΄
-SSL0, SSL1 = 0.30, 3.65                  # άνω στάθμη μπετού: Π6 ισογείου ΝΕΟ +0,45 (γέμισμα 15 όπως τα σπίτια – Κόγιας· Σ2_ΕΦ: +0,30) / Π6 Α΄ (Σ3)
-SSL0_STUDY = 0.30
+FFL_STUDY = CFG.get("ffl0_study", CFG["ssl0"] + 0.15)      # τελικό κάτω στάθμης κατά τη μελέτη (χωλ ισογείου +0,45 · όροφοι πλάκα + 15)
+FFL1_STUDY = CFG["ssl1"] + 0.15
+FFL0, FFL1 = CFG.get("ffl0", CFG["ssl0"] + T_FLOOR), CFG["ssl1"] + T_FLOOR                  # τελικό χωλ ισογείου (ΝΕΟ: +13 cm, 6 εξωτερικά σκαλιά × 17,2 από το −0,45) / τελικό Α΄
+SSL0, SSL1 = CFG["ssl0"], CFG["ssl1"]                  # άνω στάθμη μπετού: Π6 ισογείου ΝΕΟ +0,45 (γέμισμα 15 όπως τα σπίτια – Κόγιας· Σ2_ΕΦ: +0,30) / Π6 Α΄ (Σ3)
+SSL0_STUDY = CFG["ssl0"]
 T_STEP = 0.05                            # επένδυση σκαλιών: μάρμαρο 3 + λάσπη 2 (Γιάννης 16/11/2026)· τα πλατύσκαλα / χωλ γεμίζουν όσο τα δάπεδα
 H_SLAB = 0.15
 RISE = (FFL1 - FFL0) / N
 XL, XE = 10.90, 13.10                    # αρχή φαναριού / παρειά ανατολικού τοίχου
 YN, YS = 5.10, 7.60                      # παρειά τοιχείου ανελκυστήρα Κ6 / παρειά δοκού Δ13.1
 W0, W1, WX = 6.30, 6.40, 11.90           # φανάρι 1,06 × 0,10 (μελέτη 1,00): 6 cm μακρύτερο → στη στροφή 1,14· οι κλάδοι μένουν 1,20
-WALL_X = 9.70                            # παρειά τοίχου χωλ ισογείου (Τ6-01) – πέρασμα είσοδος → ασανσέρ 1,20
+WALL_X = CFG["wall"]                            # παρειά τοίχου χωλ ισογείου (Τ6-01) – πέρασμα είσοδος → ασανσέρ 1,20
 WALL1_X = 9.55                           # παρειά τοίχου πλατύσκαλου Α΄ (Τ6Α)
 XTOP = 10.90                             # 18ο ρίχτι: 15 cm μέσα στο πλατύσκαλο του Α΄ → μένει 1,20 ως τον τοίχο 9,55
 K3_Y = 5.15
@@ -192,8 +207,13 @@ def draw_plan(sh, big=False):
     if not big: v.rect(11.05, 4.72, 11.30, 4.85, 1.3, BLACK, CONC); v.rect(13.10, 4.72, 13.35, 4.85, 1.3, BLACK, CONC)
     v.rect(XE, YN, 13.35, 7.85, 0.9, BLACK, WALLC)
     # τοίχοι: χωλ ισογείου (παρειά 9,70) και πλατύσκαλο Α΄ (παρειά 9,55, διακεκομμένη)· δοκός Δ13.1 νότια
-    v.rect(9.54, K3_Y, WALL_X, 8.02, 0.5, BLACK, (0.80, 0.86, 0.93))
-    v.line((WALL1_X, K3_Y), (WALL1_X, YS), 0.5, DOORC, "[4 2.5] 0")
+    if TYP:                                                                              # τοίχος διαμερίσματος Τ6Α 9,40–9,55 με την πόρτα εισόδου 5,30–6,30
+        v.rect(9.40, K3_Y, WALL_X, 5.30, 0.5, BLACK, (0.80, 0.86, 0.93)); v.rect(9.40, 6.30, WALL_X, 8.02, 0.5, BLACK, (0.80, 0.86, 0.93))
+        v.line((9.40, 5.30), (9.40, 6.30), 0.3, GRAY, "[2 2] 0"); v.line((WALL_X, 5.30), (WALL_X, 6.30), 0.3, GRAY, "[2 2] 0")
+        sh.otext(v.X(9.475) + 2.0, v.Y(5.80) + 26, "πόρτα διαμερίσματος", size=5.2, rot=90, color=DOORC)
+    else:
+        v.rect(9.54, K3_Y, WALL_X, 8.02, 0.5, BLACK, (0.80, 0.86, 0.93))
+        v.line((WALL1_X, K3_Y), (WALL1_X, YS), 0.5, DOORC, "[4 2.5] 0")
     for y in (YS, 7.85): v.line((WALL_X, y), (XE, y), 0.8)
     # ρίχτια
     for k, (a, b) in RISERS.items(): v.line(a, b, 0.85 if k in (1, N) else 0.55)
@@ -224,11 +244,13 @@ def draw_plan(sh, big=False):
         sh.otext(v.X(lx), v.Y(ly) + 0.2, lv(SSL[k]), size=6.2, bold=True, color=RED, align="center", mask=True)
         sh.otext(v.X(lx), v.Y(ly) + 6.4, "(%s)" % lv(FFL[k]), size=5.4, color=FIN, align="center", mask=True)        # ΤΕΛΙΚΗ στάθμη του πατήματος
     # ετικέτες
-    v.text(10.28, 7.22, "ΧΩΛ ΙΣΟΓΕΙΟΥ", size=7.4, bold=True, align="center"); v.text(10.28, 7.22, "πέρασμα προς ασανσέρ %s" % mt(XL - WALL_X), size=5.8, dy=7.6, align="center", color=GRAY)
+    v.text(10.28, 7.22, ("ΠΛΑΤΥΣΚΑΛΟ %s" % CFG["lo_s"]) if TYP else "ΧΩΛ ΙΣΟΓΕΙΟΥ", size=7.4, bold=True, align="center")
+    v.text(10.28, 7.22, ("%s ως τον τοίχο" if TYP else "πέρασμα προς ασανσέρ %s") % mt(XL - WALL_X), size=5.8, dy=7.6, align="center", color=GRAY)
     level_mark(sh, v.X(9.80), v.Y(7.47), lv(SSL0) + " μπετό", 7.2, RED); v.text(10.30, 7.47, "(τελικό %s)" % lv(FFL0), size=6.6, bold=True, dy=-6.6, color=FIN)
-    v.text(10.28, 7.56, "πλάκα Π6 · γέμισμα %s cm (μελέτη: μπετό %s · τελικό %s)" % (cm(FFL0 - SSL0, 0), lv(SSL0_STUDY), lv(FFL_STUDY)), size=5.4, align="center", color=GRAY)
-    v.text(10.10, 5.36, "ΠΛΑΤΥΣΚΑΛΟ Α΄ (από πάνω)", size=6.4, bold=True, align="center", color=DOORC)
-    v.text(10.10, 5.36, "%s από την Κ3 · %s από τον τοίχο του Α΄" % (mt(XTOP - 9.70), mt(XTOP - WALL1_X)), size=5.6, dy=7.4, align="center", color=DOORC)
+    v.text(10.28, 7.56, ("πλάκα Π6 · γέμισμα %s cm (μελέτη: τελικό %s)" % (cm(FFL0 - SSL0, 0), lv(FFL_STUDY))) if TYP else
+           "πλάκα Π6 · γέμισμα %s cm (μελέτη: μπετό %s · τελικό %s)" % (cm(FFL0 - SSL0, 0), lv(SSL0_STUDY), lv(FFL_STUDY)), size=5.4, align="center", color=GRAY)
+    v.text(10.10, 5.36, "ΠΛΑΤΥΣΚΑΛΟ %s (από πάνω)" % CFG["hi_s"], size=6.4, bold=True, align="center", color=DOORC)
+    v.text(10.10, 5.36, "%s από την Κ3 · %s από τον τοίχο του %s" % (mt(XTOP - 9.70), mt(XTOP - WALL1_X), CFG["hi_s"]), size=5.6, dy=7.4, align="center", color=DOORC)
     v.text(10.10, 5.36, "μπετό %s · τελικό %s" % (lv(SSL1), lv(FFL1)), size=5.6, dy=14.4, align="center", color=DOORC)
     v.text(12.90, 7.49, "Π9  h=15", size=8.5, bold=True, align="center", mask=True)
     v.text(10.375, 4.94, "ΑΣΑΝΣΕΡ ↑", size=6.2, align="center", color=GRAY)
@@ -241,11 +263,12 @@ def draw_plan(sh, big=False):
             xq = WX + 0.09; ya, yb_ = [r_[0][1] + (r_[1][1] - r_[0][1]) * (xq - r_[0][0]) / (r_[1][0] - r_[0][0]) for r_ in (RISERS[k], RISERS[k + 1])]
             sh.otext(v.X(xq), v.Y((ya + yb_) / 2) + 2.2, t_, size=6.0, bold=True, align="center")
     v.text(9.55, 5.02, "Κ3", size=8.5, bold=True, align="center", dy=0); v.text(12.20, 4.975, "Κ6  230/25", size=8.5, bold=True, align="center", dy=3)
-    sh.otext(v.X(13.225) + 2.6, v.Y(6.35) + 34, "τοίχος / Δ10.2 25/50", size=6.2, rot=90)
-    sh.otext(v.X(9.62) + 2.2, v.Y(6.35) + 34, "τοίχος χωλ ισογείου", size=5.4, rot=90, color=GRAY)
-    v.text(11.75, 7.725, "Δ13.1  25/40", size=7.6, bold=True, align="center", dy=2.6)
-    v.text(XL - 0.36, W1 + RW + 0.16, "ΑΝΟΔΟΣ από το χωλ", size=6.0, color=BLUE, align="center")
-    v.text(XTOP - 0.04, W0 - RW - 0.13, "ΑΦΙΞΗ στον Α΄", size=6.0, color=BLUE, align="right")
+    sh.otext(v.X(13.225) + 2.6, v.Y(6.35) + 34, CFG["east"], size=6.2, rot=90)
+    if TYP: sh.otext(v.X(9.475) + 2.0, v.Y(7.20) + 30, "τοίχος διαμερίσματος", size=5.2, rot=90, color=GRAY)
+    else: sh.otext(v.X(9.62) + 2.2, v.Y(6.35) + 34, "τοίχος χωλ ισογείου", size=5.4, rot=90, color=GRAY)
+    v.text(11.75, 7.725, CFG["beam"], size=7.6, bold=True, align="center", dy=2.6)
+    v.text(XL - 0.36, W1 + RW + 0.16, ("ΑΝΟΔΟΣ από τον %s" % CFG["lo_s"]) if TYP else "ΑΝΟΔΟΣ από το χωλ", size=6.0, color=BLUE, align="center")
+    v.text(XTOP - 0.04, W0 - RW - 0.13, "ΑΦΙΞΗ στον %s" % CFG["hi_s"], size=6.0, color=BLUE, align="right")
     # διαστάσεις: πάνω (ευθύγραμμα + σημεία στο τοιχείο Κ6), κάτω (σημεία στη δοκό Δ12.1), αριστερά, δεξιά (σημεία στο ανατολικό τοιχείο)
     sx = sorted(b[0] for a, b in RISERS.values() if abs(b[1] - YS) < 1e-9)              # σημεία ριχτιών στη δοκό Δ12.1
     nx_ = sorted(b[0] for a, b in RISERS.values() if abs(b[1] - YN) < 1e-9)             # … στο τοιχείο Κ6
@@ -415,8 +438,8 @@ def title(sh):
 def info_a3(sh, x, y0, y1, scale_txt):
     """στενή στήλη στοιχείων δεξιά (Α3): τίτλος, κλίμακα, υπόμνημα χρωμάτων, στάθμες, έργο."""
     sh.orect(x, y0, x + 40 * MM, y1, 0.9); xx = x + 2.4 * MM; y = y0 + 11 * MM
-    sh.otext(xx, y, "Σ3β", size=26, bold=True); y += 8 * MM
-    for ln in ("ΣΚΑΛΑ ΙΣΟΓΕΙΟΥ", "→ Α΄ ΟΡΟΦΟΥ"): sh.otext(xx, y, ln, size=9.6, bold=True); y += 4.4 * MM
+    sh.otext(xx, y, CFG["sheet"], size=26, bold=True); y += 8 * MM
+    for ln in ("ΣΚΑΛΑ " + CFG["lo"], "→ " + CFG["hi"]): sh.otext(xx, y, ln, size=9.6, bold=True); y += 4.4 * MM
     sh.otext(xx, y + 1, "ΚΑΤΟΨΗ ΞΥΛΟΤΥΠΟΥ", size=7.4); y += 8 * MM
     sh.otext(xx, y, "ΚΛΙΜΑΚΑ", size=5.8, color=GRAY); y += 5.2 * MM; sh.otext(xx, y, scale_txt, size=13, bold=True); y += 3.6 * MM
     sh.otext(xx, y, "Α3 – εκτύπωση 100 %", size=5.8, color=GRAY); y += 3.2 * MM
@@ -430,10 +453,16 @@ def info_a3(sh, x, y0, y1, scale_txt):
         sh.otext(xx, y, head, size=7.0, bold=True, color=color); y += 3.5 * MM
         for ln in lines: sh.otext(xx, y, ln, size=6.5); y += 3.2 * MM
         y += 2.0 * MM
-    blk("ΑΛΛΑΓΗ: %d ΡΙΧΤΙΑ" % N, ("αντί %d της μελέτης (%s cm)" % (N_DESIGN, cm((FFL1 - FFL_STUDY) / N_DESIGN, 1)), "ρίχτι %s · ΠΑΤΗΜΑ %s ΠΑΝΤΟΥ" % (cm(RISE, 2), cm(G)), "1,20 ΠΑΝΤΟΥ (και από την Κ3)", "ΜΕ ΕΓΚΡΙΣΗ ΜΕΛΕΤΗΤΩΝ"), RED)
-    blk("ΧΩΛ ΙΣΟΓΕΙΟΥ", ("ΤΕΛΙΚΟ %s · ΜΠΕΤΟ %s" % (lv(FFL0), lv(SSL0)), "γέμισμα %s cm · ίδια στο Σ2α" % cm(FFL0 - SSL0, 0), "(μελέτη: τελικό %s · μπετό" % lv(FFL_STUDY), "%s) → χωλ %s cm ψηλότερα:" % (lv(SSL0_STUDY), cm(FFL0 - FFL_STUDY, 0)), "έξω 7 σκαλιά × %s (μελέτη 5)" % cm((FFL0 + 0.45) / 7, 0)), RED)
-    blk("Α΄ ΟΡΟΦΟΣ", ("ΤΕΛΙΚΟ %s · ΜΠΕΤΟ %s" % (lv(FFL1), lv(SSL1)), "γέμισμα %s cm (μελέτη %s)" % (cm(FFL1 - SSL1, 0), lv(FFL1_STUDY))))
-    blk("ΠΛΑΤΥΣΚΑΛΑ", ("ισόγειο: %s ως τον τοίχο" % mt(XL - WALL_X), "Α΄: %s ως τον τοίχο" % mt(XTOP - WALL1_X)))
+    if TYP:
+        blk("ΑΛΛΑΓΗ: %d ΡΙΧΤΙΑ" % N, ("αντί %d της μελέτης (%s cm)" % (N_DESIGN, cm((FFL1_STUDY - FFL_STUDY) / N_DESIGN, 1)), "ρίχτι %s · ΠΑΤΗΜΑ %s ΠΑΝΤΟΥ" % (cm(RISE, 2), cm(G)), "1,20 ΠΑΝΤΟΥ (και από την Κ3)", "ίδια χάραξη με το Σ3β", "ΜΕ ΕΓΚΡΙΣΗ ΜΕΛΕΤΗΤΩΝ"), RED)
+        blk("%s (κάτω)" % CFG["lo"].replace("ΟΡΟΦΟΥ", "ΟΡΟΦΟΣ"), ("ΤΕΛΙΚΟ %s · ΜΠΕΤΟ %s" % (lv(FFL0), lv(SSL0)), "γέμισμα %s cm (μελέτη %s)" % (cm(FFL0 - SSL0, 0), lv(FFL_STUDY))))
+        blk("%s (πάνω)" % CFG["hi"].replace("ΟΡΟΦΟΥ", "ΟΡΟΦΟΣ"), ("ΤΕΛΙΚΟ %s · ΜΠΕΤΟ %s" % (lv(FFL1), lv(SSL1)), "γέμισμα %s cm (μελέτη %s)" % (cm(FFL1 - SSL1, 0), lv(FFL1_STUDY))))
+        blk("ΠΛΑΤΥΣΚΑΛΑ", ("%s ως τον τοίχο" % mt(XL - WALL_X), "%s από την Κ3" % mt(XTOP - 9.70)))
+    else:
+        blk("ΑΛΛΑΓΗ: %d ΡΙΧΤΙΑ" % N, ("αντί %d της μελέτης (%s cm)" % (N_DESIGN, cm((FFL1 - FFL_STUDY) / N_DESIGN, 1)), "ρίχτι %s · ΠΑΤΗΜΑ %s ΠΑΝΤΟΥ" % (cm(RISE, 2), cm(G)), "1,20 ΠΑΝΤΟΥ (και από την Κ3)", "ΜΕ ΕΓΚΡΙΣΗ ΜΕΛΕΤΗΤΩΝ"), RED)
+        blk("ΧΩΛ ΙΣΟΓΕΙΟΥ", ("ΤΕΛΙΚΟ %s · ΜΠΕΤΟ %s" % (lv(FFL0), lv(SSL0)), "γέμισμα %s cm · ίδια στο Σ2α" % cm(FFL0 - SSL0, 0), "(μελέτη: τελικό %s · μπετό" % lv(FFL_STUDY), "%s) → χωλ %s cm ψηλότερα:" % (lv(SSL0_STUDY), cm(FFL0 - FFL_STUDY, 0)), "έξω 7 σκαλιά × %s (μελέτη 5)" % cm((FFL0 + 0.45) / 7, 0)), RED)
+        blk("Α΄ ΟΡΟΦΟΣ", ("ΤΕΛΙΚΟ %s · ΜΠΕΤΟ %s" % (lv(FFL1), lv(SSL1)), "γέμισμα %s cm (μελέτη %s)" % (cm(FFL1 - SSL1, 0), lv(FFL1_STUDY))))
+        blk("ΠΛΑΤΥΣΚΑΛΑ", ("ισόγειο: %s ως τον τοίχο" % mt(XL - WALL_X), "Α΄: %s ως τον τοίχο" % mt(XTOP - WALL1_X)))
     blk("ΦΑΝΑΡΙ %s × %s" % (mt(WX - XL), mt(W1 - W0)), ("όπως η μελέτη · κλάδοι 1,20", "στη στροφή %s" % mt(XE - WX)))
     blk("ΜΕΣΑ ΣΤΟ ΦΑΝΑΡΙ", ("πλάτος κάθε σκαλιού", "στο φανάρι, σε cm"))
     blk("ΚΟΚΚΙΝΟ", ("στάθμη ΜΠΕΤΟΥ πατήματος", "(τελικό − %s cm:" % cm(T_STEP), "μάρμαρο 3 + λάσπη 2)"), RED)
@@ -442,7 +471,7 @@ def info_a3(sh, x, y0, y1, scale_txt):
     blk("ΡΙΧΤΙΑ", ("%d × %s cm (τελικό)" % (N, cm(RISE, 2)), "μπετό: 1ο %s · 2ο–%dο %s" % (cm(SSL[1] - SSL0), N - 1, cm(RISE, 2)), "%dο %s cm" % (N, cm(SSL1 - SSL[N - 1]))))
     y = y1 - 18.5 * MM; sh.oline(x, y - 4.2 * MM, x + 40 * MM, y - 4.2 * MM, 0.4)
     for ln in ("ΚΩΝΣΤΑΝΤΙΝΟΥΠΟΛΕΩΣ 12", "& ΑΓ. ΒΑΡΒΑΡΑΣ", "ΑΡΓΥΡΟΥΠΟΛΗ"): sh.otext(xx, y, ln, size=6.6, bold=True); y += 3.3 * MM
-    sh.otext(xx, y + 1.2 * MM, "Βάση: Σ3_ΕΦ · A-10-GF · A-10-1F", size=5.4, color=GRAY); sh.otext(xx, y + 4.2 * MM, "%s · %s" % (REV, DATE), size=5.8, color=GRAY)
+    sh.otext(xx, y + 1.2 * MM, "Βάση: " + CFG["base"], size=5.4, color=GRAY); sh.otext(xx, y + 4.2 * MM, "%s · %s" % (REV, DATE), size=5.8, color=GRAY)
 
 
 def main():
@@ -469,9 +498,9 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     for d_ in (OUT, os.path.join(OUT, "ΕΡΓΟΤΑΞΙΟΥ_A2")):
         for fn in os.listdir(d_):
-            if fn.startswith("Σ3β_") and fn != NAME and REV in fn: os.remove(os.path.join(d_, fn))
+            if fn.startswith(CFG["sheet"] + "_") and fn != NAME and REV in fn: os.remove(os.path.join(d_, fn))
     path = os.path.join(OUT, NAME)
-    sh.doc.set_metadata(dict(title="Σ3β – Σκάλα ισογείου → Α΄ ορόφου, κάτοψη", author="ARKAD Ι.Κ.Ε."))
+    sh.doc.set_metadata(dict(title="%s – Σκάλα %s → %s, κάτοψη" % (CFG["sheet"], CFG["lo"].lower(), CFG["hi"].lower()), author="ARKAD Ι.Κ.Ε."))
     sh.doc.save(path, garbage=4, deflate=True)
     print("->", NAME, "· κλίμακα", scale_txt, "· κάτοψη %.0f × %.0f mm σε %.0f × %.0f" % (w / MM, h / MM, aw / MM, ah / MM))
     print("πάτημα στη γραμμή ανάβασης (cm):", " ".join("%d:%.1f" % (k, GOING[k] * 100) for k in range(NL + 1, N)), "· σύνολο %.3f" % (SPOS[N] - SPOS[NL + 1]), "")
