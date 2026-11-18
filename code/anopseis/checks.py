@@ -312,13 +312,17 @@ def run():
         if dp.get("tall"):
             if not (A.TALL and TALL.buffer(1e-6).contains(p)): probs.append("εκτός ντουλάπας")
             info.append("μέσα σε ντουλάπα έως οροφή")
-        if dp.get("lining"):        # R22: μέσα στην επένδυση με κανάλι (Τ3Α) του τοίχου της πόρτας εισόδου – δίπλα στη δοκό, όχι κάτω της
-            lin = [w_ for w_ in W.WALLS if w_["type"] == dp["lining"] and Polygon(w_["pts"]).buffer(1e-6).contains(p)]
-            cav = W.TYPES[dp["lining"]]["thick"] - 2 * C["board"]
+        if dp.get("chan"):          # R23: μέσα στο ΚΑΝΑΛΙ του ενιαίου τοίχου της πόρτας εισόδου (Τ6Β: ζώνη του σκελετού CW 50 αμέσως μετά τα δύο φύλλα
+                                    # της παρειάς του διαμερίσματος – W.CHAN_X) – δίπλα στη δοκό, όχι κάτω της. (R22: επένδυση Τ3Α – καταργήθηκε)
+            lin = [w_ for w_ in W.WALLS if w_["type"] == dp["chan"] and Polygon(w_["pts"]).buffer(1e-6).contains(p)]
+            cav = W.TYPES[dp["chan"]]["chan"]
             if not lin:
-                probs.append("εκτός επένδυσης %s" % dp["lining"])
+                probs.append("εκτός τοίχου %s" % dp["chan"])
             else:
-                info.append("μέσα στην επένδυση %s" % lin[0]["id"])
+                cx0, cx1 = W.CHAN_X
+                if not (cx0 - 1e-6 <= p.x <= cx1 + 1e-6):
+                    probs.append("εκτός του καναλιού του τοίχου (x %.3f–%.3f)" % (cx0, cx1))
+                info.append("μέσα στο κανάλι του τοίχου %s" % lin[0]["id"].replace("T", "Τ").replace("B", "Β"))
             if dp.get("od"):
                 if dp["od"] > cav + 1e-9: probs.append("ο σωλήνας δεν χωρά στο κενό %d mm" % round(cav * 1000))
                 info.append("κενό %d mm ≥ Ø %d" % (round(cav * 1000), round(dp["od"] * 1000)))
@@ -332,7 +336,7 @@ def run():
             under = [b[0] for b in A.BEAMS if box(*b[2:]).buffer(-0.002).contains(p)]
             if under: probs.append("κάτω από " + ", ".join(under))
             info.append("μέσα σε γυψότοιχο")
-        add("ΚΑΤ-%s" % dp["id"], "Κλιματισμός", dp["text"], "κατέβασμα μέσα σε επένδυση / ντουλάπα – όχι κάτω από δοκό, όχι σε σκυρόδεμα · ο σωλήνας χωρά",
+        add("ΚΑΤ-%s" % dp["id"], "Κλιματισμός", dp["text"], "κατέβασμα μέσα σε κανάλι τοίχου / ντουλάπα – όχι κάτω από δοκό, όχι σε σκυρόδεμα · ο σωλήνας χωρά",
             "; ".join(probs) if probs else " · ".join(info), "ΑΠΟΚΛΙΣΗ" if probs else "OK")
     # καναλάτο σε κάθε δωμάτιο
     for code, room, unit, st in A.ROOM_UNITS:
@@ -348,6 +352,41 @@ def run():
         elif d["kind"] == "wall":
             add("ΣΤ-%s" % d["id"], "Κλιματισμός", "%s %s" % (d["id"], d["size"]), "προσαγωγή από γραμμικό slot",
                 d.get("check_txt", "γραμμικό στόμιο μετώπης / τοίχου"), d.get("status", "ΕΓΚΕΚΡ."))
+        elif d["kind"] == "front":
+            # R23 (ιδιοκτήτης 18/11/2026: «τα slot να μην φυσάνε προς τα κάτω αλλά προς τα μπρος»): γραμμικό slot στη ΜΕΤΩΠΗ της χαμήλωσης (το κατακόρυφο
+            # σκαλοπάτι της οροφής), ρίψη οριζόντια. Έλεγχος: είναι πάνω στην ακμή της ζώνης της μονάδας, μπροστά του η οροφή είναι ΨΗΛΟΤΕΡΗ σε όλο το
+            # μήκος του, το ύψος του χωρά στη μετώπη με περιθώριο πάνω – κάτω, και πίσω του υπάρχει το plenum.
+            zid = d.get("zone") or [u["zone"] for u in A.UNITS if u["id"] == d["unit"]][0]
+            z = ZONES[zid]
+            x0, y0, x1, y1 = d["rect"]
+            tx, ty = THROW_V[d["throw"]]
+            if tx:      # μετώπη Β–Ν (ρίψη Α / Δ)
+                fx = x0 if tx < 0 else x1
+                front = [(fx + tx * 0.05, y0 + k * (y1 - y0)) for k in (0.02, 0.5, 0.98)]
+            else:       # μετώπη Α–Δ (ρίψη Β / Ν)
+                fy = y0 if ty < 0 else y1
+                front = [(x0 + k * (x1 - x0), fy + ty * 0.05) for k in (0.02, 0.5, 0.98)]
+            zf = [zone_at(*q) for q in front]
+            m = C.get("front_edge", 0.03)
+            probs = []
+            if not z["geom"].buffer(1e-6).contains(_box(d["rect"])):
+                probs.append("εκτός της χαμήλωσης")
+            if any(q is None or q["id"] == zid for q in zf):
+                probs.append("όχι πάνω στην ακμή της χαμήλωσης")
+                hi = z["level"]
+            else:
+                hi = min(q["level"] for q in zf)
+            face = hi - z["level"]
+            lo_m, hi_m = d["z"][0] - z["level"], hi - d["z"][1]
+            if not probs and (lo_m < m - 1e-6 or hi_m < m - 1e-6):
+                probs.append("δεν χωρά στη μετώπη")
+            if not any(_box(r).distance(_box(d["rect"])) < 0.03 for n_, r in A.DUCTS):
+                probs.append("χωρίς plenum πίσω του")
+            add("ΣΤ-%s" % d["id"], "Κλιματισμός", "%s %s" % (d["id"], d["size"]),
+                "γραμμικό slot στη ΜΕΤΩΠΗ της χαμήλωσης – φυσά μπροστά, όχι κάτω (ιδιοκτήτης 18/11) · περιθώριο ≥ %d mm πάνω – κάτω" % round(m * 1000),
+                "; ".join(probs) if probs else "μετώπη %d cm (%s → %s) · slot %s…%s · %d mm κάτω, %d mm πάνω · plenum πίσω του"
+                % (round(face * 100), L(z["level"]), L(hi), L(d["z"][0]), L(d["z"][1]), round(lo_m * 1000), round(hi_m * 1000)),
+                "ΑΠΟΚΛΙΣΗ" if probs else "OK")
 
     # ------------------------------------------------ 3. spots (προδ. 3, 5)
     obstacles = [(h["id"], _box(h["rect"]), C["spot_hatch"]) for h in A.HATCHES] + \
@@ -445,7 +484,7 @@ def run():
             "στον τοίχο · IP65 μέσα στο ντους", "μέσα στο ντους" if inshower else "τοίχος %.2f" % WALLS.distance(p),
             "OK" if ok and WALLS.distance(p) < 0.05 else "ΑΠΟΚΛΙΣΗ")
     TV = {"Ν": (0, 1), "Β": (0, -1), "Α": (1, 0), "Δ": (-1, 0)}
-    slots = [(d["id"], _box(d["rect"]), d["throw"]) for d in A.DIFFUSERS if d["kind"] in ("slot", "wall")] + \
+    slots = [(d["id"], _box(d["rect"]), d["throw"]) for d in A.DIFFUSERS if d["kind"] in ("slot", "wall", "front")] + \
             [(u["id"], _box(u["rect"]), u["throw"]) for u in getattr(A, "SPLITS", [])]
     for pid, x, y, circ, txt_ in A.PENDANTS:
         over = getattr(A, "PENDANT_OVER", {}).get(pid)
@@ -477,7 +516,7 @@ def run():
     # ------------------------------------------------ 4. πυρανίχνευση (προδ. 4)
     lights = [(s[0], Point(s[2], s[3])) for s in A.SPOTS] + [(p_[0], Point(p_[1], p_[2])) for p_ in A.PENDANTS] + \
              [(t["id"], LineString([t["a"], t["b"]])) for t in getattr(A, "TRACKS", [])]
-    supplies = [(d["id"], _box(d["rect"])) for d in A.DIFFUSERS if d["kind"] in ("slot", "wall")] + \
+    supplies = [(d["id"], _box(d["rect"])) for d in A.DIFFUSERS if d["kind"] in ("slot", "wall", "front")] + \
                [(u["id"], _box(u["rect"])) for u in getattr(A, "SPLITS", [])] + wall_unit_supplies()
     for did, kind, x, y, room in A.DETECTORS:
         p = Point(x, y)

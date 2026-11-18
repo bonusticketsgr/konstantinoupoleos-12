@@ -25,7 +25,7 @@ def section(c, x, y_top, typ):
             layers.append(("cw", int(name[2:]) / 1000))
         elif name.startswith("gap"):
             # "gap5" = κενό 5 cm · "gap" = υπόλοιπο πάχους μετά 4 γυψοσανίδες + CW 50 + CW 30 (Τ7: 25 − 5 − 5 − 3 = 12)
-            layers.append(("gap", int(name[3:]) / 100 if len(name) > 3 else th - 4 * GYP - 0.05 - 0.03))
+            layers.append(("gap", float(name[3:]) / 100 if len(name) > 3 else th - 4 * GYP - 0.05 - 0.03))   # "gap2.5" = 2,5 cm (Τ6Β)
     tot = sum(w for _, w in layers)
     x0 = x
     H = SEC_H * s
@@ -142,8 +142,8 @@ def sheet_t02(c, sheet_no="Τ-02"):
 
 
 # ---------------------------------------------------------------- R25 / Δ R02 (Γιάννης 07/11): ΕΝΑ φύλλο ειδών για όλο το τεύχος
-ALL_ORDER = ["T1", "T4", "T4A", "T5", "T10", "T3", "T3A", "T9", "T2", "T2N", "T2A", "T7", "T7A", "T6", "T6A", "T8"]   # R29: + Τ3Α
-ROWS_16 = [5, 6, 5]     # 16 είδη σε 3 σειρές: τούβλα (5) · επενδύσεις + χωρίσματα (6, στενές τομές) · τοίχοι λεκάνης / κλιμακοστασίου / shaft (5)
+ALL_ORDER = ["T1", "T4", "T4A", "T5", "T10", "T3", "T9", "T2", "T2N", "T2A", "T8", "T7", "T7A", "T6", "T6A", "T6B"]   # R30: Τ6Β (ενιαίος τοίχος πόρτας εισόδου) αντί της επένδυσης Τ3Α · ο Τ8 στη σειρά των στενών
+ROWS_16 = [5, 6, 5]     # 16 είδη σε 3 σειρές: τούβλα (5) · επενδύσεις + χωρίσματα + shaft (6, στενές τομές) · τοίχοι λεκάνης / κλιμακοστασίου / πόρτας εισόδου (5)
 
 
 def card_all(c, x, y, w, h, typ, per_floor, mdf=None):
@@ -201,7 +201,7 @@ def sheet_t02_all(c, models, sheet_no, rev, date):
     ncol = 5
     counts = ROWS_16 if len(order) == 16 else [ncol] * ((len(order) + ncol - 1) // ncol)
     nrow = len(counts)
-    Hc = (top - 106 - (nrow - 1) * 6) / nrow
+    Hc = (top - 114 - (nrow - 1) * 6) / nrow      # R30: οι κάρτες τελειώνουν στο y 114 – η υποσημείωση (y 104 / 97) μένει ΚΑΤΩ από το πλαίσιό τους (το πατούσε)
     i = 0
     for r, n in enumerate(counts):
         W = (PAGE_W - 2 * m - 20 - (n - 1) * 6) / n

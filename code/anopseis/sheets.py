@@ -1,7 +1,7 @@
 """Φύλλα ανόψης οροφής – A3, 1:50 – για κάθε όροφο (μοντέλο *_anopsi.py):
 ΑΝ-01 στάθμες · ΑΝ-02 κλιματισμός · ΑΝ-03 φωτισμός/πυρανίχνευση · ΑΝ-04 έλεγχος.
 Χρήση: sheets.bind(μοντέλο) και μετά sheet_an01(c, no) … (οι αριθμοί φύλλων δίνονται από το build)."""
-import math
+import math, sys
 import checks
 import sheet_t01                                   # code/toixopoiies (το μοντέλο βάζει τη διαδρομή)
 from draw import View, PAGE_W, PAGE_H, DARK, GREY, LIGHT, DIMC, frame_and_title, north_arrow
@@ -536,7 +536,7 @@ def sheet_an02(c, no="ΑΝ-02"):
     for d in A.DIFFUSERS:
         x0, y0, x1, y1 = d["rect"]
         horiz = (x1 - x0) >= (y1 - y0)
-        if d["kind"] in ("slot", "wall"):
+        if d["kind"] in ("slot", "wall", "front"):      # front (R23): slot στη ΜΕΤΩΠΗ της χαμήλωσης – χοντρή γραμμή πάνω στην ακμή, βέλη οριζόντια μπροστά
             tx, ty = THROW_V[d["throw"]]
             if d["kind"] == "slot":
                 v.rect(x0, y0, x1, y1, fill=(0.30, 0.45, 0.75), stroke=BLUE, lw=0.6)
@@ -546,7 +546,7 @@ def sheet_an02(c, no="ΑΝ-02"):
                     v.line((x0 + x1) / 2, y0, (x0 + x1) / 2, y1, color=(1, 1, 1), lw=0.5)
             else:
                 v.rect(x0, y0, x1, y1, fill=BLUE, stroke=BLUE, lw=1.0)
-            n = 5 if max(x1 - x0, y1 - y0) > 1.5 else 2
+            n = 5 if max(x1 - x0, y1 - y0) > 1.2 else 2
             for k in range(n):
                 if n > 2:
                     t_ = 0.20 + k * ((x1 - x0 if horiz else y1 - y0) - 0.40) / (n - 1)
@@ -659,6 +659,10 @@ def sheet_an02(c, no="ΑΝ-02"):
         items.append((_sw((0.30, 0.45, 0.75), BLUE), A.LEG_SLOT))
     if "wall" in kinds:
         items.append((_sw(BLUE, BLUE), A.LEG_WALL))
+    if "front" in kinds:
+        items.append((lambda c_, x, y: (c_.setStrokeColorRGB(*BLUE), c_.setLineWidth(2.2), c_.line(x + 4, y - 4, x + 4, y + 4), c_.setLineWidth(0.6),
+                                        c_.line(x + 3, y, x - 6, y), c_.line(x - 6, y, x - 3.5, y + 1.6), c_.line(x - 6, y, x - 3.5, y - 1.6), c_.setLineWidth(0.5)),
+                      A.LEG_FRONT))
     if "ret" in kinds:
         items.append((_sw(GREEN_F, GREEN), "Ε στόμιο / κιβώτιο επιστροφής με φίλτρο"))
     if A.HATCHES or getattr(A, "WALL_UNITS", []):
@@ -670,13 +674,15 @@ def sheet_an02(c, no="ΑΝ-02"):
         items.append((_line_legend(COLORS[col_], dash_, lw_), txt_))
     if getattr(A, "BOXES", []):
         items.append((_sw((0.97, 0.80, 0.90), MAG), A.LEG_BOX))
-    if getattr(A, "LEG_LINING", None):       # R22: επένδυση με κανάλι στον τοίχο της πόρτας εισόδου (τοιχοποιίες Τ3Α)
-        items.append((_sw(A.W.TYPES["T3A"]["fill"], DARK), A.LEG_LINING))
+    if getattr(A, "LEG_CHANWALL", None):     # R23: ο ενιαίος τοίχος της πόρτας εισόδου με το κανάλι σωλήνων (τοιχοποιίες Τ6Β) – (τύπος, κείμενο)
+        items.append((_sw(A.W.TYPES[A.LEG_CHANWALL[0]]["fill"], DARK), A.LEG_CHANWALL[1]))
     if getattr(A, "LEG_COND", None):         # γραμμή συμπυκνωμάτων με φυσική ροή (Β1 R20 / Δ΄ R09)
         items.append((lambda c_, x, y: (c_.setStrokeColorRGB(*ORANGE), c_.setLineWidth(0.9), c_.setDash([4, 1.2, 1, 1.2]), c_.line(x - 6, y, x + 6, y),
                                         c_.setDash([]), c_.setLineWidth(0.5)), A.LEG_COND))
     items.append((lambda c_, x, y: (c_.setStrokeColorRGB(*MAG), c_.rect(x - 3, y - 3, 6, 6)), "Χ κατέβασμα / έξοδος σωληνώσεων – καμία οπή σε σκυρόδεμα"))
-    legend(c, items, y=yl)
+    yb = legend(c, items, y=yl)
+    if yb < 92 + 2:        # R23: σημειώσεις + υπόμνημα πρέπει να μένουν πάνω από την πινακίδα (20 + 72 pt) – αλλιώς συντόμευσε τις NOTES_AN02
+        sys.exit("ΑΝ-02 (%s): οι σημειώσεις και το υπόμνημα δεν χωρούν στη δεξιά στήλη – περισσεύουν %.0f pt" % (A.SHEET_FLOOR, 94 - yb))
     title(c, no, "ΑΝΟΨΗ – ΚΛΙΜΑΤΙΣΜΟΣ · ΘΥΡΙΔΕΣ", A.SUB_AN02)
 
 
@@ -714,6 +720,8 @@ def sheet_an03(c, no="ΑΝ-03"):
     for d in A.DIFFUSERS:
         if d["kind"] == "slot" or (d["kind"] == "ret" and max(d["rect"][2] - d["rect"][0], d["rect"][3] - d["rect"][1]) > 0.5):
             v.rect(*d["rect"], stroke=(0.55, 0.65, 0.80), lw=0.4)
+        elif d["kind"] == "front":         # slot μετώπης: γραμμή πάνω στην ακμή της χαμήλωσης (δεν πιάνει χώρο στην οροφή)
+            v.rect(*d["rect"], fill=(0.55, 0.65, 0.80), stroke=(0.55, 0.65, 0.80), lw=0.4)
     for sid, kind, x, y, circ in A.SPOTS:
         spot_sym(v, kind, x, y)
         v.text(x + 0.08, y - 0.10, sid, size=3.8, color=ORANGE, anchor="l")
