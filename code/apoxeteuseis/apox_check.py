@@ -149,7 +149,7 @@ def run(REG, models, stacks_in_walls, holes, slab_concrete, basement, rain):
         nodes = [r[4] for r in REG if r[0] == ctx and r[1] in ("stack", "drop", "trap")]
         pp = by(ctx, "pipe"); n_ok = 0
         for r in pp:
-            if r[5] in ("bury",) or r[2] == "vent":
+            if r[5] in ("bury", "open") or r[2] == "vent":          # open = ελεύθερη απορροή συμπυκνωμάτων εξωτερικής μονάδας (R25)
                 continue
             e = r[4][-1]
             ok = any(math.hypot(e[0] - n[0], e[1] - n[1]) < 0.17 for n in nodes) or any(

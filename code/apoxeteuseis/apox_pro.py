@@ -3,7 +3,8 @@
 Αρχές:
   · υπόβαθρο ΜΟΝΟΧΡΩΜΟ (γκρι τοίχοι, σκούρα υποστυλώματα, αχνά έπιπλα) από τα μοντέλα τοιχοποιιών του repo·
   · σωλήνες με πάχος γραμμής ανά διατομή, λευκό περίγραμμα (halo), βέλη ροής, ετικέτα διατομής πάνω στη γραμμή·
-  · λίγα χρώματα: κόκκινο = λύματα · πορτοκαλί = ακάθαρτα · πράσινο διακεκομμένο = αερισμός · μπλε = όμβρια · καφέ = συλλεκτήρας·
+  · λίγα χρώματα: κόκκινο = λύματα · πορτοκαλί = ακάθαρτα · πράσινο διακεκομμένο = αερισμός · μπλε = όμβρια · καφέ = συλλεκτήρας ·
+    μοβ = συμπυκνώματα κλιματιστικών (R25: acunit / cdrop / pipe(..., "cond", 32))·
   · σύμβολα: στήλη, πτώση, πατοσίφωνο, γραμμικό σιφώνι, κούτελο, υδρορροή, σιφώνι εξώστη, δοκός·
   · στις κατόψεις 1:60 αριθμημένες σημειώσεις (κύκλος) που εξηγούνται στη δεξιά στήλη· στις λεπτομέρειες 1:25 / 1:20 κείμενα με οδηγό.
 Συντεταγμένες μοντέλου σε m (x ανατολή, y νότος)· αποστάσεις ετικετών σε pt (dx δεξιά, dy κάτω)."""
@@ -29,8 +30,9 @@ SUB1 = ""
 INK = (0.12, 0.13, 0.16); MUTE = (0.40, 0.41, 0.46); FAINT = (0.62, 0.63, 0.67)
 SOIL = (0.74, 0.09, 0.11); WASTE = (0.90, 0.46, 0.02); VENT = (0.05, 0.52, 0.30); RAIN = (0.08, 0.36, 0.80)
 MAIN = (0.42, 0.20, 0.06); BEAMC = (0.80, 0.50, 0.10); WARN = (0.80, 0.10, 0.10)
-COL = {"soil": SOIL, "waste": WASTE, "vent": VENT, "rain": RAIN, "main": MAIN}
-LW = {32: 0.8, 40: 0.9, 50: 1.25, 63: 1.45, 75: 1.75, 90: 2.2, 100: 2.6, 110: 2.6, 125: 3.3}
+COND = (0.52, 0.16, 0.72)          # R25: συμπυκνώματα κλιματιστικών (μοβ)
+COL = {"soil": SOIL, "waste": WASTE, "vent": VENT, "rain": RAIN, "main": MAIN, "cond": COND}
+LW = {32: 1.05, 40: 0.9, 50: 1.25, 63: 1.45, 75: 1.75, 90: 2.2, 100: 2.6, 110: 2.6, 125: 3.3}
 PANEL_X = 968                      # αριστερό όριο της δεξιάς στήλης (υπόμνημα / σημειώσεις)
 PX, PW = PANEL_X + 12, PAGE_W - 20 - PANEL_X - 24
 TOP, BOT = PAGE_H - 20, 92         # όρια χώρου σχεδίου (pt, y προς τα πάνω)
@@ -309,6 +311,39 @@ def gully(v, x, y, to=None):
     v.line(x - r * 0.6, y, x + r * 0.6, y, color=RAIN, lw=0.45 * v.k); v.line(x, y - r * 0.6, x, y + r * 0.6, color=RAIN, lw=0.45 * v.k)
 
 
+# ------------------------------------------------------------------ R25: κλιματιστικά – μονάδες και συμπυκνώματα
+def acunit(v, r, name=None, kind="duct", off=None, anchor="l", sub=None):
+    """Μονάδα κλιματισμού (θέση από τα μοντέλα των ανόψεων). kind: duct = καναλάτη μέσα στην ψευδοροφή · split = τοίχου ·
+    wall = καναλάτη τοίχου (σοφίτα) · out = εξωτερική (διακεκομμένη – ενδεικτική θέση)."""
+    x0, y0, x1, y1 = r
+    _reg(v, "acunit", "cond", None, ((x0 + x1) / 2, (y0 + y1) / 2), name, kind, tuple(r))
+    C.saveState(); C.setFillAlpha(0.07 if kind == "out" else 0.20); v.rect(x0, y0, x1, y1, fill=COND); C.restoreState()
+    C.saveState()
+    if kind in ("out", "duct"):
+        C.setDash([2.6 * v.k, 1.5 * v.k])
+    v.rect(x0, y0, x1, y1, stroke=COND, lw=0.9 * v.k); C.restoreState()
+    if kind == "duct":                     # διαγώνιες: μονάδα κρεμασμένη μέσα στην ψευδοροφή
+        v.line(x0, y0, x1, y1, color=COND, lw=0.3 * v.k); v.line(x0, y1, x1, y0, color=COND, lw=0.3 * v.k)
+    if name:
+        X, Y = v.p((x0 + x1) / 2, (y0 + y1) / 2); off = off or (0, 0)
+        TX, TY = X + off[0], Y - off[1]
+        if off != (0, 0):
+            _leader(X, Y, TX, TY, COND)
+        an = anchor if off != (0, 0) else "c"
+        bx0, by0, bx1, by1 = pill(TX, TY, name, None, COND, an, 5.8 * (1.12 if v.detail else 1.0))
+        if sub:
+            ptext(bx0 if an != "r" else bx1, by0 - 5.2 * v.t, sub, 4.9 * v.t, "Inter", MUTE, "l" if an != "r" else "r")
+
+
+def cdrop(v, x, y, r=0.042):
+    """Κατέβασμα του σωλήνα συμπυκνωμάτων μέσα σε τοίχο (από τη μονάδα / την ψευδοροφή ως το δάπεδο): κύκλος με τελεία."""
+    r *= v.sym
+    _reg(v, "cdrop", "cond", 32, (x, y), None, False)
+    v.circle(x, y, r + 0.9 / v.s, fill=(1, 1, 1))
+    v.circle(x, y, r, fill=(1, 1, 1), stroke=COND, lw=0.9 * v.k)
+    v.circle(x, y, r * 0.42, fill=COND)
+
+
 def beam(v, r, name=None, lpos=None, rot=0):
     x0, y0, x1, y1 = r
     C.saveState(); C.setFillAlpha(0.13); v.rect(x0, y0, x1, y1, fill=BEAMC); C.restoreState()
@@ -430,6 +465,11 @@ LEG = {
     "ventp": ("Άνοδος αερισμού στη θερμοπρόσοψη", lambda v: stack(v, 0.21, 0, None, None, "vent", r=0.045)),
     "dp": ("Υδρορροή ΥΔ Φ75 μέσα στη θερμοπρόσοψη", lambda v: stack(v, 0.21, 0, None, None, "rain", r=0.05)),
     "gully": ("Σιφώνι ομβρίων εξώστη, πλευρική έξοδος", lambda v: gully(v, 0.10, 0, [(0.40, 0)])),
+    "cond": ("Συμπυκνώματα κλιματιστικών Ø32, φυσική ροή – στο γέμισμα / μέσα σε τοίχο / στα ερμάρια", lambda v: pipe(v, [(0, 0), (0.42, 0)], "cond", 32, arrow=[0], halo=False, apos=0.6)),
+    "condc": ("Συμπυκνώματα μέσα στην ψευδοροφή – Ø32 με μόνωση, κλίση ≥ 1 %", lambda v: pipe(v, [(0, 0), (0.42, 0)], "cond", 32, dash=[3, 1.6], arrow=False, halo=False)),
+    "cdrop": ("Κατέβασμα συμπυκνωμάτων μέσα στον τοίχο, ως το δάπεδο", lambda v: cdrop(v, 0.21, 0)),
+    "acu": ("Εσωτερική μονάδα κλιματισμού ΚΜ (θέση: τεύχος ανόψεων)", lambda v: acunit(v, (0.04, -0.07, 0.38, 0.07), kind="split")),
+    "aco": ("Εξωτερική μονάδα ΕΜ (ενδεικτική θέση) – λεκάνη συμπυκνωμάτων", lambda v: acunit(v, (0.04, -0.07, 0.38, 0.07), kind="out")),
     "beam": ("Δοκός (ξυλότυποι Σ2–Σ7) – ΚΑΜΙΑ οπή", lambda v: beam(v, (0.02, -0.07, 0.40, 0.07))),
     "key": ("Αριθμημένη σημείωση – βλ. ΣΗΜΕΙΩΣΕΙΣ", lambda v: key(v, 0.05, 0.05, 1, (9, -3))),
     "low": ("Χαμηλή ζώνη οροφής υπογείου – καμία σωλήνωση", None),
@@ -479,6 +519,9 @@ def notes(title, items, y, numbered=True, size=6.5):
 
 
 def finish(sheet, theme, sub2, base_txt, scale):
+    # R25: τα κείμενα της πινακίδας πρέπει να χωρούν στο κελί «ΘΕΜΑ ΣΧΕΔΙΟΥ» (300 pt) – στο R24 ο υπότιτλος του ΑΠ-02 έμπαινε στο κελί «ΒΑΣΗ»
+    for t_, f_, z_ in ((theme, "Inter-Bold", 11), (SUB1, "Inter-Medium", 7.5), (sub2, "Inter-Medium", 7.5)):
+        assert SW(t_, f_, z_) <= 282, "πινακίδα %s: «%s» = %.0f pt > 282" % (sheet, t_, SW(t_, f_, z_))
     panel_rule()
     C.setFillColorRGB(1, 1, 1); C.rect(20, 20, PAGE_W - 40, 72, stroke=0, fill=1)
     frame_and_title(C, sheet, theme, SUB1, sub2, base_txt, scale, REV, DATE)
