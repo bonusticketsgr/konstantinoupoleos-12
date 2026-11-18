@@ -48,9 +48,11 @@ def main():
     if len(sys.argv) > 1:
         run("ξυλότυποι Σ2–Σ8 – check.py", [py, "check.py", sys.argv[1]], xa, ok_if=lambda o: "ΣΥΝΟΛΟ ΑΠΟΚΛΙΣΕΩΝ: 0" in o)
     run("ξυλότυποι – οπές / shaft = τεύχος αποχετεύσεων", [py, "qa_holes.py"], HERE)
+    pv = os.path.join(CODE, "perivallon")                     # 18/11: περιβάλλων χώρος (σκάλες ανόδου, ζώνες, τοιχία)
+    run("περιβάλλων χώρος – px_check.py", [py, "px_check.py"], pv, ok_if=lambda o: "0 ευρήματα" in o)
     pdfs = []
     for pat in ("ΤΟΙΧΟΠΟΙΙΕΣ/ΤΟΙΧΟΠΟΙΙΕΣ_*.pdf", "ΑΝΟΨΕΙΣ/ΑΝΟΨΕΙΣ_*.pdf", "ΞΥΛΟΤΥΠΟΙ/ΣΚΑΛΕΣ_ΤΕΥΧΟΣ_A3.pdf", "ΞΥΛΟΤΥΠΟΙ/ΞΥΛΟΤΥΠΟΙ_ΕΡΓΟΤΑΞΙΟΥ_*.pdf",
-                "ΑΠΟΧΕΤΕΥΣΕΙΣ_ΥΔΡΟΡΡΟΕΣ/ΑΠΟΧΕΤΕΥΣΕΙΣ_ΥΔΡΟΡΡΟΕΣ_ΤΕΥΧΟΣ_*.pdf"):
+                "ΑΠΟΧΕΤΕΥΣΕΙΣ_ΥΔΡΟΡΡΟΕΣ/ΑΠΟΧΕΤΕΥΣΕΙΣ_ΥΔΡΟΡΡΟΕΣ_ΤΕΥΧΟΣ_*.pdf", "ΠΕΡΙΒΑΛΛΩΝ_ΧΩΡΟΣ/ΠΕΡΙΒΑΛΛΩΝ_ΧΩΡΟΣ_*.pdf"):
         pdfs += sorted(glob.glob(os.path.join(DEL, pat)))
     for p in pdfs:
         run("PDF %s" % os.path.basename(p)[:38], [py, "qa_pdf.py", p], HERE,
