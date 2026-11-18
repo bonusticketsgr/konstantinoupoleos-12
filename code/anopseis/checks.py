@@ -226,6 +226,34 @@ def run():
                                                      cr.get("at_txt", "x ≈ %.2f" % cr.get("x", 0)), cr.get("via", "")),
             "καθαρό κάτω από τη δοκό ≥ σωλήνας %s" % cr["pipe_txt"], "καθαρό %.1f mm · περιθώριο %+.1f mm" % (clear * 1000, marg * 1000),
             "OK" if marg > 0.010 else ("ΟΡΙΑΚΟ" if marg >= 0 else "ΑΠΟΚΛΙΣΗ"))
+    # συμπυκνώματα καναλάτης με ΦΥΣΙΚΗ ΡΟΗ (χωρίς αντλία): έξοδος μονάδας → διέλευση κάτω από δοκό → σημείο καθόδου (A.DRAINS)
+    # σημείο ελέγχου = η ανάντη παρειά της δοκού (εκεί ο σωλήνας είναι ψηλότερα): άξονας ≤ κάτω παρειά δοκού − Ø/2·
+    # στο σημείο καθόδου ο σωλήνας πατά στη γυψοσανίδα: άξονας ≥ οροφή + γυψοσανίδα + Ø/2
+    for dr in getattr(A, "DRAINS", []):
+        u = [u_ for u_ in A.UNITS if u_["id"] == dr["unit"]][0]
+        zu = ZONES[u["zone"]]
+        x0, y0, x1, y1 = u["rect"]
+        z_unit = min(slab_at(zu, x, y) for x in (x0, x1) for y in (y0, y1)) - A.HANG - u["hmax"]      # κάτω πλευρά της μονάδας (κρεμασμένη ψηλά)
+        route = LineString(dr["pts"])
+        bname, bsec, bx0, by0, bx1, by1 = [b for b in A.BEAMS if b[0] == dr["beam"]][0]
+        inter = route.intersection(box(bx0, by0, bx1, by1))
+        segs = list(inter.geoms) if hasattr(inter, "geoms") else [inter]
+        L1 = min(route.project(Point(q)) for g in segs for q in g.coords)
+        L2 = route.length - L1
+        r = dr["od"] / 2
+        z_cross = A.beam_soffit(bsec) - r
+        ze = zone_at(*dr["pts"][-1])
+        z_drop = ze["level"] + C["board"] + r
+        s2 = (z_cross - z_drop) / L2                               # διαθέσιμη κλίση από τη δοκό ως την κάθοδο
+        z_req = z_drop + dr["slope_min"] * route.length            # ελάχιστη στάθμη εξόδου της μονάδας
+        marg = z_unit - z_req
+        ok = s2 >= dr["slope_min"] - 1e-9 and marg >= -1e-9
+        st = "OK" if (s2 >= 1.5 * dr["slope_min"] and marg > 0.010) else ("ΟΡΙΑΚΟ" if ok else "ΑΠΟΚΛΙΣΗ")
+        add(dr["id"], "Κλιματισμός", dr["text"],
+            "κλίση ≥ %g %% ως την κάθοδο · έξοδος μονάδας πάνω από την απαιτούμενη στάθμη" % (dr["slope_min"] * 100),
+            "έξοδος ≥ %s (κάτω πλευρά μονάδας %s) · κάτω από τη %s άξονας ≤ %s · ως την κάθοδο έως %s %%"
+            % (L(math.ceil(z_req * 100 - 1e-6) / 100.0), L(math.floor(z_unit * 100 + 1e-6) / 100.0), bname,
+               ("%+.3f" % z_cross).replace(".", ","), ("%.1f" % (s2 * 100)).replace(".", ",")), st)
     # καναλάτο σε κάθε δωμάτιο
     for code, room, unit, st in A.ROOM_UNITS:
         add("ΚΔ-%s" % code, "Κλιματισμός", room, "μία καναλάτη ανά δωμάτιο", unit, st)
@@ -497,6 +525,21 @@ def run():
         add("ΑΝ-%s" % sb["id"], "Αναμονές", "%s %s (%.2f · %.2f)" % (sb["id"], sb["what"], x, y),
             "μέσα στη ζώνη · ≥ 0,10 από τοίχο / ντουλάπα · κάθοδος μέσα σε τοιχοποιία (όχι σε σκυρόδεμα)",
             "; ".join(probs) if probs else "πλάκα %s · %s" % (L(ceil_at(x, y, z)), sb["ref_txt"]), "ΑΠΟΚΛΙΣΗ" if probs else "OK")
+
+    # ------------------------------------------------ 6δ. Κτιριοδομικός 2023 – ελάχιστα ελεύθερα ύψη (A.HEIGHT_ROOMS)
+    # πραγματοποιούμενο ελεύθερο ύψος χώρου = καθαρός όγκος / εμβαδόν δαπέδου, ως την ψευδοροφή · κύριας χρήσης ≥ 2,50 · βοηθητικής ≥ 2,20
+    for hr in getattr(A, "HEIGHT_ROOMS", []):
+        zs = [ZONES[i] for i in hr["zones"]]
+        area = sum(z["geom"].area for z in zs)
+        mean = sum(z["geom"].area * z["level"] for z in zs) / area
+        low = min(z["level"] for z in zs)
+        txt = "μέσο ύψος %.2f m (%.1f m²) · χαμηλότερο %s" % (mean, area, L(low))
+        if hr.get("alone"):
+            txt += " · %s %s" % (hr["alone"][1], L(ZONES[hr["alone"][0]]["level"]))
+        marg = mean - hr["hmin"]
+        add(hr["code"], "Στάθμες", "Κτιριοδομικός – ελεύθερο ύψος: %s" % hr["name"],
+            ("μέσο ύψος (όγκος / εμβαδόν) ≥ %.2f · τοπικά ≥ 2,00" % hr["hmin"]).replace(".", ","), txt.replace(".", ","),
+            "OK" if (marg > 0.010 and low >= 2.0) else ("ΟΡΙΑΚΟ" if (marg >= 0 and low >= 2.0) else "ΑΠΟΚΛΙΣΗ"))
 
     # ------------------------------------------------ 7. αλλαγές στάθμης (προδ. 5, 6)
     levels = sorted({z["level"] for z in A.ZONES})

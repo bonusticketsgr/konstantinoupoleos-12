@@ -137,8 +137,13 @@ AC_EDGE = (0.55, 0.42, 0.22)
 
 
 def ac_outline(v):
-    """Όριο της χαμήλωσης της καναλάτης στα φύλλα ΑΝ-02 / ΑΝ-03 (εκεί οι ζώνες δεν χρωματίζονται): A.AC_OUTLINE = [ορθογώνια]."""
+    """Όριο της χαμήλωσης της καναλάτης στα φύλλα ΑΝ-02 / ΑΝ-03 (εκεί οι ζώνες δεν χρωματίζονται): A.AC_OUTLINE = [ορθογώνια ή
+    ανοιχτές τεθλασμένες [(x, y), …] – ανοιχτή πλευρά = εκεί που η οροφή συνεχίζει στην ίδια στάθμη (Β1 R20: άνοιγμα κουζίνας)]."""
     for r in getattr(A, "AC_OUTLINE", []):
+        if isinstance(r[0], (tuple, list)):
+            for a_, b_ in zip(r, r[1:]):
+                v.line(*a_, *b_, color=AC_EDGE, lw=0.7, dash=[5, 2.5])
+            continue
         v.c.setDash([5, 2.5])
         v.rect(*r, stroke=AC_EDGE, lw=0.7)
         v.c.setDash([])
@@ -636,6 +641,9 @@ def sheet_an02(c, no="ΑΝ-02"):
                       "ΘΕ θυρίδα επίσκεψης τετράγωνη – ΜΟΝΟ στην καναλάτη, στην πλευρά του ηλεκτρικού κουτιού (ιδιοκτήτης 09/11)"))
     if getattr(A, "OUTDOOR", []):
         items.append((lambda c_, x, y: (c_.setStrokeColorRGB(*BLUE), c_.setDash([3, 1.5]), c_.rect(x - 5, y - 3, 10, 6), c_.setDash([])), "εξωτερική μονάδα"))
+    if getattr(A, "LEG_COND", None):         # γραμμή συμπυκνωμάτων με φυσική ροή (Β1 R20 / Δ΄ R09)
+        items.append((lambda c_, x, y: (c_.setStrokeColorRGB(*ORANGE), c_.setLineWidth(0.9), c_.setDash([4, 1.2, 1, 1.2]), c_.line(x - 6, y, x + 6, y),
+                                        c_.setDash([]), c_.setLineWidth(0.5)), A.LEG_COND))
     items.append((lambda c_, x, y: (c_.setStrokeColorRGB(*MAG), c_.rect(x - 3, y - 3, 6, 6)), "Χ κατέβασμα / έξοδος σωληνώσεων – καμία οπή σε σκυρόδεμα"))
     legend(c, items, y=yl)
     title(c, no, "ΑΝΟΨΗ – ΚΛΙΜΑΤΙΣΜΟΣ · ΘΥΡΙΔΕΣ", A.SUB_AN02)
