@@ -8,7 +8,7 @@ def f2(v, d=2):
     return ("%.*f" % (d, v)).replace(".", ",")
 
 
-GROUPS = [("ΤΟΥΒΛΑ", ["T1", "T4", "T4A", "T5", "T10"]), ("ΧΩΡΙΣΜΑΤΑ ΓΥΨΟΣΑΝΙΔΑΣ", ["T2", "T2N", "T2A", "T7", "T7A", "T6", "T6A", "T8"]), ("ΕΠΕΝΔΥΣΕΙΣ", ["T3", "T9"])]
+GROUPS = [("ΤΟΥΒΛΑ", ["T1", "T4", "T4A", "T5", "T10"]), ("ΧΩΡΙΣΜΑΤΑ ΓΥΨΟΣΑΝΙΔΑΣ", ["T2", "T2N", "T2A", "T7", "T7A", "T6", "T6A", "T8"]), ("ΕΠΕΝΔΥΣΕΙΣ", ["T3", "T3A", "T9"])]
 
 
 def floor_table(c, M, left, top, width):
@@ -16,8 +16,11 @@ def floor_table(c, M, left, top, width):
     SH = getattr(M, "SHEET", dict(floor="Β΄ ΟΡΟΦΟΣ – Β1", floor_short="Β΄ ΟΡΟΦΟΥ", apt="Β1"))
     rows = {r["type"]: r for r in Q.per_type(M)}
     mult = getattr(M, "MULT", 1)
-    c.setFont("Inter-Bold", 12); c.setFillColorRGB(*DARK)
-    c.drawString(left, top, SH["floor"] + "  ·  " + M.REV)
+    _ttl = SH["floor"] + "  ·  " + M.REV; _fs = 12.0
+    while c.stringWidth(_ttl, "Inter-Bold", _fs) > width + 6 and _fs > 7:      # R29: ο τίτλος μένει μέσα στη στήλη του ορόφου (του υπογείου έπεφτε πάνω στου ισογείου)
+        _fs -= 0.25
+    c.setFont("Inter-Bold", _fs); c.setFillColorRGB(*DARK)
+    c.drawString(left, top, _ttl)
     c.setFont("Inter", 6.5); c.setFillColorRGB(*GREY)
     c.drawString(left, top - 12, "H = " + f2(M.H) + " m · μήκη στον άξονα, χωρίς αφαίρεση κουφωμάτων" + (" · υπέρθυρα πορτών στο είδος του τοίχου" if width > 440 else ""))
     cols = [("", 22), ("Τύπος", 40), ("Περιγραφή", width - 22 - 40 - 44 - 36 - 52 - 60), ("Πάχος cm", 44), ("Τοίχοι", 36), ("Μήκος m", 52), ("m²", 60)]

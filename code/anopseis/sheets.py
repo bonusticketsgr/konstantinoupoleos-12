@@ -616,6 +616,12 @@ def sheet_an02(c, no="ΑΝ-02"):
         c.setDash([3, 1.5]); v.rect(x0, y0, x1, y1, fill=(0.93, 0.95, 0.99), stroke=BLUE, lw=0.6); c.setDash([])
         lx, ly, lr = od["lab_at"]
         v.text(lx, ly, od["label"], size=4.2, rot=lr, color=BLUE, font="Inter-Medium", bg=True)
+    for g_ in getattr(A, "GULLIES", []):       # R22: σιφώνι εξώστη όπου καταλήγουν τα συμπυκνώματα της καναλάτης
+        gx, gy = g_["at"]
+        v.rect(gx - 0.07, gy - 0.07, gx + 0.07, gy + 0.07, fill=(1, 1, 1), stroke=COLORS["BLUE2"], lw=0.8)
+        v.line(gx - 0.07, gy - 0.07, gx + 0.07, gy + 0.07, color=COLORS["BLUE2"], lw=0.4); v.line(gx - 0.07, gy + 0.07, gx + 0.07, gy - 0.07, color=COLORS["BLUE2"], lw=0.4)
+        lx, ly, anc = g_["lab_at"]
+        v.text(lx, ly, g_["label"], size=4.2, color=COLORS["BLUE2"], font="Inter-Medium", anchor=anc, bg=True)
     for r in A.ROUTES:
         x, y = r["at"]
         X, Y = v.p(x, y)
@@ -664,6 +670,8 @@ def sheet_an02(c, no="ΑΝ-02"):
         items.append((_line_legend(COLORS[col_], dash_, lw_), txt_))
     if getattr(A, "BOXES", []):
         items.append((_sw((0.97, 0.80, 0.90), MAG), A.LEG_BOX))
+    if getattr(A, "LEG_LINING", None):       # R22: επένδυση με κανάλι στον τοίχο της πόρτας εισόδου (τοιχοποιίες Τ3Α)
+        items.append((_sw(A.W.TYPES["T3A"]["fill"], DARK), A.LEG_LINING))
     if getattr(A, "LEG_COND", None):         # γραμμή συμπυκνωμάτων με φυσική ροή (Β1 R20 / Δ΄ R09)
         items.append((lambda c_, x, y: (c_.setStrokeColorRGB(*ORANGE), c_.setLineWidth(0.9), c_.setDash([4, 1.2, 1, 1.2]), c_.line(x - 6, y, x + 6, y),
                                         c_.setDash([]), c_.setLineWidth(0.5)), A.LEG_COND))

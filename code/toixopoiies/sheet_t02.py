@@ -142,7 +142,8 @@ def sheet_t02(c, sheet_no="Τ-02"):
 
 
 # ---------------------------------------------------------------- R25 / Δ R02 (Γιάννης 07/11): ΕΝΑ φύλλο ειδών για όλο το τεύχος
-ALL_ORDER = ["T1", "T4", "T4A", "T5", "T10", "T3", "T9", "T2", "T2N", "T2A", "T7", "T7A", "T6", "T6A", "T8"]
+ALL_ORDER = ["T1", "T4", "T4A", "T5", "T10", "T3", "T3A", "T9", "T2", "T2N", "T2A", "T7", "T7A", "T6", "T6A", "T8"]   # R29: + Τ3Α
+ROWS_16 = [5, 6, 5]     # 16 είδη σε 3 σειρές: τούβλα (5) · επενδύσεις + χωρίσματα (6, στενές τομές) · τοίχοι λεκάνης / κλιμακοστασίου / shaft (5)
 
 
 def card_all(c, x, y, w, h, typ, per_floor, mdf=None):
@@ -166,7 +167,10 @@ def card_all(c, x, y, w, h, typ, per_floor, mdf=None):
     yy = y + 8 + 6.6 * (len(per_floor) + 1) - 2
     if mdf:   # 07/11: εξωτερικό φύλλο MDF προς την κουζίνα
         c.setFont("Inter", 5.4); c.setFillColorRGB(0.55, 0.30, 0.10)
-        c.drawString(x + 8, yy + 12, ("εξωτ. φύλλο MDF προς κουζίνα: " + " · ".join("%s %s %.1f m²" % (a, ids, m) for a, m, ids in mdf)).replace(".", ","))
+        _t = ("εξωτ. φύλλο MDF προς κουζίνα: " + " · ".join("%s %s %.1f m²" % (a, ids, m) for a, m, ids in mdf)).replace(".", ",")
+        _ls = wrap(c, _t, "Inter", 5.4, w - 16)[:2]      # R29: σε στενή κάρτα (σειρά των 6) σπάει σε δύο γραμμές
+        for _i, _l in enumerate(_ls):
+            c.drawString(x + 8, yy + 12 + 6.2 * (len(_ls) - 1 - _i), _l)
     c.setStrokeColorRGB(0.75, 0.75, 0.78); c.line(x + 8, yy + 7, x + w - 8, yy + 7)
     tot_L = tot_A = 0.0
     for apt, L, A in per_floor:
@@ -180,7 +184,7 @@ def card_all(c, x, y, w, h, typ, per_floor, mdf=None):
 
 
 def sheet_t02_all(c, models, sheet_no, rev, date):
-    """Όλα τα είδη του τεύχους σε ΜΙΑ σελίδα (3 × 5 κάρτες), με μήκη / m² ανά όροφο."""
+    """Όλα τα είδη του τεύχους σε ΜΙΑ σελίδα (3 σειρές καρτών – 5 / 6 / 5 με τα 16 είδη), με μήκη / m² ανά όροφο."""
     global M
     rows = {}   # typ → [(apt, L, area)]
     mdf = {}    # typ → [(apt, m² MDF, ids)]
@@ -194,12 +198,19 @@ def sheet_t02_all(c, models, sheet_no, rev, date):
     order = [t for t in ALL_ORDER if t in rows] + sorted(t for t in rows if t not in ALL_ORDER)
     M = models[0]
     m = 20; top = PAGE_H - m - 12; left = m + 10
-    ncol = 5; nrow = (len(order) + ncol - 1) // ncol
-    W = (PAGE_W - 2 * m - 20 - (ncol - 1) * 6) / ncol
+    ncol = 5
+    counts = ROWS_16 if len(order) == 16 else [ncol] * ((len(order) + ncol - 1) // ncol)
+    nrow = len(counts)
     Hc = (top - 106 - (nrow - 1) * 6) / nrow
-    for i, typ in enumerate(order):
-        r, k = divmod(i, ncol)
-        card_all(c, left + k * (W + 6), top - (r + 1) * Hc - r * 6, W, Hc, typ, rows[typ], mdf.get(typ))
+    i = 0
+    for r, n in enumerate(counts):
+        W = (PAGE_W - 2 * m - 20 - (n - 1) * 6) / n
+        for k in range(n):
+            if i >= len(order):
+                break
+            typ = order[i]; i += 1
+            assert M.TYPES[typ]["thick"] * PT_PER_M_4 <= W - 6, "η τομή του %s δεν χωρά στην κάρτα" % typ
+            card_all(c, left + k * (W + 6), top - (r + 1) * Hc - r * 6, W, Hc, typ, rows[typ], mdf.get(typ))
     c.setFont("Inter", 5.6); c.setFillColorRGB(*GREY)
     # R(τελικός έλεγχος 17/11): η υποσημείωση σε δύο γραμμές – σε μία έβγαινε έξω από το πλαίσιο
     c.drawString(left, 104, "Επιφάνειες ενδεικτικές: μήκος × ύψος ορόφου (ισόγειο 3,00 · όροφοι 2,90 · σοφίτα 2,65) – οι τοίχοι ορίζονται μεταξύ ανοιγμάτων, "

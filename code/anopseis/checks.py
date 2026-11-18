@@ -312,13 +312,27 @@ def run():
         if dp.get("tall"):
             if not (A.TALL and TALL.buffer(1e-6).contains(p)): probs.append("εκτός ντουλάπας")
             info.append("μέσα σε ντουλάπα έως οροφή")
+        if dp.get("lining"):        # R22: μέσα στην επένδυση με κανάλι (Τ3Α) του τοίχου της πόρτας εισόδου – δίπλα στη δοκό, όχι κάτω της
+            lin = [w_ for w_ in W.WALLS if w_["type"] == dp["lining"] and Polygon(w_["pts"]).buffer(1e-6).contains(p)]
+            cav = W.TYPES[dp["lining"]]["thick"] - 2 * C["board"]
+            if not lin:
+                probs.append("εκτός επένδυσης %s" % dp["lining"])
+            else:
+                info.append("μέσα στην επένδυση %s" % lin[0]["id"])
+            if dp.get("od"):
+                if dp["od"] > cav + 1e-9: probs.append("ο σωλήνας δεν χωρά στο κενό %d mm" % round(cav * 1000))
+                info.append("κενό %d mm ≥ Ø %d" % (round(cav * 1000), round(dp["od"] * 1000)))
+            if conc.buffer(-0.002).contains(p): probs.append("σε σκυρόδεμα")
+            under = [b[0] for b in A.BEAMS if box(*b[2:]).buffer(-0.002).contains(p)]
+            if under: probs.append("κάτω από " + ", ".join(under))
+            else: info.append("δίπλα στη δοκό, όχι κάτω της")
         if dp.get("wall"):
             if not WALLS_ONLY.buffer(1e-6).contains(p): probs.append("εκτός τοιχοποιίας")
             if conc.buffer(-0.002).contains(p): probs.append("σε σκυρόδεμα")
             under = [b[0] for b in A.BEAMS if box(*b[2:]).buffer(-0.002).contains(p)]
             if under: probs.append("κάτω από " + ", ".join(under))
             info.append("μέσα σε γυψότοιχο")
-        add("ΚΑΤ-%s" % dp["id"], "Κλιματισμός", dp["text"], "κατέβασμα μέσα στον χώρο – όχι κάτω από δοκό, όχι σε σκυρόδεμα · δεν εμποδίζει πόρτα",
+        add("ΚΑΤ-%s" % dp["id"], "Κλιματισμός", dp["text"], "κατέβασμα μέσα σε επένδυση / ντουλάπα – όχι κάτω από δοκό, όχι σε σκυρόδεμα · ο σωλήνας χωρά",
             "; ".join(probs) if probs else " · ".join(info), "ΑΠΟΚΛΙΣΗ" if probs else "OK")
     # καναλάτο σε κάθε δωμάτιο
     for code, room, unit, st in A.ROOM_UNITS:

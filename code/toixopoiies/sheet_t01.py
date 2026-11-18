@@ -527,8 +527,8 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
             cx, cy, rot, L = wall_label_pose(w)
             if w["id"] in M.LABEL_POS:
                 x, y, r, plain = M.LABEL_POS[w["id"]]
-                col = {"T3": (0.30, 0.45, 0.75), "T9": (0.45, 0.40, 0.65)}.get(w["type"], DARK)
-                if plain or w["type"] in ("T3", "T9"):
+                col = {"T3": (0.30, 0.45, 0.75), "T3A": (0.10, 0.50, 0.50), "T9": (0.45, 0.40, 0.65)}.get(w["type"], DARK)
+                if plain or w["type"] in ("T3", "T3A", "T9"):
                     v.text(x, y, w["id"], size=4.2, rot=r, color=col, font="Inter-Medium")
                 else:
                     v.label(x, y, w["id"], rot=r)
