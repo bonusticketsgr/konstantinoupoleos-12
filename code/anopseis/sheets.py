@@ -149,6 +149,23 @@ def ac_outline(v):
         v.c.setDash([])
 
 
+def boxes(v, label=False):
+    """Κανάλια γυψοσανίδας για κατακόρυφους σωλήνες (A.BOXES – Β1 R21: κανάλι γωνίας ΚΓ της ΚΜ1)."""
+    for bx in getattr(A, "BOXES", []):
+        x0, y0, x1, y1 = bx["rect"]
+        v.rect(x0, y0, x1, y1, fill=(0.97, 0.80, 0.90), stroke=MAG, lw=0.9)
+        if label and bx.get("lab_at"):
+            lx, ly, anc = bx["lab_at"]
+            v.line((x0 + x1) / 2 if anc == "c" else (x1 if anc == "l" else x0), (y0 + y1) / 2, lx - (0.04 if anc == "l" else -0.04 if anc == "r" else 0), ly, color=GREY, lw=0.35)
+            v.text(lx, ly, "%s %s %s" % (bx["id"], bx.get("short", "κανάλι γωνίας"), bx["size"]), size=4.2, color=MAG, font="Inter-SemiBold", anchor=anc, bg=True)
+
+
+def _line_legend(col, dash, lw):
+    def f(c_, x, y):
+        c_.setStrokeColorRGB(*col); c_.setLineWidth(lw); c_.setDash(dash or [4, 1.2, 1, 1.2]); c_.line(x - 7, y, x + 7, y); c_.setDash([]); c_.setLineWidth(0.5)
+    return f
+
+
 def _ac_legend(c_, x, y):
     c_.setStrokeColorRGB(*AC_EDGE); c_.setLineWidth(0.7); c_.setDash([5, 2.5]); c_.rect(x - 5, y - 3, 10, 6); c_.setDash([]); c_.setLineWidth(0.5)
 
@@ -415,6 +432,7 @@ def sheet_an01(c, no="ΑΝ-01"):
             v.rect(*cu["rect"], fill=POCKET_F)
     slope_lines(v, labels=False)
     plan(v)
+    boxes(v, label=True)
     wall_unit_block(v)
     roof_hatch(v)
     tall_marks(v)
@@ -499,6 +517,7 @@ def sheet_an02(c, no="ΑΝ-02"):
     clip_on(c)
     zones_fill(v, colored=False)
     plan(v)
+    boxes(v)
     wall_unit_block(v, detailed=True)
     tall_marks(v)
     ac_outline(v)
@@ -607,7 +626,7 @@ def sheet_an02(c, no="ΑΝ-02"):
     for rd in A.REFR_DRAW:
         col = COLORS[rd.get("color", "MAG")]
         for (a, b) in zip(rd["pts"], rd["pts"][1:]):
-            v.line(*a, *b, color=col, lw=rd.get("lw", 0.9), dash=[4, 1.2, 1, 1.2])
+            v.line(*a, *b, color=col, lw=rd.get("lw", 0.9), dash=rd.get("dash") or [4, 1.2, 1, 1.2])      # dash: όδευση μέσα στο γέμισμα δαπέδου (R21)
     for a_, b_ in getattr(A, "LEADERS_AN02", []):      # οδηγοί ετικετών
         v.line(*a_, *b_, color=GREY, lw=0.35)
     texts(v, getattr(A, "TEXTS_AN02", []))
@@ -641,6 +660,10 @@ def sheet_an02(c, no="ΑΝ-02"):
                       "ΘΕ θυρίδα επίσκεψης τετράγωνη – ΜΟΝΟ στην καναλάτη, στην πλευρά του ηλεκτρικού κουτιού (ιδιοκτήτης 09/11)"))
     if getattr(A, "OUTDOOR", []):
         items.append((lambda c_, x, y: (c_.setStrokeColorRGB(*BLUE), c_.setDash([3, 1.5]), c_.rect(x - 5, y - 3, 10, 6), c_.setDash([])), "εξωτερική μονάδα"))
+    for col_, dash_, lw_, txt_ in getattr(A, "LEG_LINES", []):      # οδεύσεις σωλήνων: στην ψευδοροφή / στο γέμισμα δαπέδου (R21)
+        items.append((_line_legend(COLORS[col_], dash_, lw_), txt_))
+    if getattr(A, "BOXES", []):
+        items.append((_sw((0.97, 0.80, 0.90), MAG), A.LEG_BOX))
     if getattr(A, "LEG_COND", None):         # γραμμή συμπυκνωμάτων με φυσική ροή (Β1 R20 / Δ΄ R09)
         items.append((lambda c_, x, y: (c_.setStrokeColorRGB(*ORANGE), c_.setLineWidth(0.9), c_.setDash([4, 1.2, 1, 1.2]), c_.line(x - 6, y, x + 6, y),
                                         c_.setDash([]), c_.setLineWidth(0.5)), A.LEG_COND))
@@ -668,6 +691,7 @@ def sheet_an03(c, no="ΑΝ-03"):
     zones_fill(v, colored=False)
     slope_lines(v, labels=False)
     plan(v)
+    boxes(v)
     wall_unit_block(v)
     roof_hatch(v)
     cables(v)
@@ -822,6 +846,11 @@ def sheet_an04(c, no="ΑΝ-04"):
     for code, kind, txt in A.OPEN:
         ol.append(("%s [%s] %s" % (code, kind, txt), RED if kind == "ΑΠΟΦΑΣΗ" else DARK))
     y = block(c, x, y, w, "ΑΝΟΙΚΤΑ ΣΗΜΕΙΑ", ol, size=getattr(A, "AN04_OPEN_SIZE", fs))
+    for head in (getattr(A, "APPROVED_TITLE", ""), A.CHANGES_TITLE):      # οι τίτλοι των μπλοκ δεν πρέπει να φτάνουν στον πίνακα ελέγχων (x 420)
+        if pdfmetrics.stringWidth(head, "Inter-Bold", 7.4) > 381:
+            raise SystemExit("ΑΝ-04 %s: ο τίτλος «%s…» πέφτει πάνω στον πίνακα ελέγχων – συντόμευσέ τον" % (A.REV, head[:40]))
+    if y < 96:                                   # η αριστερή στήλη δεν πρέπει να μπαίνει στην πινακίδα (άνω ακμή της στο y 92)
+        raise SystemExit("ΑΝ-04 %s: τα κείμενα της αριστερής στήλης ξεπερνούν το φύλλο κατά %.0f pt – συντόμευσε APPROVED / CHANGES / OPEN" % (A.REV, 96 - y))
     # ---- δεξιά: πίνακας ελέγχων σε 2 στήλες
     X0, Y0 = 420, 805
     c.setFont("Inter-Bold", 9); c.setFillColorRGB(*DARK)

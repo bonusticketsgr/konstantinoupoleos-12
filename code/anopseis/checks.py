@@ -235,6 +235,18 @@ def run():
         x0, y0, x1, y1 = u["rect"]
         z_unit = min(slab_at(zu, x, y) for x in (x0, x1) for y in (y0, y1)) - A.HANG - u["hmax"]      # κάτω πλευρά της μονάδας (κρεμασμένη ψηλά)
         route = LineString(dr["pts"])
+        if not dr.get("beam"):          # R21: όδευση ΧΩΡΙΣ δοκό στη διαδρομή – μονάδα → κατέβασμα μέσα στο ίδιο κενό
+            r = dr["od"] / 2
+            ze = zone_at(*dr["pts"][-1])
+            z_drop = ze["level"] + C["board"] + r                       # στο σημείο καθόδου ο σωλήνας πατά στη γυψοσανίδα
+            z_req = z_drop + dr["slope_min"] * route.length             # ελάχιστη στάθμη εξόδου της μονάδας (άξονας)
+            marg = z_unit - z_req
+            add(dr["id"], "Κλιματισμός", dr["text"],
+                "κλίση ≥ %g %% ως την κάθοδο · έξοδος μονάδας πάνω από την απαιτούμενη στάθμη" % (dr["slope_min"] * 100),
+                "μήκος %s m · έξοδος ≥ %s (κάτω πλευρά μονάδας %s) · περιθώριο %d mm"
+                % (("%.2f" % route.length).replace(".", ","), L(math.ceil(z_req * 100 - 1e-6) / 100.0), L(math.floor(z_unit * 100 + 1e-6) / 100.0),
+                   round(marg * 1000)), "OK" if marg > 0.010 else ("ΟΡΙΑΚΟ" if marg >= -1e-9 else "ΑΠΟΚΛΙΣΗ"))
+            continue
         bname, bsec, bx0, by0, bx1, by1 = [b for b in A.BEAMS if b[0] == dr["beam"]][0]
         inter = route.intersection(box(bx0, by0, bx1, by1))
         segs = list(inter.geoms) if hasattr(inter, "geoms") else [inter]
@@ -254,6 +266,60 @@ def run():
             "έξοδος ≥ %s (κάτω πλευρά μονάδας %s) · κάτω από τη %s άξονας ≤ %s · ως την κάθοδο έως %s %%"
             % (L(math.ceil(z_req * 100 - 1e-6) / 100.0), L(math.floor(z_unit * 100 + 1e-6) / 100.0), bname,
                ("%+.3f" % z_cross).replace(".", ","), ("%.1f" % (s2 * 100)).replace(".", ",")), st)
+    # R21 (ιδιοκτήτης 18/11/2026: «μην θεωρήσεις ότι θα περάσεις κάτω από δοκάρια»): οι οδεύσεις σωλήνων μέσα στην ψευδοροφή δεν τέμνουν δοκό
+    for nb in getattr(A, "NO_BEAM", []):
+        route = LineString(nb["pts"])
+        hit = [b[0] for b in A.BEAMS if route.intersection(box(*b[2:]).buffer(-0.002)).length > 0.005]
+        add(nb["id"], "Κλιματισμός", nb["text"], "καμία διέλευση κάτω από δοκό (ιδιοκτήτης 18/11)",
+            ("περνά κάτω από: " + ", ".join(hit)) if hit else "μήκος %s m · καμία δοκός στη διαδρομή" % ("%.2f" % route.length).replace(".", ","),
+            "ΑΠΟΚΛΙΣΗ" if hit else "OK")
+    # οδεύσεις μέσα στο γέμισμα δαπέδου: όχι μέσα από σκυρόδεμα · χωρούν στο ωφέλιμο γέμισμα (γέμισμα − επικάλυψη) · συμπυκνώματα: Ø + κλίση × μήκος
+    conc = unary_union([Polygon(p) for p in W.COLS] + [Polygon(p) for p in getattr(W, "COLS2", [])])
+    for fr in getattr(A, "FLOOR_RUNS", []):
+        route = LineString(fr["pts"])
+        usable = fr["fill"] - fr["cover"]
+        need = fr["od"] + (fr["slope"] * route.length if fr["kind"] == "cond" else 0)
+        marg = usable - need
+        probs = []
+        if route.intersection(conc.buffer(-0.002)).length > 0.005:
+            probs.append("περνά μέσα από σκυρόδεμα")
+        if marg < -1e-9:
+            probs.append("δεν χωρά στο γέμισμα")
+        if fr["kind"] == "cond":
+            val = "%s m × %g %% + %s = %s cm ≤ %d cm ωφέλιμα · ροή στο τέλος %s" % (
+                ("%.2f" % route.length).replace(".", ","), fr["slope"] * 100, fr["pipe_txt"], ("%.1f" % (need * 100)).replace(".", ","),
+                round(usable * 100), ("%+.3f" % -(fr["cover"] + need)).replace(".", ","))
+        else:
+            val = "%s m · %s ≤ %d cm ωφέλιμα · χωρίς ενώσεις, σε σπιράλ" % (("%.2f" % route.length).replace(".", ","), fr["pipe_txt"], round(usable * 100))
+        add(fr["id"], "Κλιματισμός", fr["text"], "όχι μέσα από σκυρόδεμα · χωρά στο γέμισμα %d cm (επικάλυψη ≥ %d cm)" % (round(fr["fill"] * 100), round(fr["cover"] * 100)),
+            "; ".join(probs) if probs else val, "ΑΠΟΚΛΙΣΗ" if probs else ("OK" if marg > 0.010 - 1e-9 else "ΟΡΙΑΚΟ"))
+    # κατακόρυφα κατεβάσματα: μέσα σε κανάλι γυψοσανίδας μέσα στον χώρο (όχι κάτω από δοκό / σε σκυρόδεμα / πάνω σε τοίχο) ή μέσα σε ντουλάπα έως οροφή
+    for dp in getattr(A, "DROPS", []):
+        p = Point(*dp["at"])
+        probs, info = [], []
+        if dp.get("box"):
+            g = _box(dp["box"])
+            if not g.buffer(1e-6).contains(p): probs.append("ο σωλήνας εκτός καναλιού")
+            if g.intersection(conc).area > 1e-5: probs.append("πάνω σε σκυρόδεμα")
+            if g.intersection(WALLS_ONLY).area > 1e-5: probs.append("πάνω σε τοίχο")
+            under = [b[0] for b in A.BEAMS if g.intersection(box(*b[2:])).area > 1e-5]
+            if under: probs.append("κάτω από " + ", ".join(under))
+            info.append("κανάλι %d × %s cm" % (round((dp["box"][2] - dp["box"][0]) * 100), ("%.1f" % ((dp["box"][3] - dp["box"][1]) * 100)).replace(".", ",")))
+            if dp.get("door"):
+                d = LineString(dp["door"]).distance(g)
+                info.append("ανοιχτό φύλλο πόρτας %s cm" % ("%.1f" % (d * 100)).replace(".", ","))
+                if d < 0.05 - 1e-9: probs.append("εμποδίζει το φύλλο της πόρτας")
+        if dp.get("tall"):
+            if not (A.TALL and TALL.buffer(1e-6).contains(p)): probs.append("εκτός ντουλάπας")
+            info.append("μέσα σε ντουλάπα έως οροφή")
+        if dp.get("wall"):
+            if not WALLS_ONLY.buffer(1e-6).contains(p): probs.append("εκτός τοιχοποιίας")
+            if conc.buffer(-0.002).contains(p): probs.append("σε σκυρόδεμα")
+            under = [b[0] for b in A.BEAMS if box(*b[2:]).buffer(-0.002).contains(p)]
+            if under: probs.append("κάτω από " + ", ".join(under))
+            info.append("μέσα σε γυψότοιχο")
+        add("ΚΑΤ-%s" % dp["id"], "Κλιματισμός", dp["text"], "κατέβασμα μέσα στον χώρο – όχι κάτω από δοκό, όχι σε σκυρόδεμα · δεν εμποδίζει πόρτα",
+            "; ".join(probs) if probs else " · ".join(info), "ΑΠΟΚΛΙΣΗ" if probs else "OK")
     # καναλάτο σε κάθε δωμάτιο
     for code, room, unit, st in A.ROOM_UNITS:
         add("ΚΔ-%s" % code, "Κλιματισμός", room, "μία καναλάτη ανά δωμάτιο", unit, st)

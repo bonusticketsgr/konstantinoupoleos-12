@@ -215,7 +215,9 @@ def frame_and_title(c, sheet_no, theme, sub1, sub2, base, scale_txt, rev, date):
     xs = [m, 425, 725, 1000, PAGE_W - m]
     for x in xs[1:-1]:
         c.line(x, y0, x, y0 + hgt)
-    def t(x, y, s, font="Inter", size=8, color=DARK):
+    def t(x, y, s, font="Inter", size=8, color=DARK, maxw=None):
+        while maxw and size > 5.5 and c.stringWidth(s, font, size) > maxw:      # το κείμενο μένει μέσα στο κελί του (μικρότερα γράμματα αν χρειαστεί)
+            size -= 0.25
         c.setFont(font, size); c.setFillColorRGB(*color); c.drawString(x, y, s)
     top = y0 + hgt - 14
     t(xs[0] + 10, top, "ΕΡΓΟ", "Inter-Medium", 6.5, GREY)
@@ -223,9 +225,10 @@ def frame_and_title(c, sheet_no, theme, sub1, sub2, base, scale_txt, rev, date):
     t(xs[0] + 10, top - 28, "Κωνσταντινουπόλεως 12 & Αγ. Βαρβάρας · Ο.Τ. 103-15", "Inter", 8)
     t(xs[0] + 10, top - 40, "Εργοδότης: INTERKAT Α.Ε. · Κατασκευή: ARKAD Ι.Κ.Ε.", "Inter", 8)
     t(xs[1] + 10, top, "ΘΕΜΑ ΣΧΕΔΙΟΥ", "Inter-Medium", 6.5, GREY)
-    t(xs[1] + 10, top - 18, theme, "Inter-Bold", 11)
-    t(xs[1] + 10, top - 31, sub1, "Inter-Medium", 7.5)
-    t(xs[1] + 10, top - 42, sub2, "Inter-Medium", 7.5)
+    cw = xs[2] - xs[1] - 18                          # ωφέλιμο πλάτος του κελιού «ΘΕΜΑ ΣΧΕΔΙΟΥ»
+    t(xs[1] + 10, top - 18, theme, "Inter-Bold", 11, maxw=cw)
+    t(xs[1] + 10, top - 31, sub1, "Inter-Medium", 7.5, maxw=cw)
+    t(xs[1] + 10, top - 42, sub2, "Inter-Medium", 7.5, maxw=cw)
     t(xs[2] + 10, top, "ΒΑΣΗ", "Inter-Medium", 6.5, GREY)
     # η «Βάση» αναδιπλώνεται μέσα στο κελί της (μακριά κείμενα έμπαιναν στο κελί του αριθμού σχεδίου – τελικός έλεγχος 17/11)
     bl, cur = [], ""

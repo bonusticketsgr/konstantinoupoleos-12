@@ -75,6 +75,8 @@ def cands(A):
     for w in getattr(A, "WALL_LIGHTS", []): pt(w[2], w[3], w[0])
     for sb in getattr(A, "STUBS", []): pt(*sb["at"], sb["id"])
     for b in A.BEAMS: rect(b[2:], b[0])
+    for bx in getattr(A, "BOXES", []): rect(bx["rect"], bx["id"])
+    for od in getattr(A, "OUTDOOR", []): rect(od["rect"], "εξωτερική μονάδα")
     return out
 
 
