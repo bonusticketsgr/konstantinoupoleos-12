@@ -1,6 +1,4 @@
-"""Σχεδιασμένα φύλλα χωρίς κάτοψη: ΗΛ-10 μονογραμμικό σχέδιο και όψη του πίνακα «ΓΠ» · ΗΛ-16 λεπτομέρειες
-(τομή διέλευσης δοκού ΔΠ · ο πίνακας στον τοίχο των 70 cm σε κάτοψη και όψη · ύψη τοποθέτησης · πίνακες διελεύσεων και οδεύσεων).
-Όλη η γεωμετρία / τα κυκλώματα από τα μοντέλα (b1_el.py · τοιχοποιίες · ανόψεις)."""
+"""Μονογραμμικό σχέδιο του πίνακα (με την όψη του) και βοηθητικά τομών (κλάση Sec) για τα φύλλα της ηλεκτρολογικής μελέτης."""
 import math
 import el_draw as D
 from el_draw import P, INK, MUTE, FAINT, PAGE_W, PAGE_H, SW, wrap, PWR, LGT, SWC, DAT, FIR, HVC, AUT, FEED
@@ -63,7 +61,7 @@ def _breaker(xc, ytop, label, col=INK, rcbo=False, dash=None, w=19.0, h=13.0):
 
 
 def sheet_10(no="ΗΛ-10"):
-    y = DC.title("ΜΟΝΟΓΡΑΜΜΙΚΟ ΣΧΕΔΙΟ ΓΕΝΙΚΟΥ ΠΙΝΑΚΑ ΔΙΑΜΕΡΙΣΜΑΤΟΣ «ΓΠ»", "τριφασική παροχή 3 × 35 A · 400 / 230 V · %d κυκλώματα + %d εφεδρικά + πρόβλεψη φόρτισης οχήματος" % (len(M.CIRCUITS) - 1, M.SPARE_MCB))
+    y = DC.title("ΜΟΝΟΓΡΑΜΜΙΚΟ ΣΧΕΔΙΟ ΓΕΝΙΚΟΥ ΠΙΝΑΚΑ «ΓΠ» – ΔΙΑΤΑΞΗ ΠΙΝΑΚΑ", "τριφασική παροχή 3 × 35 A · 400 / 230 V · %d κυκλώματα + %d εφεδρικά" % (len(M.CIRCUITS), M.SPARE_MCB))
     c = C()
     cc = {q["id"]: q for q in M.CIRCUITS}
     groups = []
@@ -124,12 +122,14 @@ def sheet_10(no="ΗΛ-10"):
         for xc, cid in zip(xs, ids):
             q = cc.get(cid)
             if gid == "EV":
-                ln(xc, yb, xc, ys - 8, col=MUTE, lw=0.9, dash=[2.5, 2])
-                _breaker(xc, ys - 8, "ΔΔΡ B", col=MUTE, dash=[2, 1.5], w=24)
-                ln(xc, ys - 21, xc, ys - 29, col=MUTE, lw=0.9, dash=[2.5, 2])
-                vtext(xc - 1, ytx, "EV · 3Φ · %s  –  ΠΡΟΒΛΕΨΗ" % q["cable"], font="Inter-Bold", size=5.9, color=MUTE)
-                vtext(xc + 6, ytx, "φόρτιση οχήματος: σωλήνας Ø32 ως το shaft", size=5.5, color=MUTE)
-                vtext(xc + 12.5, ytx, "+ 8 δεσμευμένα στοιχεία στον πίνακα", size=5.5, color=MUTE)
+                ln(xc, yb, xc, ys + 22, col=INK, lw=0.9)
+                _breaker(xc, ys + 22, "ΔΔΡ EV", col=RCDC, w=30)
+                ln(xc, ys + 9, xc, ys - 8, col=INK, lw=0.9)
+                _breaker(xc, ys - 8, "C20·4P", col=INK, w=30)
+                ln(xc, ys - 21, xc, ys - 27, lw=0.9)
+                vtext(xc - 1, ytx, "EV · 3Φ · %s" % q["cable"], font="Inter-Bold", size=5.9)
+                vtext(xc + 6, ytx, "φόρτιση οχήματος 11 kW με διαχείριση φορτίου", size=5.5)
+                vtext(xc + 12.5, ytx, "ΔΔΡ 4P 40 A / 30 mA τύπου A-EV · μέσω shaft", size=5.5)
                 continue
             if q is None:                                  # εφεδρικός
                 ln(xc, ys, xc, ys - 8, col=MUTE, lw=0.8)
@@ -161,7 +161,7 @@ def sheet_10(no="ΗΛ-10"):
     px0 = X0 + 14; py = yy - 6
     box(px0 - 8, py - 5 * rh - 4 * rg - 8, 18 * mw + 16, 5 * rh + 4 * rg + 16, fill=(0.97, 0.97, 0.98), stroke=INK, lw=1.0)
     KCOL = {"main": ((0.25, 0.25, 0.28), (1, 1, 1)), "rcd": (tint(RCDC, 0.75), RCDC), "mcb": ((1, 1, 1), INK), "rcbo": (tint(RCBOC, 0.78), RCBOC),
-            "ev": ((0.93, 0.93, 0.94), MUTE), "free": (None, MUTE)}
+            "free": (None, MUTE)}
     for ri, row in enumerate(M.PANEL_ROWS):
         ry = py - ri * (rh + rg) - rh
         txt(px0 - 11.5, ry + rh / 2 - 2, "%d" % (ri + 1), size=5.6, color=MUTE, anchor="r")
@@ -185,8 +185,8 @@ def sheet_10(no="ΗΛ-10"):
             xx += w_
     pb = py - 5 * rh - 4 * rg - 8
     used = M.modules_used(); tot = M.PANEL["rows"] * M.PANEL["per_row"]
-    txt(X0, pb - 10, "Σε χρήση %d στοιχεία · δεσμευμένα για φόρτιση οχήματος %d · ελεύθερα %d  (σύνολο %d)" % (used, M.EV_RESERVED, tot - used - M.EV_RESERVED, tot), size=5.9, font="Inter-SemiBold")
-    txt(X0, pb - 18, "Κουτί ≈ 52 × 93 × 10,5 cm · κάτω άκρο +1,02 · πάνω άκρο +1,95 · στον τοίχο Τ2N-02 του χωλ (ΗΛ-16).", size=5.7, color=MUTE)
+    txt(X0, pb - 10, "Σε χρήση %d στοιχεία (με τη φόρτιση οχήματος) · ελεύθερα %d · σύνολο %d" % (used, tot - used, tot), size=5.9, font="Inter-SemiBold")
+    txt(X0, pb - 18, "Άνοιγμα ≈ 52 × 93 cm · βάθος εντοιχισμού ≤ 7 cm · +1,02 … +1,95 · στο μάγουλο της ντουλάπας του χωλ.", size=5.7, color=MUTE)
     assert pb - 20 > YB, "ΗΛ-10: η όψη του πίνακα δεν χωρά"
     # λογική
     xm = X0 + 300; wm = 420
@@ -195,13 +195,13 @@ def sheet_10(no="ΗΛ-10"):
     B = dict(bullet="•", size=6.7)
     f.p("Τρεις ομάδες διαφορικής προστασίας ανά χρήση – φωτισμός, ρευματοδότες, κουζίνα / πλυντήρια: μια διαρροή σε συσκευή δεν σβήνει τα φώτα και δεν ρίχνει όλο το σπίτι "
         "(η μελέτη αδείας είχε δύο).", bold="Διαχωρισμός.", **B)
-    f.p("Ψυγείο, ερμάριο ασθενών (internet), αντλία θερμότητας, κλιματισμός, boiler, εξώστες και αποθήκη έχουν δικό τους ΔΔΡ με μικροαυτόματο: δεν πέφτουν από διαρροή "
+    f.p("Ψυγείο, κέντρο ασθενών (internet), αντλία θερμότητας, κλιματισμός, boiler, εξώστες και αποθήκη έχουν δικό τους ΔΔΡ με μικροαυτόματο: δεν πέφτουν από διαρροή "
         "άλλου κυκλώματος – ούτε ρίχνουν άλλα (π.χ. υγρασία σε ρευματοδότη εξώστη).", bold="Ατομικά ΔΔΡ.", **B)
-    f.p("Τύπου A παντού (ηλεκτρονικά φορτία)· τύπου F στα μηχανήματα με inverter. Οριστικά κατά το φύλλο του κατασκευαστή κάθε μηχανήματος (Ε10).", bold="Τύποι ΔΔΡ.", **B)
+    f.p("Τύπου A παντού (ηλεκτρονικά φορτία)· τύπου F στα μηχανήματα με inverter. Οριστικά κατά το φύλλο του κατασκευαστή κάθε μηχανήματος (Ε9).", bold="Τύποι ΔΔΡ.", **B)
     f.p("Αμέσως μετά τον γενικό διακόπτη· προστατεύει αντλία, inverter, δίκτυο, τροφοδοτικά LED.", bold="Απαγωγός υπερτάσεων.", **B)
     f.p("Οι εστίες τριφασικές, τα δύο μηχανήματα του εξώστη σε διαφορετικές φάσεις, ο boiler στην τρίτη: άθροισμα αιχμών %s / %s / %s kW." % tuple(fz(v, 1) for v in CK.phases().values()),
         bold="Ισοζύγιο φάσεων.", **B)
-    f.p("Όταν εγκατασταθεί φορτιστής 11 kW, μπαίνει με δικό του ΔΔΡ τύπου B (ή A-EV) και με διαχείριση φορτίου, γιατί μαζί με το σπίτι ξεπερνά τα 3 × 35 A.", bold="Φόρτιση οχήματος.", **B)
+    f.p("Γραμμή 5×6 ως τη θέση στάθμευσης, δικό της ΔΔΡ τύπου A-EV (ή B). Ο φορτιστής 11 kW με ΔΙΑΧΕΙΡΙΣΗ ΦΟΡΤΙΟΥ: μετρά το ρεύμα της παροχής και φορτίζει με ό,τι περισσεύει από τα 3 × 35 A.", bold="Φόρτιση οχήματος.", **B)
     f.p("Ο πίνακας συναγερμού – πυρανίχνευσης έχει δικούς του συσσωρευτές (24 h)· το κέντρο ζωνών της ενδοδαπέδιας έχει δικό του κύκλωμα (ΕΝ).", bold="Ασφάλεια.", **B)
     # υπόμνημα + ισοζύγιο
     xr = xm + wm + 24; wr = X1 - xr
@@ -217,15 +217,15 @@ def sheet_10(no="ΗΛ-10"):
     leg(lambda x_, y_: _breaker(x_, y_, "B10"), "Μικροαυτόματος: καμπύλη και ονομαστικό ρεύμα (B10 = καμπύλη B, 10 A)")
     leg(lambda x_, y_: _breaker(x_, y_, "C25", col=RCBOC, rcbo=True), "ΔΔΡ με μικροαυτόματο 1P+N, 30 mA (το γράμμα δίπλα = τύπος A ή F)")
     leg(lambda x_, y_: box(x_ - 12, y_ - 13, 24, 13, fill=tint(RCDC), stroke=RCDC, lw=1.0), "Διακόπτης διαρροής ομάδας 4P 40 A / 30 mA τύπου A")
-    leg(lambda x_, y_: _breaker(x_, y_, "B10", col=MUTE), "Εφεδρικός μικροαυτόματος / πρόβλεψη (γκρι)")
+    leg(lambda x_, y_: _breaker(x_, y_, "B10", col=MUTE), "Εφεδρικός μικροαυτόματος (γκρι)")
     g.y = yy - 2
     g.h("ΚΑΛΩΔΙΟ ΑΝΑ ΚΥΚΛΩΜΑ")
-    g.p("Το κείμενο κάτω από κάθε μικροαυτόματο: κωδικός · φάση · καλώδιο (αγωγοί × mm²) και τι τροφοδοτεί. Φορτία, μήκη και πτώση τάσης: ΗΛ-11. "
-        "Οδεύσεις: ΗΛ-05. Οι κωδικοί γράφονται στις ετικέτες του πίνακα και στα άκρα των καλωδίων.", size=6.0)
-    DC.finish(no, "ΜΟΝΟΓΡΑΜΜΙΚΟ ΣΧΕΔΙΟ ΠΙΝΑΚΑ", "Γενικός πίνακας «ΓΠ» · διάταξη στοιχείων · λογική προστασιών")
+    g.p("Το κείμενο κάτω από κάθε μικροαυτόματο: κωδικός · φάση · καλώδιο (αγωγοί × mm²) και τι τροφοδοτεί. Φορτία, μήκη και πτώση τάσης: ΗΛ-10. "
+        "Περάσματα καλωδίων: ΗΛ-06. Οι κωδικοί γράφονται στις ετικέτες του πίνακα και στα άκρα των καλωδίων.", size=6.0)
+    DC.finish(no, "ΜΟΝΟΓΡΑΜΜΙΚΟ ΣΧΕΔΙΟ – ΟΨΗ ΠΙΝΑΚΑ", "Γενικός πίνακας «ΓΠ» · διάταξη στοιχείων · λογική προστασιών")
 
 
-# ================================================================ ΗΛ-16 ΛΕΠΤΟΜΕΡΕΙΕΣ
+# ================================================================ τομές
 class Sec:
     """Τομή: οριζόντια συντεταγμένη h (m) → δεξιά, στάθμη z (m από το τελικό δάπεδο) → πάνω."""
     def __init__(self, ox, oy, s, h0, z0):
@@ -262,227 +262,3 @@ class Sec:
         for yv in (y0, y1):
             ln(x0 - 2, yv - 2, x0 + 2, yv + 2, lw=0.6)
         c = C(); c.saveState(); c.translate(x0 - 2.5, (y0 + y1) / 2); c.rotate(90); c.setFont("Inter-SemiBold", 5.6); c.setFillColorRGB(*INK); c.drawCentredString(0, 0, s); c.restoreState()
-
-
-def _cap(x, y, s, sub=None):
-    txt(x, y, s, size=7.6, font="Inter-Bold")
-    w = SW(s, "Inter-Bold", 7.6); ln(x, y - 3, x + w, y - 3, lw=0.9)
-    if sub:
-        txt(x + w + 8, y, sub, size=6.0, color=MUTE)
-
-
-def det_crossing(x, ytop):
-    """Τομή Β–Ν μέσα από τη διέλευση ΔΠ1 πάνω από τη Δ3.1 (βλέπουμε προς ανατολή), 1:10."""
-    _cap(x, ytop, "1 · ΔΙΕΛΕΥΣΗ ΔΟΚΟΥ «ΔΠ» – ΤΟΜΗ ΣΤΗ ΔΠ1 ΠΑΝΩ ΑΠΟ ΤΗ Δ3.1", "1:10 · βλέπουμε προς ανατολή")
-    bm = [b for b in A.BEAMS if b[0] == "Δ3.1"][0]
-    y0b, y1b = bm[3], bm[5]
-    zt = A.TOP_SLAB; zb = A.beam_soffit(bm[1]); hs = 0.20
-    S = 72 / 25.4 * 1000 / 10
-    h0, z0 = 4.18, 2.24
-    s = Sec(x + 6, ytop - 268, S, h0, z0)
-    hN, hS = 4.20, 5.62
-    s.rect(hN, zt - hs, hS, zt, fill=CONC, stroke=INK, lw=0.8)                       # πλάκα
-    s.rect(y0b, zb, y1b, zt, fill=CONC, stroke=INK, lw=0.8)                          # δοκός
-    s.text((y0b + y1b) / 2, zb + 0.10, "Δ3.1", size=6.4, font="Inter-Bold", color=(1, 1, 1), anchor="c")
-    s.text((y0b + y1b) / 2, zb + 0.055, "30 / 50", size=5.6, color=(1, 1, 1), anchor="c")
-    s.text(hN + 0.04, zt - 0.06, "πλάκα οροφής", size=5.6, color=(1, 1, 1))
-    wl = [w for w in W.WALLS if w["id"] == "T2N-01"][0]; wb = G.bbox(wl["pts"])
-    s.rect(wb[1], z0, wb[3], zb, fill=GYP, stroke=INK, lw=0.6)                       # τοίχος κάτω από τη δοκό (πλάτη ντουλάπας)
-    lvH, lvL = 2.70, 2.68
-    s.rect(hN, lvH - 0.0125, y0b, lvH, fill=GYP, stroke=INK, lw=0.5)                 # ψευδοροφή χωλ / ΤΝ
-    s.rect(y1b, lvL - 0.0125, hS, lvL, fill=GYP, stroke=INK, lw=0.5)                 # ψευδοροφή καθιστικού
-    # σπιράλ: από το κενό του χωλ → μέσα στην πλάκα → πάνω από τη δοκό → κενό καθιστικού
-    zc = zt - hs / 2
-    pts = [(hN + 0.02, 2.745), (4.42, 2.745), (4.50, 2.80), (4.56, zc), (5.44, zc), (5.50, 2.80), (5.56, 2.735), (hS - 0.02, 2.735)]
-    c = C(); c.setStrokeColorRGB(*SLABC); c.setLineWidth(0.025 * S); c.setLineCap(1); c.setLineJoin(1)
-    p = c.beginPath(); p.moveTo(*s.p(*pts[0]))
-    for q in pts[1:]:
-        p.lineTo(*s.p(*q))
-    c.drawPath(p, stroke=1, fill=0); c.setLineCap(0); c.setLineJoin(0)
-    c.setStrokeColorRGB(1, 1, 1); c.setLineWidth(0.6); c.setDash([4, 3])
-    p = c.beginPath(); p.moveTo(*s.p(*pts[0]))
-    for q in pts[1:]:
-        p.lineTo(*s.p(*q))
-    c.drawPath(p, stroke=1, fill=0); c.setDash([])
-    # οπλισμοί (σχηματικά)
-    for zz in (zt - 0.03, zt - hs + 0.03):
-        s.line(hN + 0.01, zz, hS - 0.01, zz, col=(0.25, 0.25, 0.28), lw=0.5, dash=[5, 2])
-    # χώροι
-    s.text(4.50, 2.58, "ΧΩΛ – τεχνική ντουλάπα ΤΝ", size=6.0, font="Inter-SemiBold", color=MUTE, anchor="c")
-    s.text(4.50, 2.54, "(πάνω από τον πίνακα)", size=5.5, color=MUTE, anchor="c")
-    s.text(5.40, 2.56, "ΚΑΘΙΣΤΙΚΟ", size=6.0, font="Inter-SemiBold", color=MUTE, anchor="c")
-    s.text(wb[3] + 0.015, 2.34, "τοίχος Τ2N-01", size=5.4, color=MUTE)
-    s.text(wb[3] + 0.015, 2.30, "κάτω από τη δοκό", size=5.4, color=MUTE)
-    # στάθμες
-    s.level(hS, zt, "+%s άνω πλάκα" % fz(zt, 2)); s.level(hS, zt - hs, "+%s κάτω πλάκα" % fz(zt - hs, 2)); s.level(hS, lvL, "+%s ψευδοροφή" % fz(lvL, 2))
-    s.text(hN + 0.03, lvH - 0.045, "ψευδοροφή +%s" % fz(lvH, 2), size=5.6, font="Inter-SemiBold")
-    s.text(y0b - 0.02, zb - 0.035, "κάτω παρειά δοκού +%s" % fz(zb, 2), size=5.6, font="Inter-SemiBold", anchor="r")
-    s.dimh(y1b, 5.50, zt, "≥ 30", off=10); s.dimh(4.50, y0b, zt, "≥ 30", off=10); s.dimh(y0b, y1b, zt, "30", off=10)
-    # οδηγοί
-    xa, ya = s.p(5.0, zc)
-    ln(xa, ya, xa + 22, ya + 58, col=SLABC, lw=0.5); txt(xa + 25, ya + 60, "σπιράλ βαρέος τύπου Ø25 / Ø32 / Ø40 στο ΜΕΣΟ του πάχους της πλάκας,", size=5.8, font="Inter-SemiBold", color=SLABC)
-    txt(xa + 25, ya + 53, "ανάμεσα στον κάτω και τον πάνω οπλισμό, κάθετα στη δοκό", size=5.8, color=SLABC)
-    yb_ = s.p(0, z0)[1] - 4
-    lines = ["Τα δύο άκρα βγαίνουν από την κάτω παρειά της πλάκας ≥ 30 cm από την παρειά της δοκού, μέσα στα κενά των ψευδοροφών.",
-             "Τα σπιράλ μπαίνουν ένα-ένα, με απόσταση ≥ 3 διαμέτρους μεταξύ τους (όχι δεμάτι) – η δοκός ΔΕΝ τρυπιέται και δεν αδυνατίζει.",
-             "Τοποθετούνται ΠΡΙΝ ΑΠΟ ΤΗ ΣΚΥΡΟΔΕΤΗΣΗ κάθε πλάκας οροφής (Σ4 · Σ5 · Σ6). ΘΕΛΕΙ ΕΓΚΡΙΣΗ ΤΟΥ ΣΤΑΤΙΚΟΥ – ανοικτό Ε2."]
-    for i, l_ in enumerate(lines):
-        txt(x, yb_ - 8 - i * 7.6, l_, size=5.9, font="Inter-SemiBold" if i == 2 else "Inter", color=DC.WARNC if i == 2 else INK)
-    return yb_ - 8 - 3 * 7.6
-
-
-def det_panel_plan(x, ytop):
-    """Κάτοψη του τοίχου Τ2N-02 με τον πίνακα και την τεχνική ντουλάπα, 1:15."""
-    _cap(x, ytop, "2 · Ο ΠΙΝΑΚΑΣ ΣΤΟΝ ΤΟΙΧΟ ΤΩΝ 70 cm – ΚΑΤΟΨΗ", "1:15")
-    S = 72 / 25.4 * 1000 / 15
-    xw0, xw1 = 4.62, 6.58
-    yw0, yw1 = 4.20, 5.28
-    v = P.view(x + 4 - xw0 * S, PAGE_H - (ytop - 14) - yw0 * S, S)        # View: x → δεξιά, y → κάτω
-    c = C(); c.saveState(); p = c.beginPath(); p.rect(x, ytop - 14 - (yw1 - yw0) * S, (xw1 - xw0) * S + 8, (yw1 - yw0) * S); c.clipPath(p, stroke=0, fill=0)
-    for w in W.WALLS:
-        if G.is_rect(w["pts"]):
-            b = G.bbox(w["pts"])
-            if b[2] > xw0 and b[0] < xw1 and b[3] > yw0 and b[1] < yw1:
-                v.rect(b[0], b[1], b[2], b[3], fill=GYP, stroke=INK, lw=0.6)
-    for pl in W.COLS:
-        if G.is_rect(pl):
-            b = G.bbox(pl)
-            if b[2] > xw0 and b[0] < xw1 and b[3] > yw0 and b[1] < yw1:
-                v.rect(b[0], b[1], b[2], b[3], fill=CONC, stroke=INK, lw=0.6)
-    tn = M.TN
-    v.rect(tn[0], tn[1], tn[2], tn[3], fill=tint(FEED, 0.93), stroke=FEED, lw=0.7)
-    v.line(4.62, 4.35, tn[0], 4.35, color=MUTE, lw=0.5, dash=[2, 2])
-    pn = M.PANEL
-    v.rect(pn["x"] - pn["box"][2], pn["y0"], pn["x"], pn["y1"], fill=(0.15, 0.15, 0.18), stroke=INK, lw=0.6)
-    v.rect(*M.DATA_CAB, fill=tint(DAT, 0.7), stroke=DAT, lw=0.6)
-    v.rect(*M.ALARM_PANEL, fill=tint(FIR, 0.7), stroke=FIR, lw=0.6)
-    v.line(tn[0], 4.35, tn[0] + 0.03, 4.35, color=INK, lw=0.4)
-    c.setDash([2, 1.5]); v.arc(tn[2] - 0.02, 4.35, tn[2] - tn[0] - 0.04, 180, 270, color=MUTE, lw=0.4); c.setDash([])
-    c.restoreState()
-    def T(xm, ym, s_, **kw):
-        X, Y = v.p(xm, ym); txt(X, Y, s_, **kw)
-    T(pn["x"] + 0.05, 4.56, "ΓΠ πίνακας 52 × 10,5", size=5.8, font="Inter-Bold")
-    T(pn["x"] + 0.05, 4.62, "μέτωπο περασιά με τον τοίχο", size=5.4, color=MUTE)
-    T((tn[0] + tn[2]) / 2 - 0.04, 4.66, "ΤΝ", size=6.6, font="Inter-Bold", color=FEED, anchor="c")
-    T(M.DATA_CAB[0] + 0.03, 4.885, "ΚΔ ερμάριο ασθενών", size=5.0, color=DAT)
-    T(M.ALARM_PANEL[2] + 0.02, 4.52, "ΠΣ", size=5.2, font="Inter-Bold", color=FIR)
-    T(4.72, 4.72, "ντουλάπα", size=5.4, color=MUTE, anchor="c"); T(4.72, 4.78, "χωλ", size=5.4, color=MUTE, anchor="c")
-    T(5.90, 4.30, "ΧΩΛ", size=6.0, font="Inter-SemiBold", color=MUTE, anchor="c")
-    T(5.90, 5.24, "ΚΑΘΙΣΤΙΚΟ", size=6.0, font="Inter-SemiBold", color=MUTE, anchor="c")
-    T(5.92, 5.12, "άνοιγμα χωλ – καθιστικού 0,90", size=5.6, color=MUTE, anchor="c")
-    T(5.92, 4.815, "0,95 ελεύθερα μπροστά στον πίνακα", size=5.6, font="Inter-SemiBold", anchor="c")
-    X0_, Y0_ = v.p(pn["x"], 4.84); X1_, _ = v.p(6.399, 4.84)
-    ln(X0_, Y0_, X1_, Y0_, lw=0.45)
-    for xx in (X0_, X1_):
-        ln(xx - 2, Y0_ - 2, xx + 2, Y0_ + 2, lw=0.6)
-    wb = G.bbox([w for w in W.WALLS if w["id"] == M.PANEL_WALL][0]["pts"])
-    ybase = ytop - 14 - (yw1 - yw0) * S - 6
-    txt(x, ybase - 4, "Τοίχος Τ2N-02: y %s – %s = 0,70 m · πάχος 8,75 cm (1 γυψ. · CW 50 · 2 γυψ.) · πίνακας y %s – %s (0,52), 9 cm από κάθε άκρο." %
-        (fz(wb[1], 2), fz(wb[3], 2), fz(pn["y0"], 2), fz(pn["y1"], 2)), size=5.8)
-    txt(x, ybase - 11.6, "Η πλάτη του πίνακα προεξέχει ≈ 2 cm μέσα στην ΤΝ· όλα τα καλώδια κατεβαίνουν ορατά μέσα στην ΤΝ και μπαίνουν από πάνω.", size=5.8)
-    txt(x, ybase - 19.2, "ΤΝ = το ανατολικό 0,50 m της ντουλάπας του χωλ, με δική της πόρτα: πλάτη πίνακα · ερμάριο ασθενών ΚΔ · πίνακας συναγερμού – πυρανίχνευσης ΠΣ.", size=5.8)
-    return ybase - 26
-
-
-def det_panel_elev(x, ytop):
-    """Όψη του τοίχου του πίνακα από το άνοιγμα (βλέπουμε προς δύση), 1:25."""
-    _cap(x, ytop, "3 · ΟΨΗ ΤΟΥ ΤΟΙΧΟΥ ΤΟΥ ΠΙΝΑΚΑ", "1:30 · από το άνοιγμα, προς δύση")
-    S = 72 / 25.4 * 1000 / 30
-    wb = G.bbox([w for w in W.WALLS if w["id"] == M.PANEL_WALL][0]["pts"])
-    pn = M.PANEL
-    bm = [b for b in A.BEAMS if b[0] == "Δ3.1"][0]; zb = A.beam_soffit(bm[1])
-    # h = y του μοντέλου (βορράς αριστερά όταν κοιτάμε προς δύση; όχι: κοιτώντας δύση, ο βορράς είναι ΔΕΞΙΑ) → καθρέφτισμα
-    hm = lambda yv: (wb[3] + 0.36) - yv
-    s = Sec(x + 34, ytop - 16 - 2.98 * S, S, 0.0, 0.0)
-    L, R = hm(wb[3] + 0.36), hm(wb[1] - 0.26)
-    s.rect(L, -0.06, R, 0.0, fill=CONC, stroke=None)                                   # δάπεδο
-    s.line(L, 0.0, R, 0.0, lw=0.9)
-    s.rect(hm(wb[3]), 0.0, hm(wb[1]), 2.70, fill=(0.95, 0.95, 0.96), stroke=INK, lw=0.7)    # ο τοίχος 0,70
-    s.rect(hm(bm[5]), zb, hm(bm[3]), A.TOP_SLAB, fill=CONC, stroke=INK, lw=0.6)         # δοκός Δ3.1 (σε τομή)
-    s.rect(L, A.TOP_SLAB - 0.20, R, A.TOP_SLAB, fill=CONC, stroke=INK, lw=0.6)
-    s.rect(hm(bm[5]), zb, hm(bm[3]), A.TOP_SLAB, fill=CONC, stroke=INK, lw=0.6)
-    s.line(hm(wb[1]), 2.70, R, 2.70, lw=0.6); s.line(L, 2.68, hm(bm[5]), 2.68, lw=0.6)
-    s.rect(hm(pn["y1"]), pn["z0"], hm(pn["y0"]), pn["z1"], fill=(0.22, 0.22, 0.25), stroke=INK, lw=0.7)
-    rows = pn["rows"]; rh = (pn["z1"] - pn["z0"] - 0.08) / rows
-    for i in range(rows):
-        z = pn["z0"] + 0.04 + i * rh
-        s.rect(hm(pn["y1"]) + 0.03, z + 0.03, hm(pn["y0"]) - 0.03, z + rh - 0.03, fill=(0.93, 0.93, 0.95), stroke=None)
-    s.text((hm(pn["y0"]) + hm(pn["y1"])) / 2, pn["z1"] + 0.05, "ΓΠ", size=6.4, font="Inter-Bold", anchor="c")
-    s.text(hm(bm[3]) - 0.14, zb + 0.20, "Δ3.1", size=5.4, font="Inter-Bold", color=(1, 1, 1), anchor="c")
-    s.text(L + 0.02, 0.50, "ΚΑΘΙ-", size=5.2, color=MUTE); s.text(L + 0.02, 0.42, "ΣΤΙΚΟ", size=5.2, color=MUTE)
-    s.text(R - 0.02, 0.46, "ΧΩΛ", size=5.2, color=MUTE, anchor="r")
-    s.dimh(hm(wb[3]), hm(wb[1]), 0.0, "0,70", off=-14)
-    s.dimh(hm(pn["y1"]), hm(pn["y0"]), pn["z0"], "0,52", off=-9)
-    xr = R + 0.02
-    s.level(xr, pn["z0"], "+%s κάτω άκρο" % fz(pn["z0"], 2)); s.level(xr, pn["z1"], "+%s πάνω άκρο" % fz(pn["z1"], 2))
-    s.level(xr, (pn["z0"] + pn["z1"]) / 2, "+%s άξονας" % fz((pn["z0"] + pn["z1"]) / 2, 2), color=MUTE)
-    s.level(xr, 2.70, "+2,70 ψευδοροφή"); s.level(xr, 0.0, "±0,00 δάπεδο")
-    yb_ = s.p(0, -0.06)[1] - 22
-    txt(x, yb_, "Όλα τα χειριστήρια ανάμεσα στο +1,05 και το +1,90.", size=5.8)
-    txt(x, yb_ - 7.6, "Πάνω από τον πίνακα ο τοίχος μένει ελεύθερος ως την", size=5.8)
-    txt(x, yb_ - 15.2, "ψευδοροφή: από εκεί μπαίνουν τα καλώδια (μέσα από την ΤΝ).", size=5.8)
-    return yb_ - 22
-
-
-HEIGHTS = [(0.30, "ρευματοδότες γενικής χρήσης · λήψεις δικτύου", PWR), (0.45, "ρευματοδότες / λήψεις πίσω από TV", PWR), (0.50, "ρευματοδότες εξωστών IP55", PWR),
-           (0.70, "ρευματοδότες / λήψεις κομοδίνων", PWR), (0.90, "διακόπτες κομοδίνων", SWC), (1.00, "ρευματοδότες / λήψεις γραφείου", PWR),
-           (1.10, "διακόπτες · πλήκτρα ρολών · μπουτόν κουδουνιού", SWC), (1.15, "ρευματοδότες πάγκου κουζίνας / καθρεπτών · απλίκες", PWR),
-           (1.30, "πλυντήριο · στεγνωτήριο · διακόπτες μηχανημάτων εξώστη", HVC), (1.45, "θυροτηλεόραση · πληκτρολόγιο συναγερμού", DAT),
-           (1.50, "θερμοστάτες · χειριστήριο καναλάτης", AUT), (2.00, "φωτιστικά καθρεπτών", LGT), (2.10, "φωτιστικά εξωστών · ρευματοδότες στήλης κουζίνας", LGT),
-           (2.20, "ύψος πόρτας · φωτεινός επαναλήπτης", MUTE), (2.35, "παροχή μοτέρ ρολού", SWC), (2.45, "παροχή split", HVC)]
-
-
-def det_heights(x, ytop, w):
-    _cap(x, ytop, "4 · ΥΨΗ ΤΟΠΟΘΕΤΗΣΗΣ", "στον άξονα του κουτιού, από το ΤΕΛΙΚΟ δάπεδο")
-    S = 72 / 25.4 * 1000 / 32
-    s = Sec(x + 30, ytop - 20 - 2.75 * S, S, 0.0, 0.0)
-    s.rect(0.0, 0.0, 0.10, 2.70, fill=GYP, stroke=INK, lw=0.6)
-    s.rect(-0.10, -0.05, 0.60, 0.0, fill=CONC, stroke=None); s.line(-0.10, 0.0, 0.60, 0.0, lw=0.9)
-    s.line(0.0, 2.70, 0.60, 2.70, lw=0.6)
-    s.text(0.70, 2.68, "ψευδοροφή +2,70", size=5.4, color=MUTE); s.text(0.14, -0.04, "τελικό δάπεδο ±0,00 (γέμισμα 12 cm)", size=5.4, color=MUTE, dy=-6)
-    yprev = None
-    for z, lab, col in HEIGHTS:
-        X, Y = s.p(0.10, z)
-        box(X, Y - 2.2, 4.4, 4.4, fill=col, stroke=None)
-        yt = Y - 2
-        if yprev is not None and yt - yprev < 8.2:
-            yt = yprev + 8.2
-        ln(X + 4.4, Y, X + 22, yt + 2, col=col, lw=0.4)
-        txt(X + 24, yt, "+%s" % fz(z, 2), size=6.0, font="Inter-Bold", color=col)
-        txt(X + 48, yt, lab, size=5.8)
-        yprev = yt
-    return s.p(0, -0.05)[1] - 14
-
-
-def sheet_16(no="ΗΛ-16"):
-    y = DC.title("ΛΕΠΤΟΜΕΡΕΙΕΣ: ΔΙΕΛΕΥΣΗ ΔΟΚΟΥ · ΠΙΝΑΚΑΣ ΣΤΟΝ ΤΟΙΧΟ ΤΩΝ 70 cm · ΥΨΗ · ΟΔΕΥΣΕΙΣ", "η αιτιολόγηση κάθε διέλευσης και όδευσης του ΗΛ-05")
-    # αριστερά: 1 και 2
-    y1 = det_crossing(X0, y - 4)
-    det_panel_plan(X0, y1 - 14)
-    # μέση: 3 και 4
-    xm = X0 + 452
-    y3 = det_panel_elev(xm, y - 4)
-    det_heights(xm, y3 - 12, 250)
-    # δεξιά: πίνακες
-    xr = X0 + 716; wr = X1 - xr
-    f = Flow(xr, y + 2, wr, name="ΗΛ-16/πίνακες")
-    f.h("ΔΙΕΛΕΥΣΕΙΣ ΔΟΚΩΝ «ΔΠ» – ΤΙ ΠΕΡΝΑ ΑΠΟ ΚΑΘΕ ΜΙΑ")
-    rows = []
-    for c_ in M.CROSSINGS:
-        parts = []
-        for k, d in (("n25", "Ø25"), ("n32", "Ø32"), ("n40", "Ø40")):
-            if c_[k]:
-                parts.append("%d×%s" % (c_[k], d))
-        b = c_["rect"]
-        wd = (b[2] - b[0]) if c_["axis"] == "NS" else (b[3] - b[1])
-        rows.append([c_["id"], c_["beam"], " + ".join(parts) + "\nσε πλάτος %s m" % fz(wd, 2), c_["txt"] + (". Θέση: " + c_["where"] if c_.get("where") else "")])
-    f.table([34, 28, 66, 258], rows, head=["", "ΔΟΚΟΣ", "ΣΠΙΡΑΛ", "ΤΙ ΠΕΡΝΑ – ΠΟΥ"], size=6.2, lead=7.4, pad=2.1, bold_first=True)
-    f.h("ΟΔΕΥΣΕΙΣ ΣΤΟ ΓΕΜΙΣΜΑ ΔΑΠΕΔΟΥ – ΜΟΝΟ ΑΥΤΕΣ")
-    rows = [[r["id"], r["n"] + "\n%s m" % fz(G.path_len(r["pts"]), 1), ("ΝΕΑ ζώνη. " if r["new"] else "Σε υπάρχουσα λωρίδα. ") + r["txt"]] for r in M.FLOOR_RUNS]
-    f.table([34, 44, 308], rows, head=["", "ΣΠΙΡΑΛ", "ΑΠΟ – ΠΡΟΣ – ΓΙΑΤΙ"], size=6.2, lead=7.4, pad=2.1, bold_first=True)
-    f.h("ΟΡΙΖΟΝΤΙΕΣ ΟΔΕΥΣΕΙΣ ΜΕΣΑ ΣΕ ΤΟΙΧΟ (τοίχοι κάτω από δοκό)")
-    f.table([34, 352], [[r["id"], r["txt"]] for r in M.WALL_RUNS], size=6.2, lead=7.4, pad=2.1, bold_first=True)
-    f.h("ΚΟΡΜΟΙ ΣΤΑ ΚΕΝΑ ΤΩΝ ΨΕΥΔΟΡΟΦΩΝ")
-    rows = [["Παροχή", M.FEEDER["txt"]]] + [[r["id"], r["txt"]] for r in M.ROUTES]
-    f.table([34, 352], rows, size=6.2, lead=7.4, pad=2.1, bold_first=True)
-    DC.finish(no, "ΛΕΠΤΟΜΕΡΕΙΕΣ ΕΓΚΑΤΑΣΤΑΣΗΣ", "Διέλευση δοκού · πίνακας στον τοίχο 70 cm · ύψη · οδεύσεις", "Κλίμακες 1:10 · 1:15 · 1:30 · A3")

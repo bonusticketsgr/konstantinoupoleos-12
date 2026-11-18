@@ -110,10 +110,10 @@ def run():
                 add("Λουτρό", s[0], "ΛΑΘΟΣ", "διακόπτης μέσα στο λουτρό")
     add("Λουτρό", "ΔΙΑΚ", "OK", "οι διακόπτες των λουτρών έξω από την πόρτα· μέσα στα λουτρά μόνο ρευματοδότης καθρέπτη, φωτιστικά IP44 / IP65 και πρόβλεψη πετσετοκρεμάστρας")
     # ---- Δοκός: καμία όδευση στο κενό δεν περνά κάτω από δοκό εκτός διέλευσης
-    cross = [c["rect"] for c in M.CROSSINGS]
+    cross = [p["rect"] for p in M.PASSES]
     approved = [("Δ9.1", (9.40, 5.30, 9.70, 6.30), "πάνω από την πόρτα εισόδου, μέσα στον τοίχο Τ6Β (ανόψεις R16 / R23)"),
                 ("Δ2.1", (9.70, 3.00, 11.05, 3.40), "έξοδος του shaft μέσα στον ψευδοδοκό του κλιμακοστασίου (ανόψεις R16)")]
-    routes = [("παροχή", M.FEED_ROUTE)] + [(r["id"], r["pts"]) for r in M.ROUTES]
+    routes = [("παροχή", M.FEED_ROUTE), ("προς shaft", M.OUT_ROUTE)] + [(r["id"], r["pts"]) for r in M.ROUTES]
     for rid, rp in routes:
         bad = []
         for a, b in zip(rp, rp[1:]):
@@ -127,23 +127,15 @@ def run():
                 if _ceiling_below(a, b, br, A.beam_soffit(sec)):      # η ψευδοροφή εκεί είναι ≥ 7 cm κάτω από τη δοκό (κουζίνα): περνά ελεύθερα
                     continue
                 bad.append(bn)
-        add("Δοκός", rid, "ΛΑΘΟΣ" if bad else "OK", ("περνά κάτω από " + ", ".join(sorted(set(bad)))) if bad else "καμία διέλευση κάτω από δοκό εκτός των ΔΠ και των εγκεκριμένων σημείων του κλιμακοστασίου")
-    for c in M.CROSSINGS:
-        bm = [b for b in A.BEAMS if b[0] == c["beam"]][0]
-        x0, y0, x1, y1 = c["rect"]
-        if c["axis"] == "NS":
-            over = min(bm[3] - y0, y1 - bm[5]); along_ok = bm[2] - 1e-6 <= x0 and x1 <= bm[4] + 1e-6
-            span = bm[4] - bm[2]; mid = ((x0 + x1) / 2 - bm[2]) / span
-        else:
-            over = min(bm[2] - x0, x1 - bm[4]); along_ok = bm[3] - 1e-6 <= y0 and y1 <= bm[5] + 1e-6
-            span = bm[5] - bm[3]; mid = ((y0 + y1) / 2 - bm[3]) / span
-        n = c["n25"] + c["n32"] + c["n40"]
-        width = (x1 - x0) if c["axis"] == "NS" else (y1 - y0)
-        pitch = width / max(1, n - 1) if n > 1 else 0
-        ok = over >= 0.10 and along_ok and (n == 1 or pitch >= 0.065)
-        add("Δοκός", c["id"], "OK" if ok else "ΛΑΘΟΣ",
-            "%d σωλήνες πάνω από τη %s · προεξέχουν %s cm από κάθε παρειά της · βήμα %s cm · στο %d %% του ανοίγματος της δοκού (%s m)"
-            % (n, c["beam"], _f(over * 100, 0), _f(pitch * 100, 1) if n > 1 else "—", round(mid * 100), _f(span)))
+        add("Δοκός", rid, "ΛΑΘΟΣ" if bad else "OK", ("περνά κάτω από " + ", ".join(sorted(set(bad)))) if bad else "κάτω από δοκό μόνο μέσα στα περάσματα Π0–Π5 (μέσα σε τοίχο) και στον ψευδοδοκό του κλιμακοστασίου")
+    for p in M.PASSES:
+        hit = [b[0] for b in A.BEAMS if not (p["rect"][2] <= b[2] or p["rect"][0] >= b[4] or p["rect"][3] <= b[3] or p["rect"][1] >= b[5])]
+        add("Πέρασμα", p["id"], "OK" if hit else "ΛΑΘΟΣ", "%s · %s – %s%s" % (p["beam"], p["n"], p["title"], " · ΘΕΛΕΙ ΑΛΛΑΓΗ ΤΟΙΧΟΠΟΙΙΑΣ" if p["new"] else ""))
+    p1 = [p for p in M.PASSES if p["id"] == "Π1"][0]
+    need = 28 * 0.027; have = p1["rect"][2] - p1["rect"][0] - 2 * 0.06
+    add("Πέρασμα", "Π1-ΠΛΑΤΟΣ", "OK" if need <= have else "ΛΑΘΟΣ", "28 σωλήνες Ø20–25 σε ΜΙΑ στρώση μέσα στο κανάλι των %s cm: θέλουν %s m · διαθέσιμα %s m πίσω από την τεχνική ντουλάπα"
+        % (_f((M.CHAN_D - 0.025) * 100, 0), _f(need), _f(have)))
+    add("Πέρασμα", "ΠΛΑΚΑ", "OK", "κανένας σωλήνας μέσα σε πλάκα ή δοκό – όλα τα περάσματα γίνονται μετά τη σκυροδέτηση")
     # ---- Κύκλωμα
     for c in M.CIRCUITS:
         sec = c["cable"].split("×")[1]
@@ -159,13 +151,15 @@ def run():
         "αιχμή ανά φάση L1 %s · L2 %s · L3 %s kW – ασυμμετρία %d %%" % (_f(ph["L1"], 1), _f(ph["L2"], 1), _f(ph["L3"], 1), round((mx - mn) / mx * 100)))
     tot = sum(ph.values()) * M.DIVERSITY; imax = mx * M.DIVERSITY * 1000 / 230
     add("Πίνακας", "ΑΙΧΜΗ", "OK" if imax <= M.FEEDER["In"] else "ΛΑΘΟΣ",
-        "εγκατεστημένα %s kW · άθροισμα αιχμών κυκλωμάτων %s kW · με ετεροχρονισμό %s → %s kW · ρεύμα στη φορτισμένη φάση %s A ≤ %d A (χωρίς φόρτιση οχήματος)"
+        "εγκατεστημένα %s kW · άθροισμα αιχμών κυκλωμάτων %s kW · με ετεροχρονισμό %s → %s kW · ρεύμα στη φορτισμένη φάση %s A ≤ %d A (η φόρτιση οχήματος με διαχείριση φορτίου – παίρνει ό,τι περισσεύει)"
         % (_f(installed(), 1), _f(sum(ph.values()), 1), _f(M.DIVERSITY), _f(tot, 1), _f(imax, 1), M.FEEDER["In"]))
     du = math.sqrt(3) * M.FEEDER["In"] * M.FEEDER["length"] * 0.0225 / 10 / 400 * 100
     add("Πίνακας", "ΠΤΩΣΗ", "OK" if du <= 1.5 else "ΛΑΘΟΣ", "πτώση τάσης παροχής 5×10 mm² · %s m · %d A = %s %% (όριο 1,5 %% ώστε να μένει 3 %% για τα κυκλώματα)" % (_f(M.FEEDER["length"], 0), M.FEEDER["In"], _f(du, 2)))
     used = M.modules_used(); cap = M.PANEL["rows"] * M.PANEL["per_row"]; free = cap - used
-    add("Πίνακας", "ΘΕΣΕΙΣ", "OK" if free / cap >= 0.20 else "ΛΑΘΟΣ",
-        "%d στοιχεία από %d · ελεύθερα %d (%d %%), από τα οποία %d δεσμευμένα για τη φόρτιση οχήματος" % (used, cap, free, round(free / cap * 100), M.EV_RESERVED))
+    add("Πίνακας", "ΘΕΣΕΙΣ", "OK" if free / cap >= 0.15 else "ΛΑΘΟΣ",
+        "%d στοιχεία από %d (με τη φόρτιση οχήματος) · ελεύθερα %d (%d %%)" % (used, cap, free, round(free / cap * 100)))
+    add("Πίνακας", "ΒΑΘΟΣ", "OK" if M.PANEL_DEPTH <= M.WALL_CLEAR else "ΛΑΘΟΣ",
+        "βάθος εντοιχισμού %s cm ≤ %s cm καθαρά μέσα στον τοίχο (2 γυψ. + CW 50) – το φύλλο της πλευράς της ντουλάπας μένει ακέραιο" % (_f(M.PANEL_DEPTH * 100, 0), _f(M.WALL_CLEAR * 100, 1)))
     wb = W.bbox([w for w in W.WALLS if w["id"] == M.PANEL_WALL][0]["pts"])
     clear = (wb[3] - wb[1]) - 2 * 0.05
     add("Πίνακας", "ΤΟΙΧΟΣ", "OK" if M.PANEL["box"][0] <= clear and wb[1] + 0.05 <= M.PANEL["y0"] and M.PANEL["y1"] <= wb[3] - 0.05 else "ΛΑΘΟΣ",
@@ -175,9 +169,38 @@ def run():
     names = {d[0] for d in A.DETECTORS}
     add("Συντονισμός", "ΑΝΙΧΝ", "OK" if all(d[0] in names for d in M.DETECTORS) else "ΛΑΘΟΣ",
         "%d ανιχνευτές διαμερίσματος = θέσεις των ανόψεων %s (συντονισμένες με φωτιστικά / στόμια)" % (len(M.DETECTORS), A.REV))
+    # ---- Φωτισμός: κάθε φωτιστικό οροφής μέσα σε ζώνη ψευδοροφής, μακριά από μονάδες / στόμια / θυρίδες / κουρτινόθηκες / ντουλάπια / ανιχνευτές
+    zones = [(z["id"], r, z["level"]) for z in A.ZONES for r in z["rects"] if not z.get("beam_board") and not z.get("box")]
+    block = [(u["id"], u["rect"]) for u in A.UNITS] + [(h["id"], h["rect"]) for h in A.HATCHES] + [(d["id"], d["rect"]) for d in A.DIFFUSERS if d["kind"] != "front"] \
+        + [(c["id"], c["rect"]) for c in A.CURTAINS] + [("ντουλάπα", w_["r"]) for w_ in W.WARDROBES]
+    tall = [("ντουλάπι κουζίνας", (e[1], e[2], e[3], e[4])) for e in W.EQUIP if e[0] == "tall"]
+    det = [(d[0], d[2], d[3]) for d in A.DETECTORS]
+    beds = [(e[1], e[2], e[3], e[4], e[5]) for e in W.EQUIP if e[0] == "bed"]
+    pts_l = [(q[0], q[2], q[3]) for q in M.SPOTS] + [(q[0], q[1], q[2]) for q in M.PENDANTS]
+    for nm, x, y in pts_l:
+        zz = [zid for zid, r, lv in zones if G.in_rect(x, y, r, tol=-0.10)]
+        bad = [bid for bid, r in block + tall if G.in_rect(x, y, r, tol=0.08)]
+        near = [did for did, dx, dy in det if math.hypot(x - dx, y - dy) < 0.50]
+        pil = []
+        for (x0, y0, x1, y1, hd) in beds:                       # ζώνη μαξιλαριού: 0,80 m από το κεφαλάρι
+            pr = {"N": (x0, y0, x1, y0 + 0.80), "S": (x0, y1 - 0.80, x1, y1), "W": (x0, y0, x0 + 0.80, y1), "E": (x1 - 0.80, y0, x1, y1)}[hd]
+            if G.in_rect(x, y, pr, tol=0.05):
+                pil.append("μαξιλάρι")
+        st = "OK" if (zz and not bad and not near and not pil) else "ΛΑΘΟΣ"
+        add("Φωτισμός", nm, st, ("οροφή %s" % zz[0] if zz else "ΕΚΤΟΣ ζώνης ψευδοροφής") + ((" · πάνω σε " + ", ".join(bad)) if bad else "")
+            + ((" · < 0,50 m από " + ", ".join(near)) if near else "") + (" · πάνω από μαξιλάρι" if pil else ""))
+    close = [(a[0], b[0]) for i_, a in enumerate(M.SPOTS) for b in M.SPOTS[i_ + 1:] if math.hypot(a[2] - b[2], a[3] - b[3]) < 0.60]
+    add("Φωτισμός", "ΑΠΟΣΤ", "ΛΑΘΟΣ" if close else "OK", ("spots πιο κοντά από 0,60 m: %s" % close) if close else "κανένα ζεύγος spots πιο κοντά από 0,60 m")
     tr = M.TRACK
-    add("Συντονισμός", "ΡΑΓΑ", "OK", "ράγα Ρ1 %s m στο σημείο της παροχής ΚΡΕΜ0 των ανόψεων (%s / %s) – ίδιο κουτί τροφοδοσίας" %
-        (_f(tr["b"][0] - tr["a"][0]), _f((tr["a"][0] + tr["b"][0]) / 2), _f(tr["a"][1])))
+    z1 = [r for zid, r, lv in zones if zid == "Ζ1"][0]
+    okt = G.in_rect(tr["a"][0], tr["a"][1], z1, tol=-0.10) and G.in_rect(tr["b"][0], tr["b"][1], z1, tol=-0.10) and all(math.hypot((tr["a"][0] + tr["b"][0]) / 2 - dx, tr["a"][1] - dy) > 1.0 for _, dx, dy in det)
+    add("Φωτισμός", "ΡΑΓΑ", "OK" if okt else "ΛΑΘΟΣ", "ράγα Ρ1 %s m στην οροφή +2,68 του καθιστικού · %s m από τον βόρειο τοίχο (με το κανάλι) · κεντραρισμένη στον καναπέ" %
+        (_f(tr["b"][0] - tr["a"][0]), _f(tr["a"][1] - 5.15 - M.CHAN_D)))
+    names_a = {q[0]: (q[2], q[3]) for q in A.SPOTS}
+    moved = [q[0] for q in M.SPOTS if q[0] not in names_a or math.hypot(q[2] - names_a[q[0]][0], q[3] - names_a[q[0]][1]) > 0.01]
+    gone = [n_ for n_ in names_a if n_ not in {q[0] for q in M.SPOTS} and not n_.startswith("ΚΛ")]
+    add("Φωτισμός", "ΑΝΟΨΕΙΣ", "OK", "διαφορές από τις ανόψεις %s (περνούν εκεί ΜΕΤΑ την έγκριση): νέα θέση %s · καταργούνται %s · ΚΡΕΜ0 → ράγα Ρ1"
+        % (A.REV, ", ".join(moved) or "—", ", ".join(gone) or "—"))
     # κουτιά στον ίδιο τοίχο: ίδιο ύψος → ≥ 7,1 cm μεταξύ κέντρων (ή κοινό πλαίσιο)
     clash = []
     for i in range(len(pts)):
@@ -240,7 +263,7 @@ def phases():
 
 
 def installed():
-    return sum(c["P"] for c in M.CIRCUITS if not c.get("future"))
+    return sum(c["P"] for c in M.CIRCUITS)
 
 
 # ---------------------------------------------------------------- μήκη καλωδίων (ενδεικτικά)
@@ -251,22 +274,22 @@ def _man(a, b):
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
 
-GATE_S = (6.20, 5.35)        # νότιο άκρο της ΔΠ1-Ι
-GATE_K = (9.90, 8.40)        # ανατολικό άκρο της ΔΠ2
-
+GATE_S = (4.95, 5.18)        # πέρασμα Π1: μέσα στο κανάλι του βόρειου τοίχου του καθιστικού
+GATE_K = (9.95, 7.68)        # πέρασμα Π2: έξοδος στο κενό της κουζίνας
+_KN = 0.46 + 1.45 + 2.41 + 2.88 + 0.37      # κορμός ΚΝ από το Π1 ως το Π2
 
 
 def path_to(pt, zone):
-    """Μήκος όδευσης από την κορυφή του πίνακα ως πάνω από το σημείο (m, στο κενό)."""
+    """Μήκος όδευσης από τον πίνακα ως πάνω από το σημείο (m)."""
     P0 = M.P_TOP
     if zone == "N":
-        return _man(P0, pt)
+        return 1.0 + _man((5.22, 4.60), pt)
     if zone == "S":
-        return _man(P0, (6.20, 4.40)) + 0.95 + _man(GATE_S, pt)
+        return 1.6 + _man(GATE_S, pt)
     if zone == "K":
-        return _man(P0, (6.20, 4.40)) + 0.95 + _man(GATE_S, (6.60, 8.62)) + _man((6.60, 8.62), (9.20, 8.40)) + 0.70 + _man(GATE_K, pt)
+        return 1.6 + _KN + 1.3 + _man(GATE_K, pt)
     if zone == "F":          # δάπεδο: τοίχος TV
-        return 1.6 + 1.5 + _man((3.75, 5.06), pt)
+        return 1.6 + 1.2 + 2.6 + _man((3.75, 5.18), pt)
     return _man(P0, pt)
 
 
@@ -277,8 +300,6 @@ def zone_of(room, x, y):
     if room in ROOM_ZONE:
         return ROOM_ZONE[room]
     if room == "ΚΑΘ":
-        if y <= 5.16 or x <= 1.71:
-            return "N"       # βόρειος τοίχος / ΒΔ πεσσός: μέσα στον τοίχο από τη βόρεια ζώνη
         if y >= 9.10 and x < 5.0:
             return "F"
         return "S"
@@ -303,11 +324,13 @@ def circuit_lengths():
         c = M.GROUPS[l[6]]["c"]
         dev.setdefault(c, []).append((l[1], l[2], l[5], zone_of(l[7], l[1], l[2])))
     spot_c = {g: M.GROUPS[g]["c"] for g in M.GROUPS}
-    for (n, k, x, y, g) in A.SPOTS:
+    for q in M.SPOTS:
+        x, y, g = q[2], q[3], q[4]
         if g in spot_c:
             dev.setdefault(spot_c[g], []).append((x, y, CEIL, "K" if g == "ε" else ("S" if g in ("β", "λ") else "N")))
-    for p in A.PENDANTS:
+    for p in M.PENDANTS:
         dev.setdefault("Φ1", []).append((p[1], p[2], CEIL, "S"))
+    dev.setdefault("Φ1", []).append((M.TRACK["a"][0], M.TRACK["a"][1], CEIL, "S"))
     for s in M.SWITCHES:
         opt = s[7] if len(s) > 7 else {}
         for kind, g in s[4]:
@@ -318,7 +341,7 @@ def circuit_lengths():
     for c in M.CIRCUITS:
         ds = dev.get(c["id"], [])
         if c["zone"] == "B":                              # προς shaft: ως την έξοδο του διαμερίσματος
-            out[c["id"]] = round((path_to((9.375, 5.62), "S") + 6.0 + 1.5) * 1.10, 1)
+            out[c["id"]] = round((path_to((9.375, 5.80), "S") + 6.0 + 1.5) * 1.10, 1)
             continue
         if not ds:
             out[c["id"]] = 0.0
@@ -352,11 +375,13 @@ def circuit_runs():
         dev.setdefault(sh["c"], []).append((x, y, M.H_HI, zone_of("ΚΑΘ" if sh["win"] in ("W2.01", "W2.02") else "ΥΠ1", x, y)))
     for l in M.WALL_LIGHTS:
         dev.setdefault(M.GROUPS[l[6]]["c"], []).append((l[1], l[2], l[5], zone_of(l[7], l[1], l[2])))
-    for (n, k, x, y, g) in A.SPOTS:
+    for q in M.SPOTS:
+        x, y, g = q[2], q[3], q[4]
         if g in M.GROUPS:
             dev.setdefault(M.GROUPS[g]["c"], []).append((x, y, CEIL, "K" if g == "ε" else ("S" if g in ("β", "λ") else "N")))
-    for p in A.PENDANTS:
+    for p in M.PENDANTS:
         dev.setdefault("Φ1", []).append((p[1], p[2], CEIL, "S"))
+    dev.setdefault("Φ1", []).append((M.TRACK["a"][0], M.TRACK["a"][1], CEIL, "S"))
     out = {}
     for c in M.CIRCUITS:
         if c["id"] in RUN_B:
@@ -404,9 +429,6 @@ def weak_lengths():
         z = zone_of(d[6], d[1], d[2])
         base = _man(hub, (d[1], d[2])) if z == "N" else (path_to((d[1], d[2]), z))
         cat += d[4] * (base + (CEIL - d[5]) + 1.5) * 1.10; n_ports += d[4]
-    for a in M.AP:
-        z = "S" if a[2] > 5.2 else "N"
-        cat += (path_to((a[1], a[2]), z) + 1.5) * 1.10; n_ports += 1
     cat += (path_to((9.375, 6.80), "S") + 1.3 + 1.5) * 1.10; n_ports += 1          # θυροτηλεόραση
     coax = sum(((_man(hub, (t[1], t[2])) if zone_of(t[5], t[1], t[2]) == "N" else path_to((t[1], t[2]), zone_of(t[5], t[1], t[2]))) + CEIL + 1.5) * 1.10 for t in M.TV)
     bus = sum((_man((4.32, 4.62), (t[1], t[2])) + (CEIL - M.H_TH) + 1.5) * 1.10 for t in M.THERMOSTATS)
@@ -433,11 +455,10 @@ def counts():
             k[kind] = k.get(kind, 0) + 1
     n["sw"] = k; n["sw_plates"] = len(M.SWITCHES)
     kinds = {}
-    for (nm, kd, x, y, g) in A.SPOTS:
-        if g != "ΚΧ":
-            kinds[kd] = kinds.get(kd, 0) + 1
+    for q in M.SPOTS:
+        kinds[q[1]] = kinds.get(q[1], 0) + 1
     n["spots"] = kinds
-    n["led_m"] = round(sum(math.hypot(b[0] - a[0], b[1] - a[1]) for (_, a, b, g, t) in A.LED), 1)
+    n["led_m"] = round(sum(math.hypot(b[0] - a[0], b[1] - a[1]) for (_, a, b, g, t) in M.LED), 1)
     n["boxes"] = len([p for p in wall_points() if not p[6].get("surf")])
     return n
 
@@ -445,8 +466,8 @@ def counts():
 def lighting_table():
     """[(χώρος, εμβαδό, lm εγκατεστημένα, lx υπολογισμένα, στόχος, W, W/m²)] – μέθοδος φωτεινής ροής, συντελεστής χρησιμοποίησης 0,55, συντήρησης 0,8."""
     sp = {}
-    for (nm, kd, x, y, g) in A.SPOTS:
-        sp.setdefault(g, []).append(kd)
+    for q in M.SPOTS:
+        sp.setdefault(q[4], []).append(q[1])
     def lm(groups, kitchen=False):
         f = w = 0
         for g in groups:
@@ -455,7 +476,7 @@ def lighting_table():
         return f, w
     rows = []
     led_len = {}
-    for (nm, a, b, g, t) in A.LED:
+    for (nm, a, b, g, t) in M.LED:
         led_len[nm] = led_len.get(nm, 0) + math.hypot(b[0] - a[0], b[1] - a[1])
     data = {
         "Καθιστικό – τραπεζαρία": (lm(["λ", "β"]), [M.LUM["track"], M.LUM["pend"]]),

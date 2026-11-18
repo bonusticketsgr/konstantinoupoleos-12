@@ -136,6 +136,9 @@ def spot(v, x, y, kind="s", col=LGT, r=0.062, lab=None, lab_off=(0.0, -0.13)):
     elif kind == "s65":
         d = r * 0.7
         v.line(x - d, y - d, x + d, y + d, color=col, lw=0.8); v.line(x - d, y + d, x + d, y - d, color=col, lw=0.8)
+    elif kind == "adj":
+        v.circle(x, y, r * 0.30, fill=col)
+        v.line(x + r * 0.45, y - r * 0.45, x + r * 1.45, y - r * 1.45, color=col, lw=0.8)
     else:
         v.circle(x, y, r * 0.33, fill=col)
     if lab:
@@ -271,22 +274,41 @@ def route(v, pts, col=INK, lw=1.4, dash=None, halo=True, arrows=False, lab=None,
         ptext((x0 + x1) / 2 + nx * dd, (y0 + y1) / 2 + ny * dd, lab, lsize, "Inter-SemiBold", col, "c", ang, pad=0.8)
 
 
-def crossing(v, r, col=BEAMC, lab=None, lab_off=(0, 0), anchor="l", n=6, vertical=True):
-    """Διέλευση δοκού με σωλήνες ΕΓΚΙΒΩΤΙΣΜΕΝΟΥΣ στην πλάκα (πριν τη σκυροδέτηση): ορθογώνιο με παράλληλες γραμμές."""
+def pass_zone(v, r, col=BEAMC, lab=None, lab_at=None):
+    """Πέρασμα καλωδίων κάτω από δοκό (μέσα σε τοίχο / έπιπλο): πλαίσιο με διαγράμμιση. lab_at = θέση της ετικέτας (με οδηγό)."""
     x0, y0, x1, y1 = r
-    v.rect(x0, y0, x1, y1, fill=(1, 1, 1), stroke=(1, 1, 1), lw=2.4)
-    C().saveState(); C().setFillAlpha(0.22); v.rect(x0, y0, x1, y1, fill=col); C().restoreState()
-    v.rect(x0, y0, x1, y1, stroke=col, lw=1.0)
-    for i in range(n):
-        if vertical:
-            xx = x0 + (x1 - x0) * (i + 0.5) / n
-            v.line(xx, y0, xx, y1, color=col, lw=0.6)
-        else:
-            yy = y0 + (y1 - y0) * (i + 0.5) / n
-            v.line(x0, yy, x1, yy, color=col, lw=0.6)
+    pts = [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+    C().saveState(); C().setFillAlpha(0.28); v.rect(x0, y0, x1, y1, fill=col); C().restoreState()
+    v.hatch(pts, 0.05, 45, col, 0.4)
+    v.rect(x0, y0, x1, y1, stroke=col, lw=1.1)
     if lab:
-        X, Y = v.p((x0 + x1) / 2 + lab_off[0], (y0 + y1) / 2 + lab_off[1])
-        P.pill(X, Y, lab, None, col, anchor, 5.6 * getattr(v, "t", 1.0))
+        lx, ly = lab_at if lab_at else ((x0 + x1) / 2, (y0 + y1) / 2)
+        if lab_at:
+            cx = min(max(lx, x0), x1); cy = min(max(ly, y0), y1)
+            v.line(lx, ly, cx, cy, color=col, lw=0.7)
+        X, Y = v.p(lx, ly)
+        P.pill(X, Y, lab, None, col, "c", 6.4 * getattr(v, "t", 1.0))
+
+
+def channel(v, r, col=(0.05, 0.50, 0.42)):
+    """Κανάλι καλωδίων μέσα σε τοίχο (ο τοίχος παχαίνει): γεμάτη λωρίδα."""
+    x0, y0, x1, y1 = r
+    v.rect(x0, y0, x1, y1, fill=col, stroke=col, lw=0.4)
+
+
+def dim_chain(v, a, b, txt, col=(0.30, 0.30, 0.34), size=3.9, side=1):
+    """Μία διάσταση a → b (σημεία μοντέλου πάνω στη γραμμή διάστασης) με λοξές παύλες και την τιμή στη μέση."""
+    (X0, Y0), (X1, Y1) = v.p(*a), v.p(*b)
+    c = v.c; c.saveState(); c.setStrokeColorRGB(*col); c.setLineWidth(0.4)
+    c.line(X0, Y0, X1, Y1)
+    for X, Y in ((X0, Y0), (X1, Y1)):
+        c.line(X - 1.6, Y - 1.6, X + 1.6, Y + 1.6)
+    c.restoreState()
+    ang = math.degrees(math.atan2(Y1 - Y0, X1 - X0))
+    if ang > 90 or ang <= -90:
+        ang += 180
+    r_ = math.radians(ang); nx, ny = -math.sin(r_), math.cos(r_)
+    ptext((X0 + X1) / 2 + nx * 3.4 * side, (Y0 + Y1) / 2 + ny * 3.4 * side, txt, size * getattr(v, "t", 1.0), "Inter-Medium", col, "c", ang, True, pad=0.5)
 
 
 def zone(v, r, col, alpha=0.10, stroke=True, dash=(3, 1.6), lw=0.55):

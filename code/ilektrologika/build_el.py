@@ -2,13 +2,13 @@
 
     python3 build_el.py [out.pdf]
 
-Τρέχει πρώτα τους ελέγχους (el_checks.py) – σταματά αν υπάρχει ΛΑΘΟΣ – και μετά τυπώνει τα φύλλα ΗΛ-00 … ΗΛ-16."""
+Τρέχει πρώτα τους ελέγχους (el_checks.py) – σταματά αν υπάρχει ΛΑΘΟΣ – και μετά τυπώνει τα φύλλα ΗΛ-00 … ΗΛ-10 (el_sheets.py).
+    --NN = μόνο το φύλλο NN (π.χ. --02 --03)."""
 import os, sys
 import b1_el as M
 import el_checks as CK
 import el_draw as D
 from el_draw import P
-import el_plans as PL
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith("-") else os.path.join(
@@ -27,14 +27,14 @@ def main():
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     P.C = P.new_canvas(OUT, "Ηλεκτρολογική μελέτη εφαρμογής Β1 %s – Κωνσταντινουπόλεως 12, Αργυρούπολη" % M.REV)
     P.C.setPageCompression(1)
-    PL.bind(M)
-    only = [a[2:] for a in sys.argv if a.startswith("--")]
+    import el_sheets as SH
     import el_docs as DC
     import el_det as DT
-    DC.bind(M); DT.bind(M)
-    sheets = [("00", DC.sheet_00), ("01", PL.sheet_01), ("02", PL.sheet_02), ("03", PL.sheet_03), ("04", PL.sheet_04), ("05", PL.sheet_05),
-              ("06", PL.sheet_06), ("07", PL.sheet_07), ("08", PL.sheet_08), ("09", PL.sheet_09), ("10", DT.sheet_10), ("11", DC.sheet_11),
-              ("12", DC.sheet_12), ("13", DC.sheet_13), ("14", DC.sheet_14), ("15", DC.sheet_15), ("16", DT.sheet_16)]
+    SH.bind(M)
+    only = [a[2:] for a in sys.argv if a.startswith("--")]
+    sheets = [(k, f) for k, f in (("00", getattr(SH, "sheet_00", None)), ("01", SH.sheet_01), ("02", SH.sheet_02), ("03", SH.sheet_03), ("04", SH.sheet_04),
+                                  ("05", getattr(SH, "sheet_05", None)), ("06", getattr(SH, "sheet_06", None)), ("07", getattr(SH, "sheet_07", None)),
+                                  ("08", getattr(SH, "sheet_08", None)), ("09", DT.sheet_10), ("10", DC.sheet_11)) if f]
     for no, fn in sheets:
         if only and no not in only:
             continue
