@@ -2,70 +2,172 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Space+Grotesk:wght@600&display=swap">
 <style>
-/* Διάταξη: το 3D πιάνει όλη την οθόνη· ένα πλαίσιο πάνω αριστερά με τίτλο, στρώσεις και όψεις. */
-:root{--bg:#eef0f3;--panel:#ffffffee;--fg:#1c2330;--mute:#5d6878;--line:#cfd5de;--accent:#0b6bcb;
+/* Διάταξη: το 3D πιάνει όλη την οθόνη. Πλαίσιο αριστερά (κινητό: πάνω) με επιλογή χώρου, όψεις, λίστα σημείων και στρώσεις· κάρτα λεπτομερειών κάτω. */
+:root{--bg:#eef0f3;--solid:#ffffff;--panel:#fffffff7;--fg:#1c2330;--mute:#5d6878;--line:#cfd5de;--accent:#0b6bcb;--on:#ffffff;--chip:#fffffff2;--lead:#1c233099;
+  --k-sock:#d0312d;--k-sw:#1c6fd1;--k-data:#1f8a4c;--k-lt:#c79a00;--k-oth:#555b66;--k-spot:#e0a800;--k-det:#8a94a3;--k-pan:#2b3340;
   --f-head:"Space Grotesk","Inter",system-ui,sans-serif;--f-body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161a21;--panel:#222834ee;--fg:#e8ecf2;--mute:#9aa6b6;--line:#3a4352;--accent:#6fb3ff;color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#161a21;--panel:#222834ee;--fg:#e8ecf2;--mute:#9aa6b6;--line:#3a4352;--accent:#6fb3ff;color-scheme:dark}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161a21;--solid:#222834;--panel:#222834f7;--fg:#e8ecf2;--mute:#9aa6b6;--line:#3a4352;--accent:#6fb3ff;--on:#10151c;--chip:#222834f2;--lead:#e8ecf299;
+  --k-sock:#ff6b63;--k-sw:#6aa9ff;--k-data:#4fc98a;--k-lt:#f2c230;--k-oth:#a3acb9;--k-spot:#f2c230;--k-det:#c6ced9;--k-pan:#c6ced9;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#161a21;--solid:#222834;--panel:#222834f7;--fg:#e8ecf2;--mute:#9aa6b6;--line:#3a4352;--accent:#6fb3ff;--on:#10151c;--chip:#222834f2;--lead:#e8ecf299;
+  --k-sock:#ff6b63;--k-sw:#6aa9ff;--k-data:#4fc98a;--k-lt:#f2c230;--k-oth:#a3acb9;--k-spot:#f2c230;--k-det:#c6ced9;--k-pan:#c6ced9;color-scheme:dark}
+[hidden]{display:none!important}
 html,body{height:100%}
 body{background:var(--bg);color:var(--fg);font-family:var(--f-body);overflow:hidden;position:relative}
+#stage{position:absolute;inset:0}
 #c{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
 #c:active{cursor:grabbing}
-#ui{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));left:max(16px,env(safe-area-inset-left,0px));width:min(290px,calc(100% - 32px));
-  background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;max-height:calc(100% - 70px);overflow:auto}
-h1{font-family:var(--f-head);font-size:16px;margin:0 0 2px;text-wrap:balance}
-.sub{font-size:11.5px;color:var(--mute);margin:0 0 8px}
-details summary{cursor:pointer;font-weight:600;font-size:12.5px;padding:4px 0}
-.grp{display:flex;flex-direction:column;gap:3px;margin:4px 0 8px}
+#ld{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#ld path{stroke:var(--lead);stroke-width:1;fill:none}
+#lbl{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.lb{position:absolute;left:0;top:0;display:flex;align-items:center;gap:4px;margin:0;padding:1px 5px 1px 4px;border:1px solid var(--line);border-radius:5px;background:var(--chip);
+  color:var(--fg);font:600 11px/1.35 var(--f-body);white-space:nowrap;cursor:pointer;pointer-events:auto;will-change:transform}
+.lb i{width:7px;height:7px;border-radius:2px;flex:none;background:var(--k)}
+.lb span{font-weight:400;color:var(--mute);font-variant-numeric:tabular-nums}
+.lb span:empty{display:none}
+.lb.sm{font-size:10px;padding:0 4px 0 3px}
+.lb.sm i{border-radius:50%}
+.lb.wb{color:#fff;border-color:transparent;padding:1px 6px;font-size:11.5px;border-radius:4px}
+.lb.wb.sel{outline:2px solid var(--fg);outline-offset:1px;color:#fff}
+.lb.off{visibility:hidden;pointer-events:none}
+.lb.rel{border-color:var(--accent)}
+.lb.sel{border-color:var(--accent);background:var(--accent);color:var(--on);z-index:2}
+.lb.sel span{color:var(--on)}
+.lb:hover,.lb:focus-visible{border-color:var(--accent);outline:none}
+.k-sock{--k:var(--k-sock)}.k-sw{--k:var(--k-sw)}.k-data{--k:var(--k-data)}.k-lt{--k:var(--k-lt)}.k-oth{--k:var(--k-oth)}.k-spot{--k:var(--k-spot)}.k-det{--k:var(--k-det)}.k-pan{--k:var(--k-pan)}
+#ui{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));left:max(16px,env(safe-area-inset-left,0px));width:min(310px,calc(100% - 32px));
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:0 12px 10px;max-height:calc(100% - 60px);overflow:auto;display:flex;flex-direction:column;gap:6px}
+#head{position:sticky;top:0;z-index:1;background:var(--solid);margin:0 -12px;padding:10px 12px 6px;display:flex;flex-direction:column;gap:6px;border-radius:10px 10px 0 0}
+h1{font-family:var(--f-head);font-size:16px;margin:0;text-wrap:balance}
+.sub{font-size:11.5px;color:var(--mute);margin:0}
+.cap{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin-top:2px}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+button{font:600 12px var(--f-body);color:var(--fg);background:transparent;border:1px solid var(--line);border-radius:7px;padding:5px 9px;cursor:pointer}
+button:hover,button:focus-visible{border-color:var(--accent);color:var(--accent);outline:none}
+.chips button{white-space:nowrap;flex:none}
+.chips button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on)}
+.chips button .n{font-weight:400;opacity:.75;margin-left:3px;font-variant-numeric:tabular-nums}
+.chips button:disabled{opacity:.4;cursor:default;border-color:var(--line);color:var(--fg)}
+details summary{cursor:pointer;font-weight:600;font-size:12.5px;padding:3px 0}
+details[hidden]{display:none}
+.grp{display:flex;flex-direction:column;gap:3px;margin:4px 0 6px}
 label{display:flex;align-items:center;gap:7px;font-size:12.5px;line-height:1.25;cursor:pointer}
 label .n{margin-left:auto;color:var(--mute);font-variant-numeric:tabular-nums;font-size:11.5px}
 .sw{width:12px;height:12px;border-radius:3px;flex:none}
-.cap{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin-top:4px}
-.views{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
-button{font:600 12px var(--f-body);color:var(--fg);background:transparent;border:1px solid var(--line);border-radius:7px;padding:5px 9px;cursor:pointer}
-button:hover,button:focus-visible{border-color:var(--accent);color:var(--accent);outline:none}
+.note{font-size:11.5px;color:var(--mute);margin:2px 0 4px;line-height:1.35}
+.ph{font-size:11px;font-weight:600;color:var(--mute);margin:7px 0 2px}
+.rows{display:flex;flex-direction:column;gap:1px}
+.row{display:grid;grid-template-columns:9px auto 1fr auto;gap:6px;align-items:baseline;width:100%;text-align:left;border:0;border-radius:5px;padding:3px 4px;font:400 12px/1.3 var(--f-body);color:var(--fg)}
+.row i{width:8px;height:8px;border-radius:2px;background:var(--k);align-self:center}
+.row b{font-weight:600;white-space:nowrap}
+.row span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mute)}
+.row em{font-style:normal;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap}
+.row:hover,.row:focus-visible{background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--fg);outline:none}
+.row.sel{background:color-mix(in srgb,var(--accent) 20%,transparent)}
+.how{display:grid;grid-template-columns:22px 1fr;gap:7px;width:100%;text-align:left;border:0;border-radius:5px;font:400 12px/1.35 var(--f-body);color:var(--fg);padding:4px}
+.how:hover,.how:focus-visible{background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--fg);outline:none}
+.how.sel{background:color-mix(in srgb,var(--accent) 20%,transparent)}
+.how .b{height:18px;min-width:22px;border-radius:4px;color:#fff;font-weight:600;font-size:11.5px;display:flex;align-items:center;justify-content:center}
+.how .t{font-weight:600;font-size:11px;letter-spacing:.03em}
+.how .d{color:var(--mute)}
+#card{position:absolute;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(34px + env(safe-area-inset-bottom,0px));width:min(360px,calc(100% - 32px));
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 34px 10px 12px;font-size:12.5px;line-height:1.4}
+#card h2{font:600 14px var(--f-head);margin:0 0 3px;display:flex;align-items:center;gap:7px}
+#card h2 i{width:10px;height:10px;border-radius:3px;background:var(--k);flex:none}
+#card h2:not([class*="k-"]) i{display:none}
+#card p{margin:3px 0 0}
+#card .m{color:var(--mute)}
+#card .w{display:inline-block;border-radius:4px;color:#fff;font-weight:600;font-size:11.5px;padding:0 6px;margin-right:4px}
+#cx{position:absolute;top:6px;right:6px;width:24px;height:24px;padding:0;border-radius:6px;line-height:1}
+#cmp{position:absolute;right:max(16px,env(safe-area-inset-right,0px));top:calc(10px + env(safe-area-inset-top,0px));width:44px;height:44px;border-radius:50%;background:var(--panel);border:1px solid var(--line);pointer-events:none}
+#cmp svg{width:100%;height:100%;display:block}
+#cmp path{fill:var(--k-sock)}
+#cmp text{font:600 9.5px var(--f-body);fill:var(--fg);text-anchor:middle;dominant-baseline:central}
 #hint{position:absolute;left:0;right:0;bottom:calc(8px + env(safe-area-inset-bottom,0px));text-align:center;font-size:11.5px;color:var(--mute);pointer-events:none;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 #err{position:absolute;inset:auto 16px 40px;color:var(--fg);font-size:13px}
+@media (max-width:719px){
+  #ui{left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));width:auto;max-height:62%;padding:0 10px 8px;gap:5px}
+  #head{margin:0 -10px;padding:8px 10px 4px;gap:5px}
+  h1{font-size:14px;padding-right:50px}
+  .sub,.cap{display:none}
+  .chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -10px;padding:0 10px}
+  .chips::-webkit-scrollbar{display:none}
+  #cmp{top:calc(14px + env(safe-area-inset-top,0px));right:max(22px,env(safe-area-inset-right,0px));width:32px;height:32px;z-index:1}
+  #card{left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));width:auto;bottom:calc(10px + env(safe-area-inset-bottom,0px));max-height:38%;overflow:auto}
+  #card:not([hidden]) ~ #hint{display:none}
+}
 </style>
-<canvas id="c"></canvas>
+<div id="stage"><canvas id="c"></canvas><svg id="ld" aria-hidden="true"><path id="ldp" d=""></path></svg><div id="lbl"></div></div>
 <div id="ui">
-  <h1>Διαδρομές καλωδίων – Β1</h1>
-  <p class="sub" id="sub"></p>
-  <details open id="det"><summary>Τι βλέπω</summary>
-    <div class="cap">Πώς μπαίνει το καλώδιο στον τοίχο</div>
+  <div id="head">
+    <h1 id="ttl">Διαδρομές καλωδίων – Β1</h1>
+    <p class="sub" id="sub"></p>
+    <div class="cap">Χώρος</div>
+    <div class="chips" id="rooms" role="group" aria-label="Χώρος"></div>
+    <div class="cap">Όψη</div>
+    <div class="chips" id="views" role="group" aria-label="Όψη"></div>
+  </div>
+  <details id="dpts" hidden><summary id="ptsT">Σημεία του χώρου</summary>
+    <p class="note" id="ptsN"></p>
+    <div id="pts"></div>
+  </details>
+  <details id="dhow" hidden><summary>Από πού έρχεται το καλώδιο</summary>
+    <p class="note">Οι αριθμοί είναι οι τοίχοι του φύλλου ΗΛ-14 – ένας τρόπος ανά τοίχο. Πάτα έναν για την εξήγηση.</p>
+    <div id="how"></div>
+  </details>
+  <details id="det"><summary>Τι βλέπω</summary>
+    <div class="cap">Χρώμα καλωδίου = πώς μπαίνει στον τοίχο</div>
     <div class="grp" id="modes"></div>
+    <div class="cap">Χρώμα κουτιού = τι είναι</div>
+    <div class="grp" id="kinds"></div>
     <div class="cap">Κτίριο και οδεύσεις</div>
     <div class="grp" id="layers"></div>
-    <div class="cap">Όψη</div>
-    <div class="views"><button id="v1" type="button">Από πάνω</button><button id="v2" type="button">Από νοτιοδυτικά</button><button id="v3" type="button">Από βορειοανατολικά</button></div>
+    <p class="note">Τα καλώδια των φώτων της οροφής τρέχουν ελεύθερα μέσα στο κενό της, από τον κορμό του χώρου – δεν σχεδιάζονται ένα-ένα.</p>
   </details>
 </div>
-<div id="hint">Σύρε για περιστροφή · δεξί κουμπί ή δύο δάχτυλα για μετακίνηση · ροδέλα για ζουμ</div>
+<div id="cmp" aria-hidden="true"><svg viewBox="-22 -22 44 44"><path id="cmpn" d="M0 -8 L3.6 4 L0 1.6 L-3.6 4 Z"></path><text id="cmpt" x="0" y="-11.5">Β</text></svg></div>
+<div id="card" hidden><button id="cx" type="button" aria-label="Κλείσιμο">×</button><h2 id="ct"></h2><div id="cb"></div></div>
+<div id="hint"></div>
 <div id="err" hidden>Το 3D δεν φόρτωσε. Ξανάνοιξε τη σελίδα.</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 const D = /*DATA*/null;
 (function(){
-if(!window.THREE||!D){document.getElementById('err').hidden=false;return;}
-const T=THREE, cv=document.getElementById('c');
-const R=new T.WebGLRenderer({canvas:cv,antialias:true}); R.setPixelRatio(Math.min(devicePixelRatio||1,2));
-const S=new T.Scene(), cam=new T.PerspectiveCamera(40,1,0.1,200);
+const $=id=>document.getElementById(id);
+if(!window.THREE||!D){$('err').hidden=false;return;}
+const T=THREE, cv=$('c'), lblBox=$('lbl');
+const R=new T.WebGLRenderer({canvas:cv,antialias:true}); R.setPixelRatio(Math.min(devicePixelRatio||1,2)); R.localClippingEnabled=true;
+const S=new T.Scene(), cam=new T.PerspectiveCamera(40,1,0.1,400);
 S.add(new T.AmbientLight(0xffffff,.62)); const dl=new T.DirectionalLight(0xffffff,.38); dl.position.set(-6,14,9); S.add(dl);
 const V=(x,y,z)=>new T.Vector3(x,z,y);                 // μοντέλο (x ανατολή, y νότος, z ύψος) → three (X, Y πάνω, Z)
+const hex=c=>'#'+c.toString(16).padStart(6,'0');
+const fm=(v,n)=>v.toFixed(n==null?2:n).replace('.',',');
+
+// ---- κοπή ανά χώρο: 4 κατακόρυφα επίπεδα (Δ, Α, Β, Ν). Στο «όλο το σπίτι» είναι μακριά, ώστε να μην αλλάζουν τα υλικά.
+const FAR=500, CLIP=[new T.Plane(new T.Vector3(1,0,0),FAR),new T.Plane(new T.Vector3(-1,0,0),FAR),new T.Plane(new T.Vector3(0,0,1),FAR),new T.Plane(new T.Vector3(0,0,-1),FAR)];
+let cb=null;                                           // το κουτί που φαίνεται τώρα [x0, y0, x1, y1] ή null
+function setClip(b){cb=b;CLIP[0].constant=b?-b[0]:FAR;CLIP[1].constant=b?b[2]:FAR;CLIP[2].constant=b?-b[1]:FAR;CLIP[3].constant=b?b[3]:FAR;}
+const inClip=(x,y)=>!cb||(x>=cb[0]&&x<=cb[2]&&y>=cb[1]&&y<=cb[3]);
+const MC={},LC={};
+const lam=(col,op)=>{op=op==null?1:op;const k=col+'|'+op;return MC[k]||(MC[k]=new T.MeshLambertMaterial({color:col,transparent:op<1,opacity:op,depthWrite:op>=1,clippingPlanes:CLIP}));};
+const lin=col=>LC[col]||(LC[col]=new T.LineBasicMaterial({color:col,clippingPlanes:CLIP}));
 const G={}; const grp=k=>G[k]||(S.add(G[k]=new T.Group()),G[k]);
-function box(g,x0,y0,x1,y1,z0,z1,col,op){const m=new T.Mesh(new T.BoxGeometry(x1-x0,z1-z0,y1-y0),
-  new T.MeshLambertMaterial({color:col,transparent:op<1,opacity:op,depthWrite:op>=1}));m.position.copy(V((x0+x1)/2,(y0+y1)/2,(z0+z1)/2));g.add(m);return m;}
-function edged(m,col){const e=new T.LineSegments(new T.EdgesGeometry(m.geometry),new T.LineBasicMaterial({color:col}));m.add(e);return m;}
+function box(g,x0,y0,x1,y1,z0,z1,col,op){const m=new T.Mesh(new T.BoxGeometry(x1-x0,z1-z0,y1-y0),lam(col,op));m.position.copy(V((x0+x1)/2,(y0+y1)/2,(z0+z1)/2));g.add(m);return m;}
+function edged(m,col){m.add(new T.LineSegments(new T.EdgesGeometry(m.geometry),lin(col)));return m;}
 function tube(g,a,b,r,mat){const A=V(...a),B=V(...b),L=A.distanceTo(B);if(L<1e-4)return;
   const m=new T.Mesh(new T.CylinderGeometry(r,r,L,8),mat);m.position.copy(A.clone().add(B).multiplyScalar(.5));
   m.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),B.clone().sub(A).normalize());g.add(m);
   const j=new T.Mesh(new T.SphereGeometry(r,8,6),mat);j.position.copy(B);g.add(j);}
-function label(g,txt,x,y,z,sc,fg,bgc){const c=document.createElement('canvas'),k=c.getContext('2d'),fs=44;k.font='600 '+fs+'px Inter,system-ui,sans-serif';
+function path(g,pts,r,mat){for(let i=1;i<pts.length;i++)tube(g,pts[i-1],pts[i],r,mat);}
+function cyl(g,x,y,z0,z1,r,col){const m=new T.Mesh(new T.CylinderGeometry(r,r,z1-z0,20),lam(col));m.position.copy(V(x,y,(z0+z1)/2));g.add(m);return m;}
+const SPR=[];                                          // ετικέτες μέσα στο 3D (δοκάρια, οπές, αριθμοί τοίχων): κρύβονται όταν η άγκυρά τους είναι έξω από το κουτί
+function label(g,txt,x,y,z,sc,fg,bgc,mn,mx){const c=document.createElement('canvas'),k=c.getContext('2d'),fs=44;k.font='600 '+fs+'px Inter,system-ui,sans-serif';
   const w=Math.ceil(k.measureText(txt).width)+28;c.width=w;c.height=fs+22;k.font='600 '+fs+'px Inter,system-ui,sans-serif';
   k.fillStyle=bgc;k.fillRect(0,0,w,c.height);k.fillStyle=fg;k.textBaseline='middle';k.fillText(txt,14,c.height/2+2);
-  const s=new T.Sprite(new T.SpriteMaterial({map:new T.CanvasTexture(c),depthTest:false}));s.scale.set(sc*w/c.height,sc,1);s.position.copy(V(x,y,z));s.renderOrder=5;g.add(s);}
-// κτίριο
+  const s=new T.Sprite(new T.SpriteMaterial({map:new T.CanvasTexture(c),depthTest:false}));s.scale.set(sc*w/c.height,sc,1);s.position.copy(V(x,y,z));s.renderOrder=5;
+  s.userData.a=[x,y];s.userData.h0=sc;s.userData.ar=w/c.height;s.userData.mn=mn||10;s.userData.mx=mx||16;SPR.push(s);g.add(s);return s;}
+
+// ---- κτίριο
 box(grp('floor'),-1.4,-0.2,14.2,10.6,-0.20,-0.12,0xcfc9bb,1);
 const WC={b:0xc98f6b,g:0xdfe3e8,l:0xdfe3e8,s:0xdfe3e8},STEEL=0x7f93a8;
 D.walls.forEach(w=>{edged(box(grp('walls'),w[0],w[1],w[2],w[3],0,w[4],WC[w[5]],w[5]==='b'?.5:.2),w[5]==='b'?0x8a5a3c:0x8a94a0);
@@ -76,11 +178,12 @@ D.walls.forEach(w=>{edged(box(grp('walls'),w[0],w[1],w[2],w[3],0,w[4],WC[w[5]],w
   seg(a0,a0+L,0,.035);seg(a0,a0+L,w[4]-.035,w[4]);
   const n=Math.max(1,Math.ceil(L/.6));for(let i=0;i<=n;i++){const u=Math.min(a0+L-.04,a0+i*L/n);seg(u,u+.04,.035,w[4]-.035);}});
 D.cols.forEach(c=>edged(box(grp('cols'),c[0],c[1],c[2],c[3],0,2.98,0x5b626d,.8),0x2c3138));
-D.beams.forEach(b=>{edged(box(grp('beams'),b[1],b[2],b[3],b[4],b[5],2.98,0x7d8591,.72),0x2c3138);
-  label(grp('beams'),b[0]+' · '+b[6],(b[1]+b[3])/2,(b[2]+b[4])/2,3.05,0.15,'#ffffff','#4a515c');});
+const BEAM=new T.MeshLambertMaterial({color:0x7d8591,transparent:true,opacity:.72,depthWrite:false,clippingPlanes:CLIP});
+D.beams.forEach(b=>{const m=new T.Mesh(new T.BoxGeometry(b[3]-b[1],2.98-b[5],b[4]-b[2]),BEAM);m.position.copy(V((b[1]+b[3])/2,(b[2]+b[4])/2,(b[5]+2.98)/2));grp('beams').add(m);edged(m,0x2c3138);
+  label(grp('beams'),b[0]+' · '+b[6],(b[1]+b[3])/2,(b[2]+b[4])/2,3.05,0.15,'#ffffff','#4a515c',9,13);});
 // ψευδοροφή: κύριοι οδηγοί ανά 1,00 m, δευτερεύοντες ανά 50 cm, κρεμάσεις ανά 90 cm ως την πλάκα (ή ως το δοκάρι)
 const topAt=(x,y)=>{let t=2.78;D.beams.forEach(b=>{if(x>=b[1]&&x<=b[3]&&y>=b[2]&&y<=b[4])t=Math.min(t,b[5]);});return t;};
-const rodM=new T.MeshLambertMaterial({color:0x30363f});
+const rodM=lam(0x30363f);
 D.zones.forEach(z=>{const [x0,y0,x1,y1,Lv]=z,gc=grp('ceil'),gb=grp('board');box(gb,x0,y0,x1,y1,Lv,Lv+.0125,0xf2f0ea,.55);
   const hor=(x1-x0)>=(y1-y0),zs=Lv+.0125,zp=zs+.027;                 // δευτερεύοντες πάνω στο φύλλο, κύριοι από πάνω τους
   const U0=hor?x0:y0,U1=hor?x1:y1,W0=hor?y0:x0,W1=hor?y1:x1;
@@ -89,62 +192,307 @@ D.zones.forEach(z=>{const [x0,y0,x1,y1,Lv]=z,gc=grp('ceil'),gb=grp('board');box(
     hor?box(gc,U0,w,U1,w+.06,zp,zp+.027,STEEL,1):box(gc,w,U0,w+.06,U1,zp,zp+.027,STEEL,1);
     const nh=Math.max(1,Math.round((U1-U0)/.9));for(let k=0;k<=nh;k++){const u=Math.min(U1-.15,Math.max(U0+.15,U0+k*(U1-U0)/nh)),px=hor?u:w+.03,py=hor?w+.03:u,tp=topAt(px,py);
       if(tp-zp<.07)continue;tube(grp('hang'),[px,py,zp+.027],[px,py,tp],.007,rodM);box(grp('hang'),px-.03,py-.03,px+.03,py+.03,zp+.027,zp+.05,0x30363f,1);}}});
-D.rooms.forEach(r=>label(grp('names'),r[0],r[1],r[2],0.03,0.26,'#1c2330','rgba(255,255,255,.82)'));
-const mh=new T.MeshLambertMaterial({color:0xa0199e});
-D.holes.forEach(h=>{const a=h.ax==='y'?[h.x,h.y-.19,h.z]:[h.x-.19,h.y,h.z],b=h.ax==='y'?[h.x,h.y+.19,h.z]:[h.x+.19,h.y,h.z];tube(grp('holes'),a,b,.0375,mh);
+D.zones.forEach(z=>{const g=new T.BufferGeometry().setFromPoints([V(z[0],z[1],z[4]),V(z[2],z[1],z[4]),V(z[2],z[3],z[4]),V(z[0],z[3],z[4])]);grp('ceilo').add(new T.LineLoop(g,lin(0x9aa3ae)));});
+D.rooms.forEach(r=>label(grp('names'),r[0],r[1],r[2],0.03,0.26,'#1c2330','rgba(255,255,255,.82)',11,20));
+const mh=lam(0xa0199e);
+D.holes.slice().sort((a,b)=>a.ax===b.ax?(a.ax==='y'?a.x-b.x:a.y-b.y):(a.ax<b.ax?-1:1)).forEach((h,i,L)=>{const pr=L[i-1],near=pr&&pr.ax===h.ax&&Math.abs(h.ax==='y'?h.x-pr.x:h.y-pr.y)<.9;h.lz=near&&pr.lz===3.28?3.52:3.28;
+  const a=h.ax==='y'?[h.x,h.y-.19,h.z]:[h.x-.19,h.y,h.z],b=h.ax==='y'?[h.x,h.y+.19,h.z]:[h.x+.19,h.y,h.z];tube(grp('holes'),a,b,.0375,mh);
   [a,b].forEach(q=>{const r=new T.Mesh(new T.TorusGeometry(.055,.012,8,20),mh);r.position.copy(V(...q));if(h.ax==='x')r.rotation.y=Math.PI/2;grp('holes').add(r);});
-  label(grp('holes'),h.id+' Ø75',h.x,h.y,3.28,0.2,'#ffffff','#a0199e');});
-// έπιπλα έως οροφή / ντουλάπια κουζίνας (μέσα ή πίσω τους περνούν καλώδια) και υπέρθυρα θυρών
+  label(grp('holes'),h.id+' Ø75',h.x,h.y,h.lz,0.2,'#ffffff','#a0199e',11,15);});
+// έπιπλα έως οροφή / ντουλάπια κουζίνας (μέσα ή πίσω τους περνούν καλώδια), υπέρθυρα θυρών, κουφώματα
 D.furn.forEach(f=>edged(box(grp('furn'),f[0],f[1],f[2],f[3],f[4],f[5],0xc79a5b,.16),0x9a7440));
 D.doors.forEach(d=>edged(box(grp('walls'),d[0],d[1],d[2],d[3],2.25,Math.min(2.78,topAt((d[0]+d[2])/2,(d[1]+d[3])/2)),0xdfe3e8,.2),0x8a94a0));
+D.fx.win.forEach(w=>{const hor=(w[2]-w[0])>=(w[3]-w[1]),c=hor?(w[1]+w[3])/2:(w[0]+w[2])/2,t=.03;
+  edged(hor?box(grp('win'),w[0],c-t,w[2],c+t,w[4],w[5],0x6fb6e6,.3):box(grp('win'),c-t,w[1],c+t,w[3],w[4],w[5],0x6fb6e6,.3),0x2f7fb5);});
+// σταθερά: μονάδες κλιματισμού, πίνακας, ταινίες LED, shaft, μηχανήματα εξώστη
+D.fx.units.forEach(u=>edged(box(grp('fix'),u[0],u[1],u[2],u[3],u[4],u[5],0x7fb7e6,.55),0x2f6f9f));
+D.fx.boxes.forEach(u=>{edged(box(grp('fix'),u[0],u[1],u[2],u[3],u[4],u[5],0x9aa7b5,.5),0x4a5563);label(grp('fix'),u[6],(u[0]+u[2])/2,(u[1]+u[3])/2,u[5]+.18,0.14,'#ffffff','#4a5563',9,13);});
+D.fx.led.forEach(l=>{const hor=Math.abs(l[3]-l[1])>=Math.abs(l[4]-l[2]);
+  hor?box(grp('fix'),Math.min(l[1],l[3]),l[2]-.012,Math.max(l[1],l[3]),l[2]+.012,l[5]-.008,l[5]+.008,0xf2c230,1):box(grp('fix'),l[1]-.012,Math.min(l[2],l[4]),l[1]+.012,Math.max(l[2],l[4]),l[5]-.008,l[5]+.008,0xf2c230,1);});
+{const p=D.fx.panel;edged(box(grp('fix'),p[0],p[1],p[2],p[3],p[4],p[5],0x2b3340,1),0x10151c);
+ const s=D.fx.shaft;edged(box(grp('fix'),s[0],s[1],s[2],s[3],0,2.98,0x1f9d8a,.14),0x1f9d8a);label(grp('fix'),'SHAFT Η/Μ',(s[0]+s[2])/2,(s[1]+s[3])/2,3.3,0.18,'#ffffff','#157a6b',10,14);}
+// κορμοί
 const RC={pwr:0xd0312d,weak:0x1f8a4c,hvac:0x7a3fc4,feed:0x111111};
-D.trunks.forEach(r=>{const m=new T.MeshLambertMaterial({color:RC[r.k]||0xd0312d});for(let i=1;i<r.pts.length;i++)tube(grp('routes'),r.pts[i-1],r.pts[i],r.k==='feed'?.03:.02,m);});
-// τροφοδοσία κάθε τοίχου και κάθε κουτί: οι ίδιες διαδρομές που ελέγχθηκαν ανά 1 cm
+D.trunks.forEach(r=>path(grp('routes'),r.pts,r.k==='feed'?.03:.02,lam(RC[r.k]||0xd0312d)));
+// τροφοδοσία κάθε τοίχου, κάθε κουτί, πρόσθετες διαδρομές: οι ίδιες διαδρομές που ελέγχθηκαν ανά 1 cm – η καθεμία ξέρει σε ποιους χώρους φαίνεται
 const MODES=[['top','Από το ταβάνι, ίσια',0x1f9d55],['side','Κάτω από το δοκάρι (κουζίνα: κενό 9 cm)',0x0d8fa8],['via','Οριζόντια ΜΕΣΑ στον τοίχο, στο +2,30',0xe08a00],
   ['back','Από πίσω, μέσα από τη ντουλάπα του χωλ',0x8a4fd1],['furn','Μέσα / πίσω από ντουλάπα δωματίου',0xb34fa0],['floor','Από το πάτωμα',0x8a5a14]];
-const KC={sock:0xd0312d,sw:0x1c6fd1,data:0x1f8a4c,oth:0x555555};
-const cnt={},MM={};MODES.forEach(q=>MM[q[0]]=new T.MeshLambertMaterial({color:q[2]}));
-D.feeds.forEach(f=>{const g=grp('m_'+f.m);for(let i=1;i<f.pts.length;i++)tube(g,f.pts[i-1],f.pts[i],.019,MM[f.m]);});
-D.extra.forEach(f=>{const g=grp('m_'+f.m);for(let i=1;i<f.pts.length;i++)tube(g,f.pts[i-1],f.pts[i],.011,MM[f.m]);});
-D.tails.forEach(d=>{cnt[d.m]=(cnt[d.m]||0)+1;const g=grp('m_'+d.m);
-  for(let i=1;i<d.pts.length;i++)tube(g,d.pts[i-1],d.pts[i],.012,MM[d.m]);
-  const e=d.pts[d.pts.length-1],bx=new T.Mesh(new T.BoxGeometry(.09,.09,.09),new T.MeshLambertMaterial({color:KC[d.k]}));bx.position.copy(V(...e));g.add(bx);
-  label(grp('ids'),d.id,e[0],e[1],e[2]+.14,0.11,'#1c2330','rgba(255,255,255,.85)');});
-D.nums.forEach(n=>{const c=MODES.find(q=>q[0]===n[3])[2];label(grp('nums'),n[0],n[1],n[2],1.55,0.2,'#ffffff','#'+c.toString(16).padStart(6,'0'));});
-// πλαίσιο
-document.getElementById('sub').textContent='Τυπικός όροφος · '+D.tails.length+' κουτιά · κάθε διαδρομή ελεγμένη ανά 1 cm: κανένα καλώδιο μέσα σε δοκάρι, κολόνα ή πλάκα · ίδιο μοντέλο με το τεύχος '+D.rev;
-function row(par,key,txt,col,on,n){const l=document.createElement('label'),i=document.createElement('input');i.type='checkbox';i.checked=on;i.id='t_'+key;
-  i.addEventListener('change',()=>{grp(key).visible=i.checked;draw();});grp(key).visible=on;l.appendChild(i);
-  if(col!=null){const s=document.createElement('span');s.className='sw';s.style.background='#'+col.toString(16).padStart(6,'0');l.appendChild(s);}
-  l.appendChild(document.createTextNode(txt));if(n!=null){const c=document.createElement('span');c.className='n';c.textContent=n;l.appendChild(c);}par.appendChild(l);}
-const pm=document.getElementById('modes'),pl=document.getElementById('layers');
-MODES.forEach(m=>{if(cnt[m[0]])row(pm,'m_'+m[0],m[1],m[2],true,cnt[m[0]]);});
-row(pl,'routes','Κορμοί στα ταβάνια (μαύρο: παροχή)',0xd0312d,true);row(pl,'nums','Αριθμοί τοίχων (= τομές ΗΛ-14)',null,true);row(pl,'furn','Ντουλάπες έως οροφή / ντουλάπια κουζίνας',0xc79a5b,true);row(pl,'holes','Οπές Ø75 στα δοκάρια',0xa0199e,true);row(pl,'beams','Δοκάρια (μπετό)',0x7d8591,true);row(pl,'cols','Κολόνες (μπετό)',0x5b626d,true);
+const MCOL={};MODES.forEach(q=>MCOL[q[0]]=q[2]);
+const KINDS=[['sock','Ρευματοδότης / παροχή',0xd0312d],['sw','Διακόπτης',0x1c6fd1],['data','Data · TV · θυροτηλεόραση',0x1f8a4c],['lt','Φως τοίχου / ασφαλείας',0xe6b800],
+  ['oth','Θερμοστάτης · συναγερμός · χειριστήριο',0x555b66],['spot','Φως οροφής · ταινία LED',0xf2c230],['det','Ανιχνευτής',0xe9edf2],['pan','Πίνακας',0x2b3340]];
+const KCOL={};KINDS.forEach(q=>KCOL[q[0]]=q[2]);
+const SUB=[];                                          // {g: Group, rooms: [...]} – ό,τι φαίνεται μόνο στους χώρους του
+const sub=(parent,rooms)=>{const g=new T.Group();parent.add(g);SUB.push({g,rooms});return g;};
+const FEED={},XTRA={};
+D.feeds.forEach(f=>{FEED[f.id]=f;path(sub(grp('m_'+f.m),f.rooms),f.pts,.019,lam(MCOL[f.m]));});
+D.extra.forEach(f=>{XTRA[f.id]=f;path(sub(grp('m_'+f.m),f.rooms),f.pts,.011,lam(MCOL[f.m]));});
+const IT={},ITEMS=D.items;
+ITEMS.forEach(it=>{IT[it.u]=it;const g=it.g3=sub(it.m?grp('m_'+it.m):grp('fix'),it.rooms),t=D.tails[it.u];
+  if(t)path(g,t,.012,lam(MCOL[it.m]));
+  let m;
+  if(it.k==='spot'&&it.id.indexOf('LED')===0)m=box(g,it.x-.05,it.y-.02,it.x+.05,it.y+.02,it.z-.012,it.z+.012,KCOL.spot,1);
+  else if(it.k==='spot')m=it.rooms[0]==='exostes'?cyl(g,it.x,it.y,it.z-.04,it.z+.06,.045,0xf4f1e6):cyl(g,it.x,it.y,it.z-.022,it.z+.004,.05,KCOL.spot);
+  else if(it.k==='det')m=cyl(g,it.x,it.y,it.z-.045,it.z,.06,KCOL.det);
+  else if(it.k==='pan')m=box(g,it.x-.005,it.y-.26,it.x+.035,it.y+.26,it.z-.465,it.z+.465,KCOL.pan,1);
+  else m=box(g,it.x-.045,it.y-.045,it.x+.045,it.y+.045,it.z-.045,it.z+.045,KCOL[it.k],1);
+  if(it.k==='det'||(it.k==='spot'&&it.rooms[0]==='exostes'))edged(m,0x4a5563);
+  it.mesh=m;});
+D.nums.forEach(n=>label(grp('nums'),n[0],n[1],n[2],1.55,0.2,'#ffffff',hex(MCOL[n[3]]),13,18));
+const HL=grp('hl'), HLM=new T.MeshBasicMaterial({color:0xffd21f,clippingPlanes:CLIP}), HLL=new T.LineBasicMaterial({color:0xffd21f,clippingPlanes:CLIP});
+
+// ---- ετικέτες σημείων (HTML πάνω από το 3D: σταθερό μέγεθος, πατιούνται)
+ITEMS.forEach(it=>{const b=document.createElement('button');b.type='button';b.className='lb off k-'+it.k+(it.w?'':' sm');
+  const i=document.createElement('i'),t=document.createElement('b'),h=document.createElement('span');t.textContent=it.id;b.append(i,t,h);it.el=b;it.hEl=h;it.lw=0;it.lh=0;it.shown=false;
+  b.title=it.t;b.dataset.u=it.u;b.addEventListener('click',()=>select(it.u,false));lblBox.appendChild(b);});
+let WB=[];                                             // αριθμοί τοίχων του χώρου που φαίνεται (στο «όλο το σπίτι» είναι μέσα στο 3D, στη θέση της κάτοψης)
+const modeOf=g=>(D.nums.find(n=>n[0]===g)||[])[3];
+function badges(){WB.forEach(o=>o.el.remove());WB=[];if(!room||!RM.box)return;const by={};
+  ITEMS.forEach(it=>{if(it.w&&it.g&&it.d&&it.rooms[0]===room)(by[it.g]=by[it.g]||[]).push(it);});
+  Object.keys(by).forEach(g=>{const l=by[g],b=document.createElement('button');b.type='button';b.className='lb wb off';b.textContent=g;b.style.background=hex(MCOL[modeOf(g)]||0x555b66);
+    b.title='Τοίχος '+g+' – '+D.drops[g].t;b.addEventListener('click',()=>selectWall(g));lblBox.appendChild(b);
+    WB.push({el:b,g,x:l.reduce((a,i)=>a+i.x,0)/l.length,y:l.reduce((a,i)=>a+i.y,0)/l.length,z:2.0,lw:0,lh:0,shown:false});});}
+function measure(){ITEMS.forEach(it=>{it.lw=it.el.offsetWidth;it.lh=it.el.offsetHeight;});WB.forEach(o=>{o.lw=o.el.offsetWidth;o.lh=o.el.offsetHeight;});}
+
+// ---- κατάσταση
+const RM3={};D.rooms3.forEach(r=>RM3[r.id]=r);
+let room=null, RM=null, sel=null, anim=0, wallN={N:0,S:0,E:0,W:0};
+const tg=V(6.3,5.2,1.2), st={th:-0.8,ph:0.95,rad:22};
+const RED=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const chk={};                                          // κουτάκια στρώσεων
+const on=k=>!chk[k]||chk[k].checked;
+function row(par,key,txt,col,checked,n){const l=document.createElement('label'),i=document.createElement('input');i.type='checkbox';i.checked=checked;i.id='t_'+key;chk[key]=i;
+  i.addEventListener('change',()=>{apply();draw();});l.appendChild(i);
+  if(col!=null){const s=document.createElement('span');s.className='sw';s.style.background=hex(col);l.appendChild(s);}
+  l.appendChild(document.createTextNode(txt));const c=document.createElement('span');c.className='n';c.textContent=n==null?'':n;l.appendChild(c);par.appendChild(l);return l;}
+const pm=$('modes'),pl=$('layers'),pk=$('kinds'),modeRow={};
+MODES.forEach(m=>modeRow[m[0]]=row(pm,'m_'+m[0],m[1],m[2],true,0));
+KINDS.forEach(k=>{const l=document.createElement('label'),s=document.createElement('span');s.className='sw';s.style.background=hex(k[2]);if(k[0]==='det'||k[0]==='pan')s.style.outline='1px solid var(--mute)';
+  l.style.cursor='default';l.append(s,document.createTextNode(k[1]));pk.appendChild(l);});
+row(pl,'ids','Αριθμοί σημείων',null,false);row(pl,'routes','Κορμοί στα ταβάνια (μαύρο: παροχή)',0xd0312d,true);row(pl,'nums','Αριθμοί τοίχων (= τομές ΗΛ-14)',null,true);
+row(pl,'fix','Φώτα οροφής · ανιχνευτές · κλιματιστικά · πίνακας',0xf2c230,true);row(pl,'furn','Ντουλάπες έως οροφή / ντουλάπια κουζίνας',0xc79a5b,true);
+row(pl,'holes','Οπές Ø75 στα δοκάρια',0xa0199e,true);row(pl,'beams','Δοκάρια (μπετό)',0x7d8591,true);row(pl,'cols','Κολόνες (μπετό)',0x5b626d,true);
 row(pl,'studs','Σίδερα τοίχων: ορθοστάτες ανά 60 cm',0x7f93a8,true);row(pl,'ceil','Σίδερα οροφής: οδηγοί ανά 50 / 100 cm',0xb9c4cf,true);row(pl,'hang','Κρεμάσεις οροφής ανά 90 cm',0x30363f,true);
-row(pl,'board','Φύλλο γυψοσανίδας οροφής',0xf2f0ea,false);row(pl,'walls','Φύλλα τοίχων και τούβλα',0xdfe3e8,true);row(pl,'names','Ονόματα χώρων',null,true);row(pl,'ids','Αριθμοί σημείων',null,false);
-// κάμερα
-const tg=V(6.3,5.2,1.2);let th=-0.8,ph=0.95,rad=22;
-function place(){cam.position.set(tg.x+rad*Math.sin(ph)*Math.sin(th),tg.y+rad*Math.cos(ph),tg.z+rad*Math.sin(ph)*Math.cos(th));cam.lookAt(tg);}
-function draw(){place();R.render(S,cam);}
-function size(){const w=cv.clientWidth,h=cv.clientHeight;R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();
-  R.setClearColor(new T.Color(getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()||'#eef0f3'));
-  if(w<560)document.getElementById('det').open=false;draw();}
+row(pl,'board','Φύλλο γυψοσανίδας οροφής',0xf2f0ea,false);row(pl,'walls','Φύλλα τοίχων και τούβλα',0xdfe3e8,true);row(pl,'win','Κουφώματα',0x6fb6e6,true);row(pl,'names','Ονόματα χώρων',null,true);
+const SUB0='Τυπικός όροφος · '+ITEMS.filter(i=>i.w).length+' σημεία · κάθε διαδρομή ελεγμένη ανά 1 cm: κανένα καλώδιο μέσα σε δοκάρι, κολόνα ή πλάκα · ίδιο μοντέλο με το τεύχος '+D.rev;
+const SUB1='Ο χώρος μόνος του. Οι τοίχοι που είναι προς το μέρος σου κρύβονται για να βλέπεις μέσα – γύρνα τον, ή πάτα «Τοίχος», για να δεις τους άλλους.';
+function hint(){const ph=cv.clientWidth<720;$('hint').textContent=ph?(room&&RM.box?'Οι κοντινοί τοίχοι κρύβονται για να βλέπεις μέσα · γύρνα το · πάτα έναν αριθμό':'Σύρε για περιστροφή · δύο δάχτυλα: μετακίνηση και ζουμ'):
+  'Σύρε για περιστροφή · δεξί κουμπί ή δύο δάχτυλα για μετακίνηση · ροδέλα για ζουμ'+(room?' · πάτα έναν αριθμό για λεπτομέρειες':'');}
+
+// ---- τι φαίνεται (στρώσεις + χώρος + κοπή)
+const P3=new T.Vector3();
+function apply(){
+  const above=st.ph<1.3;                                 // στον χώρο: ό,τι είναι ανάμεσα σε σένα και το δωμάτιο φεύγει – και η οροφή, όταν κοιτάς από ψηλά
+  Object.keys(G).forEach(k=>{if(chk[k])G[k].visible=chk[k].checked;});
+  G.ceilo.visible=!!room&&above&&on('ceil');
+  if(room){G.names.visible=false;['ceil','hang','board'].forEach(k=>{G[k].visible=G[k].visible&&!above;});}
+  BEAM.opacity=room?.3:.72;
+  SUB.forEach(o=>{o.g.visible=!room||o.rooms.indexOf(room)>=0;});
+  SPR.forEach(s=>{s.visible=inClip(s.userData.a[0],s.userData.a[1]);});
+  if(room&&RM.box)G.nums.visible=false;
+  const K=cv.clientHeight/(2*Math.tan(cam.fov*Math.PI/360));     // μέγεθος ετικετών 3D: όσο βγαίνει από την απόσταση, μέσα στα όριά τους (px)
+  SPR.forEach(s=>{if(!s.visible)return;P3.copy(s.position).applyMatrix4(cam.matrixWorldInverse);const d=-P3.z;if(d<.05)return;
+    const u=s.userData,hw=Math.max(u.mn,Math.min(u.mx,u.h0/d*K))*d/K;s.scale.set(hw*u.ar,hw,1);});
+}
+function autoClip(){
+  if(!RM||!RM.box){setClip(null);return;}
+  const b=RM.box,o=RM.out,cx=cam.position.x,cy=cam.position.z,low=st.ph>0.42,e=0.07;
+  setClip([(low&&cx<b[0])?b[0]+e:o[0],(low&&cy<b[1])?b[1]+e:o[1],(low&&cx>b[2])?b[2]-e:o[2],(low&&cy>b[3])?b[3]-e:o[3]]);
+}
+function place(){cam.position.set(tg.x+st.rad*Math.sin(st.ph)*Math.sin(st.th),tg.y+st.rad*Math.cos(st.ph),tg.z+st.rad*Math.sin(st.ph)*Math.cos(st.th));cam.lookAt(tg);cam.updateMatrixWorld();}
+function labels(){
+  const w=cv.clientWidth,h=cv.clientHeight,show=on('ids'),placed=[],fixOn=on('fix');let d='';
+  const put=(o,ok,tries,force)=>{let sx=0,sy=0;
+    if(ok){P3.set(o.x,o.z,o.y).applyMatrix4(cam.matrixWorldInverse);if(P3.z>-0.15)ok=false;else{P3.applyMatrix4(cam.projectionMatrix);sx=(P3.x+1)/2*w;sy=(1-P3.y)/2*h;if(sx<-20||sx>w+20||sy<-20||sy>h+20)ok=false;}}
+    if(ok){const lw=o.lw,lh=o.lh,gy=lh+7;let done=false;
+      for(let k=0;k<tries.length;k++){const q=tries[k],x=sx-lw/2+q[0]*lw,y=q[1]<0?sy+q[1]*gy:(q[1]>0?sy+(q[1]-1)*gy+7:sy-lh/2);let hit=false;
+        for(const r of placed){if(x<r[2]+2&&x+lw>r[0]-2&&y<r[3]+2&&y+lh>r[1]-2){hit=true;break;}}
+        if(hit&&!(force&&k===tries.length-1))continue;
+        placed.push([x,y,x+lw,y+lh]);o.el.style.transform='translate('+Math.round(x)+'px,'+Math.round(y)+'px)';
+        const lx=Math.max(x+3,Math.min(x+lw-3,sx)),ly=y+lh<sy?y+lh:y;if(q[1]&&Math.abs(ly-sy)>4)d+='M'+sx.toFixed(1)+' '+sy.toFixed(1)+'L'+lx.toFixed(1)+' '+ly.toFixed(1);
+        done=true;break;}
+      ok=done;}
+    if(ok!==o.shown){o.shown=ok;o.el.classList.toggle('off',!ok);}};
+  const TW=[[0,-1],[.62,-1],[-.62,-1],[0,1],[.62,1],[-.62,1],[0,-2.1],[.9,-2.1],[-.9,-2.1],[0,2.1]],TC=[[0,1],[.62,1],[-.62,1],[0,-1]],TB=[[0,0],[1.3,0],[-1.3,0],[0,-1],[0,1]];
+  // σειρά: πρώτα ό,τι είναι επιλεγμένο (παίρνει την καλή θέση, τα άλλα το αποφεύγουν), μετά τα σημεία τοίχου, οι αριθμοί τοίχων, και τελευταία τα σημεία οροφής
+  const S0=sel&&IT[sel]?IT[sel]:null,B0=selW?WB.find(o=>o.g===selW):null,nm=on('nums');
+  const okI=it=>show&&(!room||it.rooms.indexOf(room)>=0)&&(it.m?on('m_'+it.m):fixOn)&&inClip(it.x,it.y)&&(!!room||!!it.w||it===S0);   // όλο το σπίτι: μόνο τα σημεία τοίχου
+  const okB=o=>nm&&inClip(o.x,o.y)&&on('m_'+modeOf(o.g));
+  if(S0)put(S0,okI(S0),S0.w?TW:TC,true);
+  if(B0)put(B0,okB(B0),TB,true);
+  for(const it of ITEMS)if(it.w&&it!==S0)put(it,okI(it),TW,false);
+  for(const o of WB)if(o!==B0)put(o,okB(o),TB,false);
+  for(const it of ITEMS)if(!it.w&&it!==S0)put(it,okI(it),TC,false);
+  $('ldp').setAttribute('d',d);
+}
+function draw(){place();autoClip();apply();R.render(S,cam);labels();$('cmpn').setAttribute('transform','rotate('+(st.th*180/Math.PI).toFixed(1)+')');$('cmpt').setAttribute('x',(15*Math.sin(st.th)).toFixed(1));$('cmpt').setAttribute('y',(-15*Math.cos(st.th)).toFixed(1));}
+
+// ---- ελεύθερη περιοχή της οθόνης (έξω από το πλαίσιο) και εφαρμογή της κάμερας σε αυτήν
+function free(){const w=cv.clientWidth,h=cv.clientHeight,u=$('ui').getBoundingClientRect(),c=$('card');let l=14,t=14,r=14,b=36;
+  if(w>=720)l=u.right+14;else t=Math.min(u.bottom+10,h*.55);
+  if(!c.hidden&&w<720)b=Math.max(b,h-c.getBoundingClientRect().top+10);
+  return {l,t,r,b};}
+function size(){const w=cv.clientWidth,h=cv.clientHeight;if(!w||!h)return;R.setSize(w,h,false);cam.aspect=w/h;const F=free();cam.setViewOffset(w,h,-(F.l-F.r)/2,-(F.t-F.b)/2,w,h);
+  R.setClearColor(new T.Color(getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()||'#eef0f3'));draw();}
+function fitRad(th,ph,c,pts){const w=cv.clientWidth,h=cv.clientHeight,F=free(),q=new T.Vector3();let lo=1.2,hi=140;
+  const okR=r=>{cam.position.set(c.x+r*Math.sin(ph)*Math.sin(th),c.y+r*Math.cos(ph),c.z+r*Math.sin(ph)*Math.cos(th));cam.lookAt(c);cam.updateMatrixWorld();
+    for(const p of pts){q.copy(p).applyMatrix4(cam.matrixWorldInverse);if(q.z>-0.3)return false;q.applyMatrix4(cam.projectionMatrix);
+      const sx=(q.x+1)/2*w,sy=(1-q.y)/2*h;if(sx<F.l||sx>w-F.r||sy<F.t||sy>h-F.b)return false;}return true;};
+  for(let i=0;i<24;i++){const m=(lo+hi)/2;okR(m)?hi=m:lo=m;}return hi;}
+function go(to,ms){cancelAnimationFrame(anim);const fr={th:st.th,ph:st.ph,rad:st.rad,tg:tg.clone()};let dth=to.th-fr.th;dth=Math.atan2(Math.sin(dth),Math.cos(dth));
+  const set=e=>{st.th=fr.th+dth*e;st.ph=fr.ph+(to.ph-fr.ph)*e;st.rad=fr.rad+(to.rad-fr.rad)*e;tg.lerpVectors(fr.tg,to.tg,e);draw();};
+  if(RED||!ms){set(1);return;}
+  const t0=performance.now(),step=now=>{const k=Math.min(1,(now-t0)/ms);set(k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2);if(k<1)anim=requestAnimationFrame(step);};anim=requestAnimationFrame(step);}
+function corners(b,z0,z1){const o=[];[b[0],b[2]].forEach(x=>[b[1],b[3]].forEach(y=>[z0,z1].forEach(z=>o.push(V(x,y,z)))));return o;}
+const WHOLE=[-1.2,-0.2,14.0,10.6];
+let lastV=null,moved=false;                              // η τελευταία όψη που ζητήθηκε: ξαναεφαρμόζεται όταν αλλάζει το μέγεθος της οθόνης (π.χ. γύρισμα κινητού)
+function topTo(ms){const b=RM&&RM.box?RM.box:WHOLE,F=free(),fw=cv.clientWidth-F.l-F.r,fh=cv.clientHeight-F.t-F.b;lastV=()=>topTo(0);
+  viewTo(((b[2]-b[0])>(b[3]-b[1]))!==(fw>fh)?Math.PI/2:0,.05,ms,true);}
+function viewTo(th,ph,ms,keep){if(!keep)lastV=()=>viewTo(th,ph,0);moved=false;const b=RM&&RM.box?RM.box:WHOLE,c=V((b[0]+b[2])/2,(b[1]+b[3])/2,RM&&RM.box?1.35:1.2),pad=RM&&RM.box?.45:0;
+  const save={th:st.th,ph:st.ph,rad:st.rad,tg:tg.clone()};
+  const rad=fitRad(th,ph,c,corners([b[0]-pad,b[1]-pad,b[2]+pad,b[3]+pad],0,2.98));
+  st.th=save.th;st.ph=save.ph;st.rad=save.rad;tg.copy(save.tg);place();
+  go({th,ph,rad,tg:c},ms==null?420:ms);}
+function wallTo(d,ms){lastV=()=>wallTo(d,0);moved=false;const b=RM.box,p=.3,c=d==='S'?V((b[0]+b[2])/2,b[1],1.4):d==='N'?V((b[0]+b[2])/2,b[3],1.4):d==='E'?V(b[0],(b[1]+b[3])/2,1.4):V(b[2],(b[1]+b[3])/2,1.4);
+  const pts=[];[-.12,3.1].forEach(z=>{if(d==='S'||d==='N'){const y=d==='S'?b[1]:b[3];pts.push(V(b[0]-p,y,z),V(b[2]+p,y,z));}else{const x=d==='E'?b[0]:b[2];pts.push(V(x,b[1]-p,z),V(x,b[3]+p,z));}});
+  const save={th:st.th,ph:st.ph,rad:st.rad,tg:tg.clone()},rad=fitRad(TH[d],1.43,c,pts);st.th=save.th;st.ph=save.ph;st.rad=save.rad;tg.copy(save.tg);place();
+  go({th:TH[d],ph:1.43,rad,tg:c},ms==null?420:ms);}
+const TH={N:Math.PI,S:0,E:Math.PI/2,W:-Math.PI/2};           // προς τα πού ΒΛΕΠΕΙ το σημείο → από πού το κοιτάς (π.χ. βλέπει νότια = είναι στον βόρειο τοίχο → κάμερα νότια)
+const CORN=[[-0.8,'SW'],[0.8,'SE'],[Math.PI-0.8,'NE'],[Math.PI+0.8,'NW']];
+let cornI=0;
+function bestCorner(){let best=0,bn=-1;CORN.forEach((c,i)=>{const n=(c[1].indexOf('S')>=0?wallN.S:wallN.N)+(c[1].indexOf('W')>=0?wallN.W:wallN.E);if(n>bn){bn=n;best=i;}});return best;}
+
+// ---- όψεις
+const VW=$('views');
+function vbtn(txt,fn,n,title){const b=document.createElement('button');b.type='button';b.textContent=txt;if(title)b.title=title;
+  if(n!=null){const s=document.createElement('span');s.className='n';s.textContent=n;b.appendChild(s);}
+  b.addEventListener('click',fn);VW.appendChild(b);return b;}
+function views(){VW.textContent='';
+  if(!RM||!RM.box){vbtn('Από πάνω',()=>topTo());vbtn('Από νοτιοδυτικά',()=>viewTo(-0.8,.95));vbtn('Από βορειοανατολικά',()=>viewTo(Math.PI-0.8,.95));return;}
+  vbtn('Από πάνω',()=>topTo());
+  vbtn('Γωνία ↻',()=>{cornI=(cornI+1)%4;viewTo(CORN[cornI][0],.95);},null,'Κάθε πάτημα γυρίζει στην επόμενη γωνία');
+  [['S','Τοίχος Β','Βόρειος τοίχος'],['N','Τοίχος Ν','Νότιος τοίχος'],['W','Τοίχος Α','Ανατολικός τοίχος'],['E','Τοίχος Δ','Δυτικός τοίχος']].forEach(q=>vbtn(q[1],()=>wallTo(q[0]),wallN[q[0]],q[2]+' – '+wallN[q[0]]+' σημεία'));
+}
+
+// ---- πλαίσιο του χώρου: λίστα σημείων, τρόποι τροφοδοσίας
+const PG=[['sock','Ρευματοδότες και παροχές'],['sw','Διακόπτες'],['data','Data · TV · θυροτηλεόραση'],['oth','Θερμοστάτες · συναγερμός · χειριστήρια'],['lt','Φώτα τοίχου'],['spot','Φώτα οροφής'],['det','Ανιχνευτές'],['pan','Πίνακας']];
+const zt=it=>it.w?fm(it.z):'+'+fm(it.z);
+function panel(){
+  const inr=it=>!room||it.rooms.indexOf(room)>=0,its=ITEMS.filter(inr),cnt={};
+  its.forEach(it=>{if(it.w&&it.m)cnt[it.m]=(cnt[it.m]||0)+1;});
+  MODES.forEach(m=>{modeRow[m[0]].hidden=!cnt[m[0]];modeRow[m[0]].querySelector('.n').textContent=cnt[m[0]]||'';});
+  $('dpts').hidden=$('dhow').hidden=!room;
+  $('ttl').textContent=room?RM.name:'Διαδρομές καλωδίων – Β1';$('sub').textContent=room&&RM.box?SUB1:(room?'Μόνο τα σημεία των εξωστών: ρευματοδότες, φώτα οροφής, παροχές μηχανημάτων – και από ποιον τοίχο βγαίνει το καλώδιό τους.':SUB0);hint();
+  if(!room)return;
+  const nw=its.filter(i=>i.w).length,nc=its.length-nw;
+  $('ptsT').textContent='Σημεία του χώρου ('+its.length+')';
+  $('ptsN').textContent=nw+' σε τοίχο · '+nc+' στην οροφή. Το ύψος είναι από το τελικό δάπεδο. Πάτα ένα σημείο για να το δεις.';
+  const box=$('pts');box.textContent='';
+  PG.forEach(g=>{const l=its.filter(i=>i.k===g[0]);if(!l.length)return;
+    const h=document.createElement('div');h.className='ph';h.textContent=g[1]+' · '+l.length;box.appendChild(h);
+    const rs=document.createElement('div');rs.className='rows';box.appendChild(rs);
+    l.forEach(it=>{const b=document.createElement('button');b.type='button';b.className='row k-'+it.k;b.dataset.u=it.u;
+      const i=document.createElement('i'),n=document.createElement('b'),t=document.createElement('span'),z=document.createElement('em');n.textContent=it.id;
+      t.textContent=it.k==='spot'&&it.lg.length?'ομάδα '+it.lg[0]+' · '+it.t:it.t;z.textContent=zt(it);b.append(i,n,t,z);b.title=it.s;
+      b.addEventListener('click',()=>select(it.u,true));rs.appendChild(b);});});
+  const hw=$('how');hw.textContent='';
+  const gs=[];its.forEach(it=>{if(it.w&&it.g&&gs.indexOf(it.g)<0)gs.push(it.g);});gs.sort((a,b)=>a-b);
+  gs.forEach(g=>{const dr=D.drops[g],md=modeOf(g),r=document.createElement('button');r.type='button';r.className='how';r.dataset.g=g;r.addEventListener('click',()=>selectWall(g,true));
+    const b=document.createElement('span');b.className='b';b.textContent=g;b.style.background=hex(MCOL[md]||0x555b66);
+    const x=document.createElement('div'),t=document.createElement('div'),d=document.createElement('div');t.className='t';d.className='d';
+    t.textContent=dr.t;d.textContent=dr.how+' · '+its.filter(i=>i.w&&i.g===g).map(i=>i.id).join(', ');x.append(t,d);r.append(b,x);hw.appendChild(r);});
+}
+
+// ---- επιλογή σημείου ή τοίχου: κάρτα, κίτρινη διαδρομή από τον κορμό ως το κουτί, σχετικά φώτα / διακόπτες
+let selW=null;
+function clearSel(){sel=null;selW=null;HL.clear();ITEMS.forEach(it=>it.el.classList.remove('sel','rel'));WB.forEach(o=>o.el.classList.remove('sel'));
+  document.querySelectorAll('.row.sel,.how.sel').forEach(r=>r.classList.remove('sel'));}
+function card(cls,title,paras){const c=$('card'),h=$('ct'),b=$('cb');h.className=cls;h.textContent='';h.append(document.createElement('i'),document.createTextNode(title));b.textContent='';
+  paras.forEach(q=>{if(!q)return;const e=document.createElement('p');if(q[0])e.className=q[0];
+    if(q[2]){const wv=document.createElement('span');wv.className='w';wv.textContent=q[2][0];wv.style.background=q[2][1];e.appendChild(wv);}
+    e.appendChild(document.createTextNode(q[1]));b.appendChild(e);});c.hidden=false;size();}
+const cap1=t=>t.charAt(0).toUpperCase()+t.slice(1);
+// όταν διαλέγεις από τη λίστα: αν το σημείο δεν φαίνεται (κομμένος τοίχος, πίσω από την κάμερα, έξω από την οθόνη) η κάμερα πάει εκεί που φαίνεται
+function onScreen(o){if(!inClip(o.x,o.y))return false;const w=cv.clientWidth,h=cv.clientHeight,F=free();
+  P3.set(o.x,o.z,o.y).applyMatrix4(cam.matrixWorldInverse);if(P3.z>-0.3)return false;P3.applyMatrix4(cam.projectionMatrix);
+  const sx=(P3.x+1)/2*w,sy=(1-P3.y)/2*h;return sx>F.l+12&&sx<w-F.r-12&&sy>F.t+12&&sy<h-F.b-12;}
+const OPP={N:'S',S:'N',E:'W',W:'E'};
+function reveal(o,d,inside){place();autoClip();if(onScreen(o))return false;
+  if(!room||!RM.box){viewTo(-0.8,.95);return true;}
+  if(d){wallTo(inside?d:OPP[d]);return true;}               // σημείο στην εξωτερική παρειά (εξώστης): φαίνεται από μέσα, μέσα από τον τοίχο του
+  const b=RM.box,e=.07;                                   // χωρίς παρειά (οροφή, επαφές): η γωνία από την οποία δεν κόβεται
+  for(let k=0;k<4;k++){const i=(cornI+k)%4,c=CORN[i][1];
+    if(o.x>=(c.indexOf('W')>=0?b[0]+e:-1e9)&&o.x<=(c.indexOf('E')>=0?b[2]-e:1e9)&&o.y>=(c.indexOf('N')>=0?b[1]+e:-1e9)&&o.y<=(c.indexOf('S')>=0?b[3]-e:1e9)){cornI=i;viewTo(CORN[i][0],.95);return true;}}
+  topTo();return true;}
+const fold=()=>{if(cv.clientWidth<720){$('dpts').open=false;$('dhow').open=false;$('det').open=false;}};
+function select(u,face){
+  clearSel();sel=u&&IT[u]?u:null;if(face)fold();
+  if(!sel){$('card').hidden=true;size();return;}
+  const it=IT[sel];it.el.classList.add('sel');
+  if(it.lg.length)ITEMS.forEach(o=>{if(o!==it&&o.lg.some(g=>it.lg.indexOf(g)>=0))o.el.classList.add('rel');});
+  const rw=document.querySelector('.row[data-u="'+CSS.escape(sel)+'"]');if(rw){rw.classList.add('sel');if(!face&&rw.scrollIntoView)rw.scrollIntoView({block:'nearest'});}
+  let pts=null;if(it.f&&D.tails[it.u])pts=FEED[it.f].pts.concat(D.tails[it.u].slice(1));else if(it.x3)pts=XTRA[it.x3].pts;
+  if(pts)path(HL,pts,.026,HLM);
+  const ring=new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(.2,.2,.2)),HLL);ring.position.copy(V(it.x,it.y,it.z));HL.add(ring);
+  const dr=it.g&&D.drops[it.g];
+  card('k-'+it.k,it.id+' · '+it.t,[
+    ['',it.w?'Ύψος '+fm(it.z)+' m από το τελικό δάπεδο':(it.k==='pan'?'Κέντρο στο +'+fm(it.z)+' m (κάτω άκρο +1,02 · πάνω +1,95)':'Στο +'+fm(it.z)+' m από το τελικό δάπεδο')],
+    ['m',it.s],['','Κύκλωμα: '+it.c],
+    dr?['',dr.how,['τοίχος '+it.g,hex(MCOL[it.m||modeOf(it.g)]||0x555b66)]]:null,
+    it.x3&&XTRA[it.x3]?['m','Καλώδιο: '+XTRA[it.x3].n]:null]);
+  if(face&&reveal(it,it.d,it.rooms[0]===room))return;
+  draw();
+}
+function selectWall(g,list){
+  clearSel();selW=g;if(list)fold();const dr=D.drops[g],md=modeOf(g),its=ITEMS.filter(it=>it.w&&it.g===g&&(!room||it.rooms.indexOf(room)>=0));
+  D.feeds.forEach(f=>{if(f.g===g)path(HL,f.pts,.026,HLM);});
+  its.forEach(it=>it.el.classList.add('rel'));WB.forEach(o=>{if(o.g===g)o.el.classList.add('sel');});
+  const rw=document.querySelector('.how[data-g="'+CSS.escape(g)+'"]');if(rw)rw.classList.add('sel');
+  card('',dr.t,[['',cap1(dr.how),['τοίχος '+g,hex(MCOL[md]||0x555b66)]],['m',dr.txt],dr.what?['','Τι περνά: '+dr.what]:null,['m','Σημεία'+(room?' σε αυτόν τον χώρο':'')+': '+its.map(i=>i.id).join(', ')]]);
+  const o=WB.find(q=>q.g===g),f=its.find(i=>i.d&&i.rooms[0]===room);
+  if(o&&f&&reveal(o,f.d,true))return;
+  draw();
+}
+$('cx').addEventListener('click',()=>select(null));
+
+// ---- επιλογή χώρου
+const RB=$('rooms'),rbtn={};
+function rchip(id,txt){const b=document.createElement('button');b.type='button';b.textContent=txt;b.setAttribute('aria-pressed','false');b.addEventListener('click',()=>setRoom(id,true));RB.appendChild(b);rbtn[id||'']=b;}
+rchip(null,'Όλο το σπίτι');D.rooms3.forEach(r=>rchip(r.id,r.short));
+function setRoom(id,user){
+  const was=room;room=id&&RM3[id]?id:null;RM=room?RM3[room]:null;
+  Object.keys(rbtn).forEach(k=>rbtn[k].setAttribute('aria-pressed',String(k===(room||''))));
+  if(user||was!==room){chk.ids.checked=!!room;}
+  wallN={N:0,S:0,E:0,W:0};if(room)ITEMS.forEach(it=>{if(it.w&&it.d&&it.rooms[0]===room)wallN[it.d]++;});
+  ITEMS.forEach(it=>{it.hEl.textContent=room&&it.w?fm(it.z):'';});
+  if((sel&&room&&IT[sel].rooms.indexOf(room)<0)||selW){clearSel();$('card').hidden=true;}
+  badges();panel();views();
+  const wide=cv.clientWidth>=720;$('dpts').open=!!room&&wide;$('dhow').open=false;$('det').open=!room&&wide;
+  measure();size();
+  if(RM&&RM.box){cornI=bestCorner();viewTo(CORN[cornI][0],.95,user?520:0);}else viewTo(-0.8,.95,user?520:0);
+  if(user){try{location.hash=room||'olo';}catch(e){}}
+  const act=rbtn[room||''];if(act&&act.scrollIntoView&&cv.clientWidth<720)act.scrollIntoView({block:'nearest',inline:'center'});
+}
+
+// ---- χειρισμός κάμερας
 const P=new Map();let pd=0;
-cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);P.set(e.pointerId,[e.clientX,e.clientY,e.button]);});
+cv.addEventListener('pointerdown',e=>{cancelAnimationFrame(anim);cv.setPointerCapture(e.pointerId);P.set(e.pointerId,[e.clientX,e.clientY,e.button]);});
 cv.addEventListener('pointerup',e=>{P.delete(e.pointerId);pd=0;});cv.addEventListener('pointercancel',e=>{P.delete(e.pointerId);pd=0;});
 cv.addEventListener('contextmenu',e=>e.preventDefault());
-function pan(dx,dy){const k=rad*0.0012,r=new T.Vector3().setFromMatrixColumn(cam.matrix,0),u=new T.Vector3().setFromMatrixColumn(cam.matrix,1);tg.addScaledVector(r,-dx*k).addScaledVector(u,dy*k);}
+function pan(dx,dy){const k=st.rad*0.0012,r=new T.Vector3().setFromMatrixColumn(cam.matrix,0),u=new T.Vector3().setFromMatrixColumn(cam.matrix,1);tg.addScaledVector(r,-dx*k).addScaledVector(u,dy*k);}
 cv.addEventListener('pointermove',e=>{const p=P.get(e.pointerId);if(!p)return;const dx=e.clientX-p[0],dy=e.clientY-p[1];p[0]=e.clientX;p[1]=e.clientY;
-  if(P.size>=2){const a=[...P.values()],d=Math.hypot(a[0][0]-a[1][0],a[0][1]-a[1][1]);if(pd)rad=Math.max(3,Math.min(60,rad*pd/d));pd=d;pan(dx/2,dy/2);}
-  else if(p[2]===2||e.shiftKey)pan(dx,dy);else{th-=dx*.006;ph=Math.max(.05,Math.min(1.5,ph-dy*.006));}draw();});
-cv.addEventListener('wheel',e=>{e.preventDefault();rad=Math.max(3,Math.min(60,rad*(e.deltaY>0?1.1:.9)));draw();},{passive:false});
-function view(a,b,r){th=a;ph=b;rad=r;tg.copy(V(6.3,5.2,1.2));draw();}
-document.getElementById('v1').addEventListener('click',()=>view(0,.05,24));
-document.getElementById('v2').addEventListener('click',()=>view(-0.8,.95,22));
-document.getElementById('v3').addEventListener('click',()=>view(2.3,.95,22));
-addEventListener('resize',size);
+  if(P.size>=2){const a=[...P.values()],d=Math.hypot(a[0][0]-a[1][0],a[0][1]-a[1][1]);if(pd)st.rad=Math.max(1.2,Math.min(70,st.rad*pd/d));pd=d;pan(dx/2,dy/2);}
+  else if(p[2]===2||e.shiftKey)pan(dx,dy);else{st.th-=dx*.006;st.ph=Math.max(.05,Math.min(1.5,st.ph-dy*.006));}moved=true;draw();});
+const wheel=e=>{e.preventDefault();cancelAnimationFrame(anim);st.rad=Math.max(1.2,Math.min(70,st.rad*(e.deltaY>0?1.1:.9)));moved=true;draw();};
+cv.addEventListener('wheel',wheel,{passive:false});lblBox.addEventListener('wheel',wheel,{passive:false});
+['dpts','dhow','det'].forEach(k=>$(k).addEventListener('toggle',()=>{if(cv.clientWidth<720)size();}));
+addEventListener('resize',()=>{measure();hint();size();if(lastV&&!moved)lastV();});
+addEventListener('keydown',e=>{if(e.key==='Escape'&&(sel||selW))select(null);});
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',size);
 new MutationObserver(size).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
-size();
+const fromHash=()=>{const h=(location.hash||'').replace('#','');return RM3[h]?h:null;};
+addEventListener('hashchange',()=>{const h=fromHash();if(h!==room)setRoom(h,false);});
+if(cv.clientWidth<720)$('det').open=false;
+setRoom(fromHash(),false);
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{measure();draw();});
 })();
 </script>
