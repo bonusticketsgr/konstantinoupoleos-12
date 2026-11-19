@@ -64,6 +64,8 @@ def lights(v, labels=False, groups=False, faint=False):
         D.pendant(v, x, y, col=col, lab=n if labels else None)
     for (n, a, b, g, t) in M.LED:
         D.led_line(v, a, b, col=col, lab=(n if (labels and t) else None))
+    for (n, x, y, g, t) in M.EXT_SPOTS:
+        D.spot(v, x, y, "s65", col=col, lab=n if labels else None, lab_off=(0.0, -0.13))
     for l in M.WALL_LIGHTS:
         D.wall_light(v, l[1], l[2], l[3], col=col, kind=l[4], lab=l[0] if labels else None, lab_off=WL_LAB.get(l[0]))
     for e in M.EMERGENCY:
@@ -77,7 +79,7 @@ def lights(v, labels=False, groups=False, faint=False):
 SPOT_LAB = {}
 WL_LAB = {}
 GROUP_TAGS = [("α", 5.07, 5.60), ("β", 8.47, 5.65), ("λ", 5.07, 6.86), ("γ", 5.07, 8.11), ("ε", 11.85, 8.86), ("ζ", 2.75, 1.85), ("η", 4.20, 4.10), ("θ", 4.38, 0.36),
-              ("κ", 7.93, 2.45), ("μ", 6.05, 1.25), ("ν", 2.05, 4.42), ("ε2", 12.75, 8.22), ("ξ1", 5.60, 9.90), ("ξ2", 0.42, 3.08), ("ξ3", 10.10, 2.76)]
+              ("κ", 7.93, 2.45), ("μ", 6.05, 1.25), ("ν", 2.05, 4.42), ("μ2", 5.40, 3.06), ("ν2", 2.86, 4.78), ("ε2", 12.75, 8.22), ("ξ1", 5.60, 10.30), ("ξ2", -0.30, 1.98), ("ξ3", 10.10, 2.76)]
 
 
 def switches(v, labels=False, func=False, faint=False):
@@ -204,13 +206,14 @@ def _leg():
     L["e_grp"] = ("Ομάδα αφής (γράμμα) – τα φωτιστικά που ανάβουν μαζί", lambda v: P.pill(v.p(0.21, 0)[0], v.p(0.21, 0)[1], "λ", None, LGT, "c", 5.6))
     L["e_spot"] = ("Χωνευτό spot LED 9 W, βαθιά χωνευτό (χωρίς θάμβωση)", lambda v: D.spot(v, 0.21, 0))
     L["e_spot44"] = ("Χωνευτό spot IP44 (λουτρά)", lambda v: D.spot(v, 0.21, 0, "s44"))
+    L["e_extc"] = ("ΕΚ κυλινδρικό φωτιστικό ΟΡΟΦΗΣ εξώστη, επίτοιχο IP65, σε ζεύγη – όπως τα προοπτικά", lambda v: D.spot(v, 0.21, 0, "s65"))
     L["e_spot65"] = ("Χωνευτό spot IP65 (πάνω από το ντους)", lambda v: D.spot(v, 0.21, 0, "s65"))
     L["e_pend"] = ("Κρεμαστό τραπεζαρίας (παροχή οροφής)", lambda v: D.pendant(v, 0.21, 0, r=0.085))
     L["e_track"] = ("Ράγα φωτισμού Ρ1 μαγνητική 48 V, χωνευτή, 2,40 m – πάνω από τον καναπέ", lambda v: D.track(v, (0.03, 0), (0.40, 0), heads=3))
     L["e_led"] = ("Γραμμικό LED: κεφαλάρι Υπν.1 · κάτω από τα ντουλάπια κουζίνας (τα μόνα κρυφά)", lambda v: D.led_line(v, (0.03, 0), (0.40, 0)))
     L["e_ap"] = ("Απλίκα ανάγνωσης κομοδίνου, +1,15", lambda v: D.wall_light(v, 0.21, 0.06, "N"))
-    L["e_mir"] = ("Παροχή φωτιζόμενου καθρέπτη, +1,90", lambda v: D.wall_light(v, 0.21, 0.06, "N", kind="mir"))
-    L["e_ext"] = ("Στεγανό φωτιστικό τοίχου εξώστη IP65, +2,10", lambda v: D.wall_light(v, 0.21, 0.06, "N", kind="ext"))
+    L["e_mir"] = ("Παροχή καθρέπτη με φως, +1,90", lambda v: D.wall_light(v, 0.21, 0.06, "N", kind="mir"))
+    L["e_ext"] = ("Στεγανό φωτιστικό τοίχου IP65, +2,10 (ΒΑ εξώστης μηχανημάτων)", lambda v: D.wall_light(v, 0.21, 0.06, "N", kind="ext"))
     L["e_emerg"] = ("Α φωτιστικό ασφαλείας αυτόνομο 1 h (πάνω από την πόρτα εισόδου)", lambda v: D.wall_dev(v, 0.21, 0.07, "N", "Α", col=(0.15, 0.55, 0.25)))
     L["e_strip"] = ("Λωρίδα εισόδου με την καναλάτη ΚΜ1 (οροφή +2,48) – ανόψεις R23", lambda v: D.zone(v, (0.04, -0.08, 0.38, 0.08), LGT, alpha=0.08))
     L["e_data"] = ("Λήψη δικτύου RJ45 Cat 6A", lambda v: D.data_out(v, 0.21, 0.07, "N"))

@@ -206,8 +206,12 @@ def run():
         ex = max(abs((b - a) - (xs[1] - xs[0])) for a, b in zip(xs, xs[1:])); ey = max(abs((b - a) - (ys[1] - ys[0])) for a, b in zip(ys, ys[1:]))
         add("Φωτισμός", nm, "OK" if max(sx, sy, ex, ey) < 0.011 else "ΛΑΘΟΣ", "κάναβος %d × %d συμμετρικός στην οροφή %s: στήλες ανά %s m, %s m από τις άκρες · σειρές ανά %s m, %s m από τις άκρες"
             % (len(xs), len(ys), zid, _f(xs[1] - xs[0]), _f(xs[0] - r[0]), _f(ys[1] - ys[0]), _f(ys[0] - r[1])))
-    add("Φωτισμός", "ΜΟΝΟ-SPOT", "OK" if (not M.PENDANTS and M.TRACK is None and all(l[4] == "ext" for l in M.WALL_LIGHTS)) else "ΛΑΘΟΣ",
-        "μόνο χωνευτά spots (%d τεμ.) – καμία ράγα, κρεμαστό, απλίκα· μένουν τα 2 κρυφά LED των ανόψεων και τα στεγανά των εξωστών" % len(M.SPOTS))
+    add("Φωτισμός", "ΜΟΝΟ-SPOT", "OK" if (not M.PENDANTS and M.TRACK is None and all(l[4] in ("ext", "mir") for l in M.WALL_LIGHTS)) else "ΛΑΘΟΣ",
+        "μόνο χωνευτά spots (%d τεμ.) – καμία ράγα, κρεμαστό, απλίκα· + 2 καθρέπτες με φως, τα 2 κρυφά LED των ανόψεων, %d φωτιστικά οροφής εξωστών" % (len(M.SPOTS), len(M.EXT_SPOTS)))
+    from shapely.geometry import Polygon, Point
+    fl = [Polygon(f).buffer(-0.05) for f in W.FLOORS]
+    outb = [e[0] for e in M.EXT_SPOTS if not any(f.contains(Point(e[1], e[2])) for f in fl)]
+    add("Φωτισμός", "ΕΞΩΣΤΕΣ", "ΛΑΘΟΣ" if outb else "OK", ("εκτός δαπέδου εξώστη: " + ", ".join(outb)) if outb else "%d φωτιστικά οροφής εξωστών σε ζεύγη ανά %s m, όλα πάνω από δάπεδο εξώστη – θέσεις κατά τα προοπτικά (εκτίμηση)" % (len(M.EXT_SPOTS), _f(M.EXT_PAIR)))
     names_a = {q[0]: (q[2], q[3]) for q in A.SPOTS}
     moved = [q[0] for q in M.SPOTS if q[0] not in names_a or math.hypot(q[2] - names_a[q[0]][0], q[3] - names_a[q[0]][1]) > 0.01]
     gone = [n_ for n_ in names_a if n_ not in {q[0] for q in M.SPOTS} and not n_.startswith("ΚΛ")]
@@ -488,8 +492,8 @@ def lighting_table():
         "Υπνοδωμάτιο 1": (lm(["ζ"]), []),
         "Υπνοδωμάτιο 2": (lm(["κ"]), []),
         "Χωλ": (lm(["η"]), []),
-        "Λουτρό": (lm(["μ"]), []),
-        "Λουτρό γονέων": (lm(["ν"]), []),
+        "Λουτρό": (lm(["μ"]), [(M.LUM["mir"][0] * 0.4, M.LUM["mir"][1])]),
+        "Λουτρό γονέων": (lm(["ν"]), [(M.LUM["mir"][0] * 0.4, M.LUM["mir"][1])]),
     }
     for name, area, target, cct, note in M.ROOMS_LIGHT:
         (f, w), extra = data[name]
