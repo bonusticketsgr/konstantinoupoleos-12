@@ -130,17 +130,25 @@ def run():
         add("Δοκός", rid, "ΛΑΘΟΣ" if bad else "OK", ("περνά κάτω από " + ", ".join(sorted(set(bad)))) if bad else "κάτω από δοκό μόνο μέσα στα περάσματα Π0–Π5 (μέσα σε τοίχο) και στον ψευδοδοκό του κλιμακοστασίου")
     for p in M.PASSES:
         hit = [b[0] for b in A.BEAMS if not (p["rect"][2] <= b[2] or p["rect"][0] >= b[4] or p["rect"][3] <= b[3] or p["rect"][1] >= b[5])]
-        add("Πέρασμα", p["id"], "OK" if hit else "ΛΑΘΟΣ", "%s · %s – %s%s" % (p["beam"], p["n"], p["title"], " · ΘΕΛΕΙ ΑΛΛΑΓΗ ΤΟΙΧΟΠΟΙΙΑΣ" if p["new"] else ""))
-    dk = [r for r in M.FLOOR_RUNS if r["id"] == "ΔΚ"][0]
-    need = M.DK_N * 0.027
-    add("Πέρασμα", "ΔΚ-ΠΛΑΤΟΣ", "OK" if need <= 0.90 else "ΛΑΘΟΣ", "δέσμη δαπέδου ΔΚ: %d σωλήνες Ø20–32 σε ΜΙΑ στρώση = λωρίδα %s m πάνω στην πλάκα (ή %s m σε δύο στρώσεις) · μήκος %s m · "
-        "κάτω από τη μόνωση της ενδοδαπέδιας" % (M.DK_N, _f(need), _f(need / 2), _f(G.path_len(dk["pts"]), 1)))
+        add("Πέρασμα", p["id"], "OK" if hit else "ΛΑΘΟΣ", "%s · %s – %s%s" % (p["beam"], p["n"], p["title"], " · ΘΕΛΕΙ ΑΛΛΑΓΗ ΣΤΙΣ ΑΝΟΨΕΙΣ" if p["new"] else ""))
+    lw = M.LINTEL[2] - M.LINTEL[0] - 0.10          # πλάτος ανοίγματος μείον τους δύο ορθοστάτες
+    need = M.LINTEL_N * 0.027
+    z9 = [z for z in A.ZONES if z["id"] == "Ζ9"][0]
+    soff = [A.beam_soffit(b[1]) for b in A.BEAMS if b[0] == "Δ3.1"][0]
+    clr = soff - M.LINTEL_Z - 0.0125
+    add("Πέρασμα", "Π1-ΠΛΑΤΟΣ", "OK" if need <= lw else "ΛΑΘΟΣ", "πρέκι του χωλ: %d σωλήνες / καλώδια Ø20–32 δίπλα-δίπλα = %s m ≤ %s m καθαρό πλάτος ανοίγματος" % (M.LINTEL_N, _f(need), _f(lw)))
+    add("Πέρασμα", "Π1-ΥΨΟΣ", "OK" if clr >= 0.035 and M.LINTEL_Z >= 2.25 else "ΛΑΘΟΣ", "πρέκι στο +%s (δοκός Δ3.1 κάτω παρειά +%s) → %s mm καθαρά κάτω από τη δοκό για μία στρώση· "
+        "ανόψεις %s: ζώνη Ζ9 στο +%s → ΑΛΛΑΓΗ στις ανόψεις (−5 cm μόνο στο άνοιγμα· πάνω από τα 2,20 της πόρτας)" % (_f(M.LINTEL_Z), _f(soff), _f(clr * 1000, 1), A.REV, _f(z9["level"])))
     wn = [W.bbox(w["pts"]) for w in W.WALLS if w["id"] in ("T2-04", "T2N-01", "T2-06")]
     add("Πέρασμα", "ΤΟΙΧΟΣ-Δ3.1", "OK" if all(abs(b[3] - 5.15) < 0.002 for b in wn) else "ΛΑΘΟΣ", "ο βόρειος τοίχος του καθιστικού ΟΠΩΣ οι τοιχοποιίες %s: παρειά στο 5,15, περασιά με τη δοκό Δ3.1 – "
         "κανένα κανάλι, καμία αλλαγή τοιχοποιίας" % W.REV)
+    z6 = [z for z in A.ZONES if z["id"] == "Ζ6"][0]
+    add("Πέρασμα", "Τ1-ΛΟΥΤΡΟ", "OK" if soff - z6["level"] >= 0.045 else "ΛΑΘΟΣ", "δυτικό μισό του βόρειου τοίχου: η οροφή του λουτρού γονέων (+%s) είναι %s cm κάτω από τη δοκό → η κορυφή του τοίχου "
+        "Τ2-04 είναι πάνω από την ψευδοροφή του λουτρού και τα καλώδια μπαίνουν στον τοίχο από εκεί" % (_f(z6["level"]), _f((soff - z6["level"]) * 100, 0)))
     ch = [W.bbox(w["pts"]) for w in W.WALLS if w["id"] == "T6B-02"][0]
-    add("Πέρασμα", "ΑΝΟΔΟΣ", "OK" if (ch[1] <= M.RISER[1] <= ch[3] and W.CHAN_X[0] <= M.RISER[0] <= W.CHAN_X[1]) else "ΛΑΘΟΣ",
-        "άνοδος προς το ταβάνι του καθιστικού μέσα στο κανάλι 5 cm του τοίχου Τ6Β-02 (μήκος %s m, δίπλα στη Δ9.1) – μαζί με το κατέβασμα των συμπυκνωμάτων της ΚΜ1" % _f(ch[3] - ch[1]))
+    add("Πέρασμα", "ΚΑΝΑΛΙ", "OK" if (ch[1] <= M.RISER[1] <= ch[3] and W.CHAN_X[0] <= M.RISER[0] <= W.CHAN_X[1]) else "ΛΑΘΟΣ",
+        "κατέβασμα προς το Π2 μέσα στο κανάλι 5 cm του τοίχου Τ6Β-02 (μήκος %s m, δίπλα στη Δ9.1)" % _f(ch[3] - ch[1]))
+    add("Πέρασμα", "ΔΑΠΕΔΟ", "OK" if not M.FLOOR_RUNS else "ΛΑΘΟΣ", "ΚΑΝΕΝΑ καλώδιο στο δάπεδο: %d οδεύσεις δαπέδου (η δέσμη ΔΚ και οι Δ1–Δ3 του R03 καταργήθηκαν)" % len(M.FLOOR_RUNS))
     add("Πέρασμα", "ΠΛΑΚΑ", "OK", "κανένας σωλήνας μέσα σε πλάκα ή δοκό – όλα τα περάσματα γίνονται μετά τη σκυροδέτηση")
     # ---- Κύκλωμα
     for c in M.CIRCUITS:
@@ -157,13 +165,19 @@ def run():
         "αιχμή ανά φάση L1 %s · L2 %s · L3 %s kW – ασυμμετρία %d %%" % (_f(ph["L1"], 1), _f(ph["L2"], 1), _f(ph["L3"], 1), round((mx - mn) / mx * 100)))
     tot = sum(ph.values()) * M.DIVERSITY; imax = mx * M.DIVERSITY * 1000 / 230
     add("Πίνακας", "ΑΙΧΜΗ", "OK" if imax <= M.FEEDER["In"] else "ΛΑΘΟΣ",
-        "εγκατεστημένα %s kW · άθροισμα αιχμών κυκλωμάτων %s kW · με ετεροχρονισμό %s → %s kW · ρεύμα στη φορτισμένη φάση %s A ≤ %d A (η φόρτιση οχήματος με διαχείριση φορτίου – παίρνει ό,τι περισσεύει)"
+        "εγκατεστημένα %s kW · άθροισμα αιχμών κυκλωμάτων %s kW · με ετεροχρονισμό %s → %s kW · ρεύμα στη φορτισμένη φάση %s A ≤ %d A (η φόρτιση οχήματος είναι στον πίνακα της αποθήκης, με διαχείριση φορτίου – παίρνει ό,τι περισσεύει)"
         % (_f(installed(), 1), _f(sum(ph.values()), 1), _f(M.DIVERSITY), _f(tot, 1), _f(imax, 1), M.FEEDER["In"]))
-    du = math.sqrt(3) * M.FEEDER["In"] * M.FEEDER["length"] * 0.0225 / 10 / 400 * 100
-    add("Πίνακας", "ΠΤΩΣΗ", "OK" if du <= 1.5 else "ΛΑΘΟΣ", "πτώση τάσης παροχής 5×10 mm² · %s m · %d A = %s %% (όριο 1,5 %% ώστε να μένει 3 %% για τα κυκλώματα)" % (_f(M.FEEDER["length"], 0), M.FEEDER["In"], _f(du, 2)))
+    T = circuit_table(); FL = feeder_lengths()
+    dul = max(r["du"] for r in T if r["c"]["id"].startswith("Φ")); duo = max(r["du"] for r in T if not r["c"]["id"].startswith("Φ"))
+    for q in FL:
+        okv = q["du"] + dul <= 3.0 and q["du"] + duo <= 5.0
+        add("Πίνακας", "ΠΤΩΣΗ-" + q["fl"], "OK" if okv else "ΛΑΘΟΣ", "παροχή %s: μετρητής → αποθήκη %s %s m → πίνακας σπιτιού %s m = %s m · %d A → %s %% · με το χειρότερο κύκλωμα: φωτισμός %s %% ≤ 3 · λοιπά %s %% ≤ 5"
+            % (M.FEEDER["cable"].split()[-2], q["st"], _f(q["L1"], 0), _f(q["L2"], 0), _f(q["L"], 0), M.FEEDER["In"], _f(q["du"], 2), _f(q["du"] + dul, 2), _f(q["du"] + duo, 2)))
+        add("Φόρτιση", "EV-" + q["fl"], "OK" if q["duev"] <= 5.0 else "ΛΑΘΟΣ", "φορτιστής %s kW στη %s: γραμμή 5×6 %s m από τον πίνακα της αποθήκης %s · δικό του ΔΔΡ τύπου A-EV · πτώση τάσης από τον μετρητή %s %%"
+            % (_f(M.EV_KW, 0), q["park"], _f(q["Lev"], 0), q["st"], _f(q["duev"], 2)))
     used = M.modules_used(); cap = M.PANEL["rows"] * M.PANEL["per_row"]; free = cap - used
     add("Πίνακας", "ΘΕΣΕΙΣ", "OK" if free / cap >= 0.15 else "ΛΑΘΟΣ",
-        "%d στοιχεία από %d (με τη φόρτιση οχήματος) · ελεύθερα %d (%d %%)" % (used, cap, free, round(free / cap * 100)))
+        "%d στοιχεία από %d · ελεύθερα %d (%d %%)" % (used, cap, free, round(free / cap * 100)))
     add("Πίνακας", "ΒΑΘΟΣ", "OK" if M.PANEL_DEPTH <= M.WALL_CLEAR else "ΛΑΘΟΣ",
         "βάθος εντοιχισμού %s cm ≤ %s cm καθαρά μέσα στον τοίχο (2 γυψ. + CW 100) – τα φύλλα της πλευράς του λουτρού γονέων μένουν ακέραια" % (_f(M.PANEL_DEPTH * 100, 0), _f(M.WALL_CLEAR * 100, 1)))
     wb = W.bbox([w for w in W.WALLS if w["id"] == M.PANEL_WALL][0]["pts"])
@@ -290,23 +304,37 @@ def _man(a, b):
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
 
-GATE_S = (9.28, 6.40)        # έξοδος του καναλιού του τοίχου Τ6Β-02 στο κενό της λωρίδας εισόδου
 GATE_K = (9.95, 7.68)        # πέρασμα Π2: έξοδος στο κενό της κουζίνας
-_DK = 0.14 + 1.47 + 5.60 + 1.30 + 0.28      # δέσμη δαπέδου ΔΚ από τη βάση του τοίχου του πίνακα ως τη βάση του καναλιού
 
 
 def path_to(pt, zone):
-    """Μήκος όδευσης από τον πίνακα ως πάνω από το σημείο (m)."""
-    P0 = M.P_TOP
+    """Μήκος όδευσης από τον πίνακα ως πάνω από το σημείο (m). Όλα φεύγουν από την κορυφή του πίνακα, μέσα από τις ψευδοροφές."""
+    P0 = (3.34, 4.10)
     if zone == "N":
         return 1.0 + _man((3.40, 3.72), pt)
-    if zone == "S":          # ταβάνι καθιστικού: κάτω στον πίνακα, δέσμη ΔΚ, πάνω μέσα στο κανάλι
-        return 1.3 + _DK + 2.7 + _man(GATE_S, pt)
-    if zone == "K":          # κουζίνα: δέσμη ΔΚ, κανάλι, Π2
-        return 1.3 + _DK + 2.4 + 1.3 + 0.6 + _man(GATE_K, pt)
-    if zone == "F":          # από το δάπεδο: τοίχοι του καθιστικού (η δέσμη τρέχει στη βάση του βόρειου τοίχου) – το CEIL − h που προστίθεται καλύπτει το ανέβασμα
-        return 1.3 + 0.14 + 1.47 + _man((3.50, M.DK_Y), pt) - 2.0
+    to1 = 1.0 + _man(P0, M.GATE1)                 # ως την έξοδο του πρεκιού Π1 στο κενό του καθιστικού
+    if zone in ("S", "F"):   # ταβάνι και τοίχοι του καθιστικού
+        return to1 + _man(M.GATE1, pt)
+    if zone == "K":          # κουζίνα: Π1 → κενό καθιστικού / λωρίδας → κανάλι του Τ6Β → Π2
+        return to1 + _man(M.GATE1, (9.28, 7.55)) + 0.5 + 0.6 + 0.5 + _man(GATE_K, pt)
     return _man(P0, pt)
+
+
+def feeder_lengths():
+    """Ανά όροφο: μήκη μετρητής → πίνακας αποθήκης (L1) → πίνακας σπιτιού (L2), γραμμή φορτιστή (Lev), πτώσεις τάσης. ΕΚΤΙΜΗΣΗ από τα σχέδια."""
+    out = []
+    ceil_gf = M.LV_GF + 2.55; tray = M.LV_B + M.H_B
+    for q in M.STORES:
+        tl = G.path_len(q["tray"])
+        L1 = (1.5 + _man(M.METERS, M.SHAFT) + (ceil_gf - tray) + tl + (M.H_B - 1.5)) * 1.10
+        L2 = ((M.H_B - 1.5) + tl + (M.FLOOR_LV[q["fl"]] + 2.55 - tray) + G.path_len(M.FEED_ROUTE) + 1.0) * 1.10
+        Lev = ((M.H_B - 1.5) + G.path_len(q["evr"]) + (M.H_B - 1.2)) * 1.10
+        S = M.FEEDER["sec"]; k = (3 ** 0.5) * RHO / 400 * 100
+        du = k * (L1 + L2) * M.FEEDER["In"] / S
+        iev = M.EV_KW * 1000 / (3 ** 0.5 * 400)
+        duev = k * L1 * M.FEEDER["In"] / S + k * Lev * iev / 6.0
+        out.append(dict(fl=q["fl"], st=q["st"], park=q["park"], L1=L1, L2=L2, L=L1 + L2, Lev=Lev, du=du, duev=duev))
+    return out
 
 
 ROOM_ZONE = {"ΚΟΥΖ": "K", "ΥΠ1": "N", "ΥΠ2": "N", "ΧΩΛ": "N", "ΛΟΥ": "N", "ΛΓ": "N"}
@@ -352,7 +380,7 @@ def circuit_lengths():
     for c in M.CIRCUITS:
         ds = dev.get(c["id"], [])
         if c["zone"] == "B":                              # προς shaft: ως την έξοδο του διαμερίσματος
-            out[c["id"]] = round((path_to((9.375, 5.80), "S") + 6.0 + 1.5) * 1.10, 1)
+            out[c["id"]] = round((path_to((9.28, 5.80), "S") + 6.0 + 1.5) * 1.10, 1)
             continue
         if not ds:
             out[c["id"]] = 0.0
@@ -368,7 +396,7 @@ def circuit_lengths():
     return out
 
 
-RUN_B = {"ΗΛ": 36.0, "ΑΠ": 40.0, "EV": 45.0}     # ΕΚΤΙΜΗΣΗ: ως το δώμα / την αποθήκη / τη θέση στάθμευσης από τον δυσμενέστερο τυπικό όροφο
+RUN_B = {"ΗΛ": 40.0}     # ΕΚΤΙΜΗΣΗ: ως το δώμα / την αποθήκη / τη θέση στάθμευσης από τον δυσμενέστερο τυπικό όροφο
 RHO = 0.0225                                       # Ω·mm²/m, χαλκός στους 70 °C
 
 
@@ -425,9 +453,8 @@ def feeder_calc():
     ph = phases()
     peak = sum(ph.values()); dem = peak * M.DIVERSITY
     imax = max(ph.values()) * M.DIVERSITY * 1000 / 230
-    S = 10.0; L = M.FEEDER["length"]
-    du = (3 ** 0.5) * L * M.FEEDER["In"] * RHO / S / 400 * 100
-    return dict(ph=ph, peak=peak, dem=dem, imax=imax, du=du, iz=M.IZ[("10", 3)])
+    FL = feeder_lengths(); w = max(FL, key=lambda q: q["du"])
+    return dict(ph=ph, peak=peak, dem=dem, imax=imax, du=w["du"], iz=M.IZ[("16", 3)], L=w["L"], fl=w["fl"], rows=FL)
 
 
 def weak_lengths():
