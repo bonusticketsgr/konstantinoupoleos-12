@@ -132,7 +132,7 @@ def run():
         hit = [b[0] for b in A.BEAMS if not (p["rect"][2] <= b[2] or p["rect"][0] >= b[4] or p["rect"][3] <= b[3] or p["rect"][1] >= b[5])]
         add("Πέρασμα", p["id"], "OK" if hit else "ΛΑΘΟΣ", "%s · %s – %s%s" % (p["beam"], p["n"], p["title"], " · ΘΕΛΕΙ ΑΛΛΑΓΗ ΣΤΙΣ ΑΝΟΨΕΙΣ" if p["new"] else ""))
     lw = M.LINTEL[2] - M.LINTEL[0] - 0.10          # πλάτος ανοίγματος μείον τους δύο ορθοστάτες
-    need = M.LINTEL_N * 0.027
+    need = sum(t[2] + 3 for t in M.TUBES["Π1"]) / 1000.0
     z9 = [z for z in A.ZONES if z["id"] == "Ζ9"][0]
     soff = [A.beam_soffit(b[1]) for b in A.BEAMS if b[0] == "Δ3.1"][0]
     clr = soff - M.LINTEL_Z - 0.0125
@@ -148,6 +148,12 @@ def run():
     ch = [W.bbox(w["pts"]) for w in W.WALLS if w["id"] == "T6B-02"][0]
     add("Πέρασμα", "ΚΑΝΑΛΙ", "OK" if (ch[1] <= M.RISER[1] <= ch[3] and W.CHAN_X[0] <= M.RISER[0] <= W.CHAN_X[1]) else "ΛΑΘΟΣ",
         "κατέβασμα προς το Π2 μέσα στο κανάλι 5 cm του τοίχου Τ6Β-02 (μήκος %s m, δίπλα στη Δ9.1)" % _f(ch[3] - ch[1]))
+    for h in holes():
+        st = "OK" if (h["ok_d"] and h["ok_z"]) else ("ΟΡΙΑΚΟ" if h["band"] >= M.HOLE_D - 0.015 else "ΔΕΝ ΧΩΡΑ")
+        add("Οπή δοκού", h["id"], st, "ΜΟΝΟ ΑΝ ΤΗΝ ΕΓΚΡΙΝΕΙ Ο ΣΤΑΤΙΚΟΣ: %s %s · Ø%d στο μέσο του ανοίγματος (%s / %s) · χώρος ανάμεσα σε ψευδοροφή και πλάκα +%s … +%s = %s cm%s · "
+            "κέντρο +%s (η μέση του ύψους του δοκαριού είναι +%s – εκεί η οπή θα έβγαινε %s) · Ø / ύψος = 1/%s · %s"
+            % (h["beam"], h["sec"], M.HOLE_D * 1000, _f(h["x"]), _f(h["y"]), _f(h["lo"], 3), _f(h["hi"]), _f(h["band"] * 100, 1), " (η μία πλευρά μέσα σε κουρτινόθηκη)" if h["cur"] else "",
+               _f(h["z"], 3), _f(h["mid"], 3), "κάτω από την ψευδοροφή" if h["mid"] - M.HOLE_D / 2 < h["lo"] - 1e-6 else "σωστά", _f(h["h"] / M.HOLE_D, 1), h["helps"]))
     add("Πέρασμα", "ΔΑΠΕΔΟ", "OK" if not M.FLOOR_RUNS else "ΛΑΘΟΣ", "ΚΑΝΕΝΑ καλώδιο στο δάπεδο: %d οδεύσεις δαπέδου (η δέσμη ΔΚ και οι Δ1–Δ3 του R03 καταργήθηκαν)" % len(M.FLOOR_RUNS))
     add("Πέρασμα", "ΠΛΑΚΑ", "OK", "κανένας σωλήνας μέσα σε πλάκα ή δοκό – όλα τα περάσματα γίνονται μετά τη σκυροδέτηση")
     # ---- Κύκλωμα
@@ -318,6 +324,32 @@ def path_to(pt, zone):
     if zone == "K":          # κουζίνα: Π1 → κενό καθιστικού / λωρίδας → κανάλι του Τ6Β → Π2
         return to1 + _man(M.GATE1, (9.28, 7.55)) + 0.5 + 0.6 + 0.5 + _man(GATE_K, pt)
     return _man(P0, pt)
+
+
+def holes():
+    """Οπές δοκών (αν εγκριθούν), στο μέσο του καθαρού ανοίγματος. ΥΨΟΣ: η οπή πρέπει να βγαίνει ΠΑΝΩ από την ψευδοροφή και ΚΑΤΩ από την πλάκα και στις δύο πλευρές →
+    «ζώνη» = [ψηλότερη ψευδοροφή + φύλλο, χαμηλότερη κάτω παρειά πλάκας]. Μέσα σε κουρτινόθηκη / έξω στον εξώστη δεν υπάρχει ψευδοροφή. Έλεγχος: ζώνη ≥ Ø και Ø ≤ ύψος / 5."""
+    out = []
+    for h in M.HOLES:
+        bn, sec, x0, y0, x1, y1 = [b for b in A.BEAMS if b[0] == h["beam"]][0]
+        hh = int(sec.split("/")[1]) / 100.0; soff = A.beam_soffit(sec)
+        x, y = (x0 + x1) / 2, (y0 + y1) / 2
+        horiz = (x1 - x0) > (y1 - y0)
+        side = [(x, y0 - 0.12), (x, y1 + 0.12)] if horiz else [(x0 - 0.12, y), (x1 + 0.12, y)]
+        lo, hi, cur = soff, A.TOP_SLAB - 0.20, False
+        for (px, py) in side:
+            if any(G.in_rect(px, py, c["rect"], tol=0.03) for c in A.CURTAINS):
+                cur = True
+                continue
+            for zz in A.ZONES:
+                if any(G.in_rect(px, py, r) for r in zz["rects"]):
+                    lo = max(lo, zz["level"] + 0.0125)
+                    hi = min(hi, A.SLABS.get(zz.get("slab"), hi))
+        band = hi - lo
+        z = (lo + hi) / 2
+        out.append(dict(h, sec=sec, x=x, y=y, z=z, h=hh, lo=lo, hi=hi, band=band, mid=soff + hh / 2, horiz=horiz, cur=cur,
+                        ok_d=M.HOLE_D <= hh / 5 + 1e-9, ok_z=band >= M.HOLE_D - 1e-6))
+    return out
 
 
 def feeder_lengths():
