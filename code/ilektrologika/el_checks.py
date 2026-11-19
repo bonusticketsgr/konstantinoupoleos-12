@@ -134,7 +134,7 @@ def run():
     z9 = [z for z in A.ZONES if z["id"] == "Ζ9"][0]
     soff = [A.beam_soffit(b[1]) for b in A.BEAMS if b[0] == "Δ3.1"][0]
     add("Πέρασμα", "ΧΩΡΙΣ-ΠΡΕΚΙ", "OK" if abs(z9["level"] - soff) < 0.002 else "ΛΑΘΟΣ", "το άνοιγμα χωλ → σαλόνι ΜΕΝΕΙ όπως οι ανόψεις %s (+%s, περασιά με το δοκάρι): "
-        "κανένα πρέκι, κανένα κούτελο – τα καλώδια περνούν από τις οπές ΟΠ1–ΟΠ3" % (A.REV, _f(z9["level"])))
+        "κανένα πρέκι, κανένα κούτελο – τα καλώδια περνούν από την οπή ΟΠ1" % (A.REV, _f(z9["level"])))
     wn = [W.bbox(w["pts"]) for w in W.WALLS if w["id"] in ("T2-04", "T2N-01", "T2-06")]
     add("Πέρασμα", "ΤΟΙΧΟΣ-Δ3.1", "OK" if all(abs(b[3] - 5.15) < 0.002 for b in wn) else "ΛΑΘΟΣ", "ο βόρειος τοίχος του καθιστικού ΟΠΩΣ οι τοιχοποιίες %s: παρειά στο 5,15, περασιά με τη δοκό Δ3.1 – "
         "κανένα κανάλι, καμία αλλαγή τοιχοποιίας" % W.REV)
@@ -156,9 +156,15 @@ def run():
                M.HOLE_FILL * 100, h["frm"], h["to"], _f(h["lo"], 3), _f(h["hi"]), (" · " + " · ".join(notes)) if notes else ""))
     for bn in sorted(set(h["beam"] for h in H)):
         hb = [h for h in H if h["beam"] == bn]
-        kinds = [h["kind"] for h in hb]
-        add("Οπή δοκού", "ΧΩΡΙΣΤΑ-" + bn, "OK" if ("weak" in kinds and all(not (k_ == "weak" and any(float(l_[1]) > 8 for l_ in h_["lines"])) for k_, h_ in zip(kinds, hb))) else "ΛΑΘΟΣ",
-            "%s: %d οπές, ανά %s cm (≥ 3 Ø = 22,5) · ισχυρά και ασθενή σε ΧΩΡΙΣΤΕΣ οπές (%s)" % (bn, len(hb), _f(min(h["sp"] for h in hb) * 100, 0), " · ".join("%s %s" % (h["id"], h["use"].lower()) for h in hb)))
+        mixed = [h_["id"] for h_ in hb if {"P", "W"} <= set(l_[3] for l_ in h_["lines"])]
+        add("Οπή δοκού", "ΑΣΘΕΝΗ-" + bn, "OK" if not mixed else "ΛΑΘΟΣ",
+            "%s: %d οπές, ανά %s m (≥ 3 Ø = 22,5 cm) · κανένα ασθενές καλώδιο γυμνό μέσα σε χιτώνιο με ισχυρά – όπου συνυπάρχουν είναι σε δικό του σπιράλ (%s)"
+            % (bn, len(hb), _f(min(h["sp"] for h in hb), 2), " · ".join("%s %s" % (h["id"], h["use"].lower()) for h in hb)))
+    h2 = [h for h in H if h["id"] == "ΟΠ2"][0]
+    import math as _m
+    f2 = h2["fill"] + (M.COND_SPARE / (M.HOLE_IN * 1000)) ** 2
+    add("Οπή δοκού", "ΟΠ2-ΣΥΜΠΥΚΝΩΜΑΤΑ", "OK" if f2 <= M.HOLE_FILL + 1e-6 else "ΛΑΘΟΣ", "αν εγκριθεί η αποχέτευση του ΚΜ1 με την ενσωματωμένη αντλία του: σωληνάκι Ø%d ακόμη στην ΟΠ2 → πληρότητα %d %% (≤ %d)"
+        % (M.COND_SPARE, round(f2 * 100), M.HOLE_FILL * 100))
     add("Πέρασμα", "ΔΑΠΕΔΟ", "OK" if not M.FLOOR_RUNS else "ΛΑΘΟΣ", "ΚΑΝΕΝΑ καλώδιο στο δάπεδο: %d οδεύσεις δαπέδου (η δέσμη ΔΚ και οι Δ1–Δ3 του R03 καταργήθηκαν)" % len(M.FLOOR_RUNS))
     add("Πέρασμα", "ΠΛΑΚΑ", "OK", "κανένας σωλήνας μέσα σε πλάκα ή δοκό – όλα τα περάσματα γίνονται μετά τη σκυροδέτηση")
     # ---- Κύκλωμα
@@ -320,16 +326,16 @@ def path_to(pt, zone):
     P0 = (3.34, 4.10)
     if zone == "N":
         return 1.0 + _man((3.40, 3.72), pt)
-    if zone in ("S", "F"):   # ταβάνι και τοίχοι του καθιστικού: από την οπή ΟΠ2
+    if zone in ("S", "F"):   # ταβάνι και τοίχοι του καθιστικού: από την οπή ΟΠ1
         return 1.0 + _man(P0, M.GATE1) + _man(M.GATE1, pt)
-    if zone == "K":          # κουζίνα: ΟΠ3 → κενό καθιστικού / λωρίδας → ΟΠ5
+    if zone == "K":          # κουζίνα: ΟΠ1 → κενό καθιστικού / λωρίδας → ΟΠ4
         return 1.0 + _man(P0, M.GATE3) + _man(M.GATE3, (9.28, 7.95)) + _man((9.28, 7.95), M.GATE_K) + _man(M.GATE_K, pt)
     return _man(P0, pt)
 
 
 def _fits(h):
     """Οι δύο μεγαλύτερες διατομές χωρούν δίπλα-δίπλα μέσα στο χιτώνιο (d1 + d2 ≤ καθαρή Ø)."""
-    ds = sorted([d for _, d, n in h["lines"] for _ in range(n)], reverse=True)
+    ds = sorted([l[1] for l in h["lines"] for _ in range(l[2])], reverse=True)
     return len(ds) < 2 or ds[0] + ds[1] <= M.HOLE_IN * 1000 + 1e-6
 
 
@@ -355,9 +361,9 @@ def holes():
         dsup = min(x - x0, x1 - x) if horiz else min(y - y0, y1 - y)
         others = [o for o in M.HOLES if o["beam"] == h["beam"] and o["id"] != h["id"]]
         sp = min([math.hypot(o["x"] - x, o["y"] - y) for o in others] or [9.0])
-        area = sum(math.pi * (d / 2.0) ** 2 * n for _, d, n in h["lines"]); fill = area / (math.pi * (M.HOLE_IN * 500) ** 2)
+        area = sum(math.pi * (l[1] / 2.0) ** 2 * l[2] for l in h["lines"]); fill = area / (math.pi * (M.HOLE_IN * 500) ** 2)
         free = True
-        out.append(dict(h, sec=sec, z=z, h=hh, lo=lo, hi=hi, lo_room=lo_room, horiz=horiz, dsup=dsup, sp=sp, fill=fill, ncab=sum(n for _, _, n in h["lines"]),
+        out.append(dict(h, sec=sec, z=z, h=hh, lo=lo, hi=hi, lo_room=lo_room, horiz=horiz, dsup=dsup, sp=sp, fill=fill, ncab=sum(l[2] for l in h["lines"]),
                         under=max(0.0, lo - (z - M.HOLE_D / 2)), over=max(0.0, (z + M.HOLE_D / 2) - hi),
                         ok_z=(z - M.HOLE_D / 2 >= lo - 1e-6 and z + M.HOLE_D / 2 <= hi + 1e-6), ok_d=M.HOLE_D <= hh / 5 + 1e-9, ok_sup=dsup >= 1.5 * hh - 1e-6, ok_pair=_fits(h),
                         ok_sp=sp >= 3 * M.HOLE_D - 1e-6, ok_fill=fill <= M.HOLE_FILL + 1e-6, ok_free=free))
