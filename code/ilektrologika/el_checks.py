@@ -174,17 +174,22 @@ def run():
         % (_f(c["ceil_liv"]), _f(need, 3), _f(z_in, 3), _f((z_in - need) * 100, 1)))
     add("Συμπυκνώματα", "ΚΜ1-ΚΑΤΕΒΑΣΜΑ", "OK" if G.in_rect(c["drop"][0], c["drop"][1], c["drop_in"]) else "ΛΑΘΟΣ",
         "κατέβασμα μέσα στη ντουλάπα του χωλ (όχι σε σκυρόδεμα, όχι στο πάτωμα) → σιφώνι πλυντηρίου")
-    ch = M.CHASE
-    wb_ = tuple(W.bbox([w for w in W.WALLS if w["id"] == ch["wall"]][0]["pts"]))
-    bm_ = [b for b in A.BEAMS if b[0] == ch["beam"]][0]
-    depth = bm_[3] - wb_[1] - ch["board"]                               # από το εξωτερικό φύλλο ως το μπετό του δοκαριού
-    need_w = sum(d for _, d in ch["cables"]) / 1000.0 + ch["gap_sw"]
-    dmax = max(d for _, d in ch["cables"]) / 1000.0
-    okc = dmax <= depth + 1e-6 and need_w <= ch["w"] + 1e-6 and wb_[0] <= ch["x"] - ch["w"] / 2 and ch["x"] + ch["w"] / 2 <= wb_[2] and bm_[2] <= ch["x"] <= bm_[4]
-    add("Πέρασμα", "Τ4-ΑΥΛΑΚΙ", "OK" if okc else "ΛΑΘΟΣ", "τοίχος TV: λωρίδα %s cm χωρίς κόλλα πίσω από το κολλητό φύλλο, μπροστά από τη %s · κενό %s mm (πιο χοντρό καλώδιο %s mm) · "
-        "%d καλώδια δίπλα-δίπλα + 5 cm ανάμεσα σε ισχυρά / ασθενή = %s cm (χωρούν στα %s)"
-        % (_f(ch["w"] * 100, 0), ch["beam"], _f(depth * 1000, 0), _f(dmax * 1000, 1), len(ch["cables"]), _f(need_w * 100, 1), _f(ch["w"] * 100, 0)))
-    add("Πέρασμα", "ΔΑΠΕΔΟ", "OK" if not M.FLOOR_RUNS else "ΛΑΘΟΣ", "ΚΑΝΕΝΑ καλώδιο στο δάπεδο: %d οδεύσεις δαπέδου (η δέσμη ΔΚ και οι Δ1–Δ3 του R03 καταργήθηκαν)" % len(M.FLOOR_RUNS))
+    for fr in M.FLOOR_RUNS:                                             # R13: στο δάπεδο ΜΟΝΟ ό,τι αποφάσισε ο ιδιοκτήτης
+        hit = [k for k, p in enumerate(W.COLS) if G.is_rect(p) and any(G.seg_hits_rect(a_, b_, W.bbox(p)) for a_, b_ in zip(fr["pts"], fr["pts"][1:]))]
+        dmax = max(t[1] for t in fr["tubes"]) / 1000.0
+        okf = not hit and dmax <= M.SCREED - 0.03
+        add("Πέρασμα", "ΔΑΠΕΔΟ " + fr["id"], "ΛΑΘΟΣ" if not okf else ("ΟΡΙΑΚΟ" if fr.get("decision") else "OK"),
+            "%s: %s πάνω στην πλάκα, %s m, μέσα στο γέμισμα %s cm · %s" % (fr["short"].split(":")[0], " + ".join("Ø%d" % t[1] for t in fr["tubes"]), _f(G.path_len(fr["pts"]), 1),
+            _f(M.SCREED * 100, 0), "ΘΕΛΕΙ ΑΠΟΦΑΣΗ ιδιοκτήτη" if fr.get("decision") else "απόφαση ιδιοκτήτη 20/11"))
+    import el_drops as DR
+    DR.bind(M)
+    covered = set(w_ for d_ in M.DROPS for w_ in d_["walls"])
+    for d_ in M.DROPS:
+        e_ = DR.env(d_); okd, vd, gap = DR.verdict(d_, e_)
+        lazy = d_["mode"] in ("via", "back", "floor") and not e_["over"]            # δηλώνεται πλάγιος τρόπος ενώ ο τοίχος δεν είναι καν κάτω από δοκάρι
+        add("Κατέβασμα", "ΤΟΜΗ " + d_["id"], "ΛΑΘΟΣ" if (not okd or lazy) else "OK", "%s (%s): %s" % (d_["title"], " · ".join(d_["walls"]), vd))
+    miss = sorted(set(G.face_of(W, p[1], p[2], p[3])[1] for p in wall_points()) - covered - {None})
+    add("Κατέβασμα", "ΚΑΛΥΨΗ", "OK" if not miss else "ΛΑΘΟΣ", "κάθε τοίχος με πρίζα / διακόπτη έχει τομή κατεβάσματος στο ΗΛ-14" + ((" – ΛΕΙΠΟΥΝ: " + ", ".join(miss)) if miss else ""))
     add("Πέρασμα", "ΠΛΑΚΑ", "OK", "κανένας σωλήνας μέσα σε πλάκα ή δοκό – όλα τα περάσματα γίνονται μετά τη σκυροδέτηση")
     # ---- Κύκλωμα
     for c in M.CIRCUITS:
