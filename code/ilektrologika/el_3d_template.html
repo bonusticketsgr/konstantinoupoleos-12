@@ -1,4 +1,4 @@
-<title>Κατεβάσματα Β1 3D</title>
+<title>Διαδρομές καλωδίων Β1</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Space+Grotesk:wght@600&display=swap">
 <style>
@@ -30,7 +30,7 @@ button:hover,button:focus-visible{border-color:var(--accent);color:var(--accent)
 </style>
 <canvas id="c"></canvas>
 <div id="ui">
-  <h1>Κατεβάσματα καλωδίων – Β1</h1>
+  <h1>Διαδρομές καλωδίων – Β1</h1>
   <p class="sub" id="sub"></p>
   <details open id="det"><summary>Τι βλέπω</summary>
     <div class="cap">Πώς μπαίνει το καλώδιο στον τοίχο</div>
@@ -66,7 +66,7 @@ function label(g,txt,x,y,z,sc,fg,bgc){const c=document.createElement('canvas'),k
   k.fillStyle=bgc;k.fillRect(0,0,w,c.height);k.fillStyle=fg;k.textBaseline='middle';k.fillText(txt,14,c.height/2+2);
   const s=new T.Sprite(new T.SpriteMaterial({map:new T.CanvasTexture(c),depthTest:false}));s.scale.set(sc*w/c.height,sc,1);s.position.copy(V(x,y,z));s.renderOrder=5;g.add(s);}
 // κτίριο
-box(grp('floor'),-1.4,-0.2,14.2,10.6,-0.06,0,0xcfc9bb,1);
+box(grp('floor'),-1.4,-0.2,14.2,10.6,-0.20,-0.12,0xcfc9bb,1);
 const WC={b:0xc98f6b,g:0xdfe3e8,l:0xdfe3e8,s:0xdfe3e8},STEEL=0x7f93a8;
 D.walls.forEach(w=>{edged(box(grp('walls'),w[0],w[1],w[2],w[3],0,w[4],WC[w[5]],w[5]==='b'?.5:.2),w[5]==='b'?0x8a5a3c:0x8a94a0);
   if(w[5]!=='s'&&w[5]!=='l')return;                       // σκελετός: στρωτήρες κάτω / πάνω + ορθοστάτες ανά 60 cm
@@ -94,26 +94,32 @@ const mh=new T.MeshLambertMaterial({color:0xa0199e});
 D.holes.forEach(h=>{const a=h.ax==='y'?[h.x,h.y-.19,h.z]:[h.x-.19,h.y,h.z],b=h.ax==='y'?[h.x,h.y+.19,h.z]:[h.x+.19,h.y,h.z];tube(grp('holes'),a,b,.0375,mh);
   [a,b].forEach(q=>{const r=new T.Mesh(new T.TorusGeometry(.055,.012,8,20),mh);r.position.copy(V(...q));if(h.ax==='x')r.rotation.y=Math.PI/2;grp('holes').add(r);});
   label(grp('holes'),h.id+' Ø75',h.x,h.y,3.28,0.2,'#ffffff','#a0199e');});
+// έπιπλα έως οροφή / ντουλάπια κουζίνας (μέσα ή πίσω τους περνούν καλώδια) και υπέρθυρα θυρών
+D.furn.forEach(f=>edged(box(grp('furn'),f[0],f[1],f[2],f[3],f[4],f[5],0xc79a5b,.16),0x9a7440));
+D.doors.forEach(d=>edged(box(grp('walls'),d[0],d[1],d[2],d[3],2.25,Math.min(2.78,topAt((d[0]+d[2])/2,(d[1]+d[3])/2)),0xdfe3e8,.2),0x8a94a0));
 const RC={pwr:0xd0312d,weak:0x1f8a4c,hvac:0x7a3fc4,feed:0x111111};
-D.routes.forEach(r=>{const m=new T.MeshLambertMaterial({color:RC[r.k]||0xd0312d});for(let i=1;i<r.pts.length;i++)tube(grp('routes'),r.pts[i-1],r.pts[i],r.k==='feed'?.03:.018,m);});
-// κατεβάσματα
-const MODES=[['top','Από το ταβάνι, ίσια',0x1f9d55],['side','Κάτω από το δοκάρι, από το πλάι',0x0d8fa8],['via','Οριζόντια μέσα στον τοίχο',0xe08a00],
-  ['back','Μέσα από τη ντουλάπα του χωλ',0x8a4fd1],['furn','Μέσα από ντουλάπα δωματίου',0xb34fa0],['floor','Από το πάτωμα',0x8a5a14]];
+D.trunks.forEach(r=>{const m=new T.MeshLambertMaterial({color:RC[r.k]||0xd0312d});for(let i=1;i<r.pts.length;i++)tube(grp('routes'),r.pts[i-1],r.pts[i],r.k==='feed'?.03:.02,m);});
+// τροφοδοσία κάθε τοίχου και κάθε κουτί: οι ίδιες διαδρομές που ελέγχθηκαν ανά 1 cm
+const MODES=[['top','Από το ταβάνι, ίσια',0x1f9d55],['side','Κάτω από το δοκάρι (κουζίνα: κενό 9 cm)',0x0d8fa8],['via','Οριζόντια ΜΕΣΑ στον τοίχο, στο +2,30',0xe08a00],
+  ['back','Από πίσω, μέσα από τη ντουλάπα του χωλ',0x8a4fd1],['furn','Μέσα / πίσω από ντουλάπα δωματίου',0xb34fa0],['floor','Από το πάτωμα',0x8a5a14]];
 const KC={sock:0xd0312d,sw:0x1c6fd1,data:0x1f8a4c,oth:0x555555};
-const cnt={};
-D.drops.forEach(d=>{cnt[d.m]=(cnt[d.m]||0)+1;const g=grp('m_'+d.m),col=MODES.find(q=>q[0]===d.m)[2],m=new T.MeshLambertMaterial({color:col});
-  for(let i=1;i<d.pts.length;i++)tube(g,d.pts[i-1],d.pts[i],.013,m);
+const cnt={},MM={};MODES.forEach(q=>MM[q[0]]=new T.MeshLambertMaterial({color:q[2]}));
+D.feeds.forEach(f=>{const g=grp('m_'+f.m);for(let i=1;i<f.pts.length;i++)tube(g,f.pts[i-1],f.pts[i],.019,MM[f.m]);});
+D.extra.forEach(f=>{const g=grp('m_'+f.m);for(let i=1;i<f.pts.length;i++)tube(g,f.pts[i-1],f.pts[i],.011,MM[f.m]);});
+D.tails.forEach(d=>{cnt[d.m]=(cnt[d.m]||0)+1;const g=grp('m_'+d.m);
+  for(let i=1;i<d.pts.length;i++)tube(g,d.pts[i-1],d.pts[i],.012,MM[d.m]);
   const e=d.pts[d.pts.length-1],bx=new T.Mesh(new T.BoxGeometry(.09,.09,.09),new T.MeshLambertMaterial({color:KC[d.k]}));bx.position.copy(V(...e));g.add(bx);
   label(grp('ids'),d.id,e[0],e[1],e[2]+.14,0.11,'#1c2330','rgba(255,255,255,.85)');});
+D.nums.forEach(n=>{const c=MODES.find(q=>q[0]===n[3])[2];label(grp('nums'),n[0],n[1],n[2],1.55,0.2,'#ffffff','#'+c.toString(16).padStart(6,'0'));});
 // πλαίσιο
-document.getElementById('sub').textContent='Τυπικός όροφος · '+D.drops.length+' σημεία · ίδιο μοντέλο με το τεύχος '+D.rev;
+document.getElementById('sub').textContent='Τυπικός όροφος · '+D.tails.length+' κουτιά · κάθε διαδρομή ελεγμένη ανά 1 cm: κανένα καλώδιο μέσα σε δοκάρι, κολόνα ή πλάκα · ίδιο μοντέλο με το τεύχος '+D.rev;
 function row(par,key,txt,col,on,n){const l=document.createElement('label'),i=document.createElement('input');i.type='checkbox';i.checked=on;i.id='t_'+key;
   i.addEventListener('change',()=>{grp(key).visible=i.checked;draw();});grp(key).visible=on;l.appendChild(i);
   if(col!=null){const s=document.createElement('span');s.className='sw';s.style.background='#'+col.toString(16).padStart(6,'0');l.appendChild(s);}
   l.appendChild(document.createTextNode(txt));if(n!=null){const c=document.createElement('span');c.className='n';c.textContent=n;l.appendChild(c);}par.appendChild(l);}
 const pm=document.getElementById('modes'),pl=document.getElementById('layers');
 MODES.forEach(m=>{if(cnt[m[0]])row(pm,'m_'+m[0],m[1],m[2],true,cnt[m[0]]);});
-row(pl,'routes','Οδεύσεις καλωδίων στο ταβάνι',0xd0312d,true);row(pl,'holes','Οπές Ø75 στα δοκάρια',0xa0199e,true);row(pl,'beams','Δοκάρια (μπετό)',0x7d8591,true);row(pl,'cols','Κολόνες (μπετό)',0x5b626d,true);
+row(pl,'routes','Κορμοί στα ταβάνια (μαύρο: παροχή)',0xd0312d,true);row(pl,'nums','Αριθμοί τοίχων (= τομές ΗΛ-14)',null,true);row(pl,'furn','Ντουλάπες έως οροφή / ντουλάπια κουζίνας',0xc79a5b,true);row(pl,'holes','Οπές Ø75 στα δοκάρια',0xa0199e,true);row(pl,'beams','Δοκάρια (μπετό)',0x7d8591,true);row(pl,'cols','Κολόνες (μπετό)',0x5b626d,true);
 row(pl,'studs','Σίδερα τοίχων: ορθοστάτες ανά 60 cm',0x7f93a8,true);row(pl,'ceil','Σίδερα οροφής: οδηγοί ανά 50 / 100 cm',0xb9c4cf,true);row(pl,'hang','Κρεμάσεις οροφής ανά 90 cm',0x30363f,true);
 row(pl,'board','Φύλλο γυψοσανίδας οροφής',0xf2f0ea,false);row(pl,'walls','Φύλλα τοίχων και τούβλα',0xdfe3e8,true);row(pl,'names','Ονόματα χώρων',null,true);row(pl,'ids','Αριθμοί σημείων',null,false);
 // κάμερα

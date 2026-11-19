@@ -152,7 +152,7 @@ DEV_LAB = {"ΘΤ": (-0.50, -0.02), "ΠΛ": (-0.50, 0.06), "ΚΟ": (0.46, 0.06), 
 
 def detectors(v, labels=False, ring=False, faint=False):
     col = (0.93, 0.62, 0.72) if faint else FIR
-    for (n, k, x, y, t) in A.DETECTORS:
+    for (n, k, x, y, t) in list(M.DETECTORS) + [q for q in A.DETECTORS if q[0] == "ΑΚ6"]:      # οι θέσεις του ηλεκτρολογικού μοντέλου (ΑΚ1 στο κέντρο φατνώματος του κανάβου) + ο κοινόχρηστος
         common = (n == "ΑΚ6")
         D.detector(v, x, y, kind=k, col=(0.70, 0.70, 0.74) if common else col, lab=(n if labels else None), ring=(A.CRIT["det_wall"] if (ring and not common) else None))
 

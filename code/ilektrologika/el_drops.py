@@ -6,8 +6,9 @@ import el_geom as G
 
 M = W = A = None
 WIN = 0.46            # μισό πλάτος τομής (m)
-Z0, ZS, ZT = 2.19, 2.78, 2.98
+Z0, ZS, ZT = 2.215, 2.78, 2.98
 BRICK = ("T1", "T4", "T4A", "T5", "T10")
+MIN_GAP = 0.06        # ελάχιστο καθαρό κάτω από δοκάρι, πάνω από το φύλλο της οροφής, για να περάσει καλώδιο (ίδιο με el_route.MIN_UNDER)
 
 
 def bind(model):
@@ -52,10 +53,17 @@ def env(d):
     over = [b for b in beams if b[2] - 0.005 <= wc <= b[3] + 0.005]     # δοκάρι πάνω από τον τοίχο
     solid = [(q0, q1) for _, _, q0, q1 in walls] + cols
     ceil = []                                                           # [(ca, cb, στάθμη)]
+    rec = []                                                            # [(ca, cb)] κουρτινόθηκες
     n = int(round((c1 - c0) / 0.01))
     for i in range(n):
         c = c0 + (i + 0.5) * 0.01
         if any(q0 - 1e-6 <= c <= q1 + 1e-6 for q0, q1 in solid):
+            continue
+        if any(G.in_rect(*(pt(c) + (k_["rect"],))) for k_ in A.CURTAINS):          # κουρτινόθηκη: ανοιχτή ως την πλάκα – δεν είναι κενό οροφής
+            if rec and abs(rec[-1][1] - (c - 0.005)) < 1e-6:
+                rec[-1] = (rec[-1][0], c + 0.005)
+            else:
+                rec.append((c - 0.005, c + 0.005))
             continue
         lv = [z["level"] for z in A.ZONES for r in z["rects"] if G.in_rect(*(pt(c) + (r,)))]
         if len(lv) > 1:                              # οι ζώνες των ανόψεων «μπαίνουν» κάτω από τους τοίχους: κοντά στον τοίχο ισχύει η ζώνη του χώρου της ίδιας πλευράς
@@ -79,8 +87,11 @@ def env(d):
         seg = [q for q in ceil if (q[1] <= w0 + 0.03 if s == "A" else q[0] >= w1 - 0.03)]
         if not seg:
             return None
-        return (max(seg, key=lambda q: q[1]) if s == "A" else min(seg, key=lambda q: q[0]))[2]
-    return dict(horiz=horiz, al=al, w0=w0, w1=w1, wc=wc, c0=c0, c1=c1, walls=walls, cols=cols, beams=beams, over=over, ceil=ceil, furn=furn,
+        q = max(seg, key=lambda q: q[1]) if s == "A" else min(seg, key=lambda q: q[0])
+        if any((r_[1] > q[1] - 1e-6 and r_[1] <= w0 + 0.03) if s == "A" else (r_[0] < q[0] + 1e-6 and r_[0] >= w1 - 0.03) for r_ in rec):
+            return None                                                 # ανάμεσα στην οροφή και τον τοίχο μεσολαβεί κουρτινόθηκη
+        return q[2]
+    return dict(horiz=horiz, al=al, w0=w0, w1=w1, wc=wc, c0=c0, c1=c1, walls=walls, cols=cols, beams=beams, over=over, ceil=ceil, rec=rec, furn=furn,
                 LA=side_level("A"), LB=side_level("B"), type=[w for w in W.WALLS if w["id"] == d["walls"][0]][0]["type"])
 
 
@@ -97,17 +108,17 @@ def verdict(d, e=None):
         if not over or L is None:
             return False, "δεν είναι κάτω από δοκάρι / δεν υπάρχει οροφή", None
         gap = over[0][4] - L - 0.0125
-        return gap >= 0.03, "ΚΑΤΩ ΑΠΟ ΤΟ ΔΟΚΑΡΙ – κενό %s cm" % G.fmt(gap * 100, 1 if abs(gap * 100 - round(gap * 100)) > 0.05 else 0), gap
+        return gap >= MIN_GAP - 1e-6, "ΚΑΤΩ ΑΠΟ ΤΟ ΔΟΚΑΡΙ – κενό %s cm" % G.fmt(gap * 100, 1 if abs(gap * 100 - round(gap * 100)) > 0.05 else 0), gap
     if m == "via":
         src = [q for q in M.DROPS if d["src"] in q["walls"]]
         a = [W.bbox(w["pts"]) for w in W.WALLS if w["id"] == d["walls"][0]][0]; b = [W.bbox(w["pts"]) for w in W.WALLS if w["id"] == d["src"]][0]
         touch = a[0] <= b[2] + 0.02 and b[0] <= a[2] + 0.02 and a[1] <= b[3] + 0.02 and b[1] <= a[3] + 0.02
         ok = bool(src) and src[0]["mode"] in ("top", "side") and verdict(src[0])[0] and touch
-        return ok, "ΟΡΙΖΟΝΤΙΑ ΜΕΣΑ ΣΤΟΝ ΤΟΙΧΟ, από τον τοίχο %s" % src[0]["id"] if src else ";", None
+        return ok, ("ΟΡΙΖΟΝΤΙΑ ΜΕΣΑ ΣΤΟΝ ΤΟΙΧΟ στο +%s, από τον τοίχο %s" % (G.fmt(M.ZR), src[0]["id"])) if src else ";", None
     if m in ("back", "furn"):
         r = d["inn"]; pts = [(r[0] + (r[2] - r[0]) * i / 6.0, r[1] + (r[3] - r[1]) * j / 6.0) for i in range(1, 6) for j in range(1, 6)]
         free = [p for p in pts if not any(G.in_rect(p[0], p[1], b[2:6]) for b in A.BEAMS)]
-        return bool(free), "ΜΕΣΑ ΑΠΟ ΤΗ ΝΤΟΥΛΑΠΑ", None
+        return bool(free), "ΜΕΣΑ ΑΠΟ ΤΗ ΝΤΟΥΛΑΠΑ" if m == "back" or e["furn"] else "ΠΙΣΩ ΑΠΟ ΤΗ ΝΤΟΥΛΑΠΑ → ΜΕΣΑ ΣΤΗΝ ΕΠΕΝΔΥΣΗ", None
     if m == "floor":
         fr = [q for q in M.FLOOR_RUNS if q["id"] == d["run"]]
         if not fr:
@@ -123,7 +134,7 @@ def top_possible(e):
     if not e["over"]:
         return True
     zs = e["over"][0][4]
-    return any(L is not None and zs - L - 0.0125 >= 0.03 for L in (e["LA"], e["LB"]))
+    return any(L is not None and zs - L - 0.0125 >= MIN_GAP - 1e-6 for L in (e["LA"], e["LB"]))
 
 
 # ---------------------------------------------------------------- σχεδίαση
@@ -150,9 +161,18 @@ def draw(d, x, ytop, w, h):
         sc.rect(q0, Z0, q1, ZS, fill=SH.BEAMF, lw=0.4)
     for q0, q1 in e["furn"]:
         top = min([L for a, b, L in e["ceil"] if a < q1 and b > q0] or [2.70])
-        sc.rect(q0, Z0, q1, top, fill=(0.95, 0.90, 0.80), stroke=(0.60, 0.50, 0.35), lw=0.4)
+        cuts = sorted(set([q0, q1] + [v_ for bm in e["beams"] for v_ in (bm[2], bm[3]) if q0 < v_ < q1]))
+        for a_, b_ in zip(cuts, cuts[1:]):                           # κάτω από δοκάρι το έπιπλο φτάνει ως την κάτω παρειά του
+            tb = min([bm[4] for bm in e["beams"] if bm[2] - 1e-6 <= (a_ + b_) / 2 <= bm[3] + 1e-6] or [top])
+            sc.rect(a_, Z0, b_, min(top, tb), fill=(0.95, 0.90, 0.80), stroke=(0.60, 0.50, 0.35), lw=0.4)
     for a, b, L in e["ceil"]:
         sc.rect(a, L, b, L + 0.0125, fill=SH.GYP, lw=0.35)
+    for a, b in e["rec"]:                                            # κουρτινόθηκη: ανοιχτή σχισμή ως την πλάκα
+        Lr = min([q[2] for q in e["ceil"]] or [2.70])
+        zt_ = min([bm[4] for bm in e["beams"] if bm[2] < b and bm[3] > a] or [ZS])
+        sc.rect(a, Lr, b, zt_, fill=(1.0, 0.97, 0.88), stroke=(0.70, 0.55, 0.20), lw=0.4, dash=[1.6, 1.2])
+        if b - a > 0.12:
+            sc.text((a + b) / 2, Lr - 0.055, "κουρτινόθηκη", size=4.4, color=(0.60, 0.45, 0.10), anchor="c")
     cav = {}
     for wid, ty, q0, q1 in e["walls"]:
         zt = min([b[4] for b in e["beams"] if b[2] - 0.005 <= (q0 + q1) / 2 <= b[3] + 0.005] or [ZS])
@@ -189,22 +209,36 @@ def draw(d, x, ytop, w, h):
         X, Y = sc.p(hc, zx)
         for dx, dy in ((1, 1), (1, -1)):
             ln(X - 4 * dx, Y - 4 * dy, X + 4 * dx, Y + 4 * dy, col=NO, lw=1.3)
-        if m == "via":
-            X, Y = sc.p(hc, Z0 + 0.22); c = SH.C(); c.saveState(); c.setStrokeColorRGB(*SH.CABLE); c.setFillColorRGB(1, 1, 1); c.setLineWidth(1.2); c.circle(X, Y, 4.2, stroke=1, fill=1)
-            c.setFillColorRGB(*SH.CABLE); c.circle(X, Y, 1.5, stroke=0, fill=1); c.restoreState()
+        c = SH.C()
+
+        def ring(h_, z_):
+            X_, Y_ = sc.p(h_, z_); c.saveState(); c.setStrokeColorRGB(*SH.CABLE); c.setFillColorRGB(1, 1, 1); c.setLineWidth(1.2); c.circle(X_, Y_, 4.2, stroke=1, fill=1)
+            c.setFillColorRGB(*SH.CABLE); c.circle(X_, Y_, 1.5, stroke=0, fill=1); c.restoreState()
+        if m == "via":                                   # έρχεται ΚΑΤΑ ΜΗΚΟΣ του τοίχου, μέσα του, στο +2,30 (κάτω από το δοκάρι) και κατεβαίνει
+            SH._path(sc, [(hc, M.ZR), (hc, Z0 + 0.03)], lw=1.5); ring(hc, M.ZR)
+            side_ = 1 if (e["c1"] - hc) > (hc - e["c0"]) else -1
+            sc.text(hc + side_ * 0.06, M.ZR - 0.015, "+" + G.fmt(M.ZR), size=4.8, font="Inter-Bold", color=SH.CABLE, anchor="l" if side_ > 0 else "r")
         elif m in ("back", "furn"):
             fq = e["furn"][0] if e["furn"] else None
-            if fq and m == "back":
-                hf = (fq[0] + fq[1]) / 2
-                SH._path(sc, [(hf, ZS - 0.035), (hf, Z0 + 0.22), (hc, Z0 + 0.22), (hc, Z0 + 0.03)], lw=1.5)
-            else:
-                SH._path(sc, [(hc + sg * 0.30, Z0 + 0.22), (hc, Z0 + 0.22), (hc, Z0 + 0.03)], lw=1.5)
+            if fq:                                       # κατεβαίνει ΜΕΣΑ στο έπιπλο, μακριά από το δοκάρι, και περνά στον τοίχο στο ύψος κάθε κουτιού (κάτω από το σχέδιο)
+                bm = e["over"][0] if e["over"] else None
+                hf = (fq[0] + 0.055) if (bm and fq[0] < bm[2] - 0.02) else ((fq[1] - 0.055) if (bm and fq[1] > bm[3] + 0.02) else (fq[0] + fq[1]) / 2)
+                if d.get("hf") is not None:
+                    hf = d["hf"]
+                ztop = min([L for a, b, L in e["ceil"] if a - 0.01 <= hf <= b + 0.01] or [2.70]) + 0.07
+                SH._path(sc, [(hf, min(ztop, ZS - 0.035)), (hf, Z0 + 0.03)], lw=1.5)
+                Xa, Ya = sc.p(hf, Z0 + 0.10); Xb, Yb = sc.p(hc, Z0 + 0.10)
+                ln(Xa, Ya, Xb - (3 if Xb > Xa else -3), Yb, col=SH.CABLE, lw=0.9, dash=[2, 1.4])
+                SH.P._arrow(Xb, Yb, 0 if Xb > Xa else 180, 2.6, SH.CABLE)
+            else:                                        # το έπιπλο δεν είναι σε αυτή την τομή: εδώ το καλώδιο τρέχει ΚΑΤΑ ΜΗΚΟΣ, μέσα στην επένδυση, χαμηλά
+                ring(hc, Z0 + 0.10)
+                sc.text(hc + 0.07, Z0 + 0.085, "+" + G.fmt(M.ZLOW), size=4.8, font="Inter-Bold", color=SH.CABLE)
         elif m == "floor":
             SH._path(sc, [(hc, Z0 + 0.02), (hc, Z0 + 0.30)], lw=1.5)
     yy = ytop - 22 - sh - 9
     vcol = NO if dec else (GO if m in ("top", "side") else (0.75, 0.42, 0.05))
-    txt(x, yy, ("ΟΧΙ ΑΠΟ ΠΑΝΩ → " if m not in ("top", "side") else "") + vd, size=5.5, font="Inter-Bold", color=vcol if ok else NO)
-    yb = D.para(x, yy - 8, d["txt"], w - 8, size=5.3)
+    yv = D.para(x, yy, ("ΟΧΙ ΑΠΟ ΠΑΝΩ → " if m not in ("top", "side") else "") + vd, w - 10, size=5.5, font="Inter-Bold", color=vcol if ok else NO)
+    yb = D.para(x, yv + 1.0, d["txt"], w - 8, size=5.3)
     return yb
 
 

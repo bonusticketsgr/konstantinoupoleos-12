@@ -109,25 +109,16 @@ def run():
             if any(G.in_rect(s[1], s[2], r, tol=-0.02) for r in rs):
                 add("Λουτρό", s[0], "ΛΑΘΟΣ", "διακόπτης μέσα στο λουτρό")
     add("Λουτρό", "ΔΙΑΚ", "OK", "οι διακόπτες των λουτρών έξω από την πόρτα· μέσα στα λουτρά μόνο ρευματοδότης καθρέπτη, φωτιστικά IP44 / IP65 και πρόβλεψη πετσετοκρεμάστρας")
-    # ---- Δοκός: καμία όδευση στο κενό δεν περνά κάτω από δοκό εκτός διέλευσης
-    cross = [p["rect"] for p in M.PASSES]
-    approved = [("Δ9.1", (9.40, 5.30, 9.70, 6.30), "πάνω από την πόρτα εισόδου, μέσα στον τοίχο Τ6Β (ανόψεις R16 / R23)"),
-                ("Δ2.1", (9.70, 3.00, 11.05, 3.40), "έξοδος του shaft μέσα στον ψευδοδοκό του κλιμακοστασίου (ανόψεις R16)")]
-    routes = [("παροχή", M.FEED_ROUTE), ("προς shaft", M.OUT_ROUTE)] + [(r["id"], r["pts"]) for r in M.ROUTES]
-    for rid, rp in routes:
-        bad = []
-        for a, b in zip(rp, rp[1:]):
-            for (bn, sec, x0, y0, x1, y1) in A.BEAMS:
-                br = (x0, y0, x1, y1)
-                if not G.seg_hits_rect(a, b, br):
-                    continue
-                # το τμήμα μέσα στη δοκό πρέπει να βρίσκεται όλο μέσα σε διέλευση ή σε εγκεκριμένο σημείο
-                if _covered(a, b, br, cross) or any(bn == an and _covered(a, b, br, [ar]) for an, ar, _ in approved):
-                    continue
-                if _ceiling_below(a, b, br, A.beam_soffit(sec)):      # η ψευδοροφή εκεί είναι ≥ 7 cm κάτω από τη δοκό (κουζίνα): περνά ελεύθερα
-                    continue
-                bad.append(bn)
-        add("Δοκός", rid, "ΛΑΘΟΣ" if bad else "OK", ("περνά κάτω από " + ", ".join(sorted(set(bad)))) if bad else "κάτω από δοκό μόνο μέσα στα περάσματα Π0–Π5 (μέσα σε τοίχο) και στον ψευδοδοκό του κλιμακοστασίου")
+    # ---- Διαδρομή (R14): κάθε καλώδιο είναι πραγματική διαδρομή σε 3D, ελεγμένη ανά 1 cm – ποτέ μέσα σε μπετό, ποτέ κάτω από δοκάρι με οροφή περασιά
+    import el_route as RT
+    RT.bind(M)
+    for code, st, txt_ in RT.check():
+        add("Διαδρομή", code, st, txt_)
+    vf = RT.visible_faces()
+    add("Διαδρομή", "ΟΡΑΤΟ", "ΛΑΘΟΣ" if vf else "OK", ("κουτιά χωρίς ορατή παρειά 8 cm: " + " · ".join("%s (%s)" % q for q in vf)) if vf else
+        "κάθε κουτί έχει ορατή παρειά τοίχου 8 cm (κανένα πίσω από άλλον τοίχο / κολόνα ή μέσα σε άνοιγμα πόρτας)")
+    for code, st, txt_ in RT.ceiling_reach():
+        add("Διαδρομή", code, st, txt_)
     for p in M.PASSES:
         hit = [b[0] for b in A.BEAMS if not (p["rect"][2] <= b[2] or p["rect"][0] >= b[4] or p["rect"][3] <= b[3] or p["rect"][1] >= b[5])]
         add("Πέρασμα", p["id"], "OK" if hit else "ΛΑΘΟΣ", "%s · %s – %s%s" % (p["beam"], p["n"], p["title"], " · ΟΠΕΣ ΣΤΟ ΚΑΛΟΥΠΙ (ξυλότυποι)" if p["new"] else ""))
@@ -139,8 +130,9 @@ def run():
     add("Πέρασμα", "ΤΟΙΧΟΣ-Δ3.1", "OK" if all(abs(b[3] - 5.15) < 0.002 for b in wn) else "ΛΑΘΟΣ", "ο βόρειος τοίχος του καθιστικού ΟΠΩΣ οι τοιχοποιίες %s: παρειά στο 5,15, περασιά με τη δοκό Δ3.1 – "
         "κανένα κανάλι, καμία αλλαγή τοιχοποιίας" % W.REV)
     z6 = [z for z in A.ZONES if z["id"] == "Ζ6"][0]
-    add("Πέρασμα", "Τ1-ΛΟΥΤΡΟ", "OK" if soff - z6["level"] >= 0.045 else "ΛΑΘΟΣ", "δυτικό μισό του βόρειου τοίχου: η οροφή του λουτρού γονέων (+%s) είναι %s cm κάτω από τη δοκό → η κορυφή του τοίχου "
-        "Τ2-04 είναι πάνω από την ψευδοροφή του λουτρού και τα καλώδια μπαίνουν στον τοίχο από εκεί" % (_f(z6["level"]), _f((soff - z6["level"]) * 100, 0)))
+    d8 = [d_ for d_ in M.DROPS if "T2-04" in d_["walls"]][0]
+    add("Πέρασμα", "Τ2-04", "OK" if d8["mode"] == "via" else "ΛΑΘΟΣ", "δυτικό μισό του βόρειου τοίχου του σαλονιού: η οροφή του λουτρού γονέων (+%s) είναι μόνο %s cm κάτω από τη δοκό – ΔΕΝ περνά καλώδιο εκεί· "
+        "ο τοίχος τροφοδοτείται ΜΕΣΑ από τον τοίχο του πίνακα, οριζόντια στο +%s (R14)" % (_f(z6["level"]), _f((soff - z6["level"] - 0.0125) * 100, 1), _f(M.ZR)))
     H = holes()
     for h in H:
         notes = []
@@ -178,9 +170,9 @@ def run():
         hit = [k for k, p in enumerate(W.COLS) if G.is_rect(p) and any(G.seg_hits_rect(a_, b_, W.bbox(p)) for a_, b_ in zip(fr["pts"], fr["pts"][1:]))]
         dmax = max(t[1] for t in fr["tubes"]) / 1000.0
         okf = not hit and dmax <= M.SCREED - 0.03
-        add("Πέρασμα", "ΔΑΠΕΔΟ " + fr["id"], "ΛΑΘΟΣ" if not okf else ("ΟΡΙΑΚΟ" if fr.get("decision") else "OK"),
+        add("Πέρασμα", "ΔΑΠΕΔΟ " + fr["id"], "ΛΑΘΟΣ" if not okf else "OK",
             "%s: %s πάνω στην πλάκα, %s m, μέσα στο γέμισμα %s cm · %s" % (fr["short"].split(":")[0], " + ".join("Ø%d" % t[1] for t in fr["tubes"]), _f(G.path_len(fr["pts"]), 1),
-            _f(M.SCREED * 100, 0), "ΘΕΛΕΙ ΑΠΟΦΑΣΗ ιδιοκτήτη" if fr.get("decision") else "απόφαση ιδιοκτήτη 20/11"))
+            _f(M.SCREED * 100, 0), "απόφαση ιδιοκτήτη 20/11" if fr["id"] == "Δ-TV" else "δεν υπάρχει άλλο πέρασμα (ιδιοκτήτης 20/11: «αν δεν σου βγαίνει πήγαινε από πάτωμα»)"))
     import el_drops as DR
     DR.bind(M)
     covered = set(w_ for d_ in M.DROPS for w_ in d_["walls"])

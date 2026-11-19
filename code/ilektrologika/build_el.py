@@ -31,11 +31,12 @@ def main():
     import el_docs as DC
     import el_det as DT
     import el_drops as DR
-    SH.bind(M); DR.bind(M)
+    import el_elev as EV
+    SH.bind(M); DR.bind(M); EV.bind(M)
     only = [a[2:] for a in sys.argv if a.startswith("--")]
     sheets = [(k, f) for k, f in (("00", getattr(SH, "sheet_00", None)), ("01", SH.sheet_01), ("02", SH.sheet_02), ("03", SH.sheet_03), ("04", SH.sheet_04),
                                   ("05", getattr(SH, "sheet_05", None)), ("06", getattr(SH, "sheet_06", None)), ("07", getattr(SH, "sheet_07", None)),
-                                  ("08", getattr(SH, "sheet_08", None)), ("09", DT.sheet_10), ("10", DC.sheet_11), ("11", SH.sheet_11), ("12", SH.sheet_12), ("13", SH.sheet_13), ("14", DR.sheet)) if f]
+                                  ("08", getattr(SH, "sheet_08", None)), ("09", DT.sheet_10), ("10", DC.sheet_11), ("11", SH.sheet_11), ("12", SH.sheet_12), ("13", SH.sheet_13), ("14", DR.sheet), ("15", EV.sheet)) if f]
     for no, fn in sheets:
         if only and no not in only:
             continue
