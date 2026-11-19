@@ -36,15 +36,16 @@ def build():
     for w in W.WALLS:
         if G.is_rect(w["pts"]):
             b = W.bbox(w["pts"]); s = soffit_over((b[0] + b[2]) / 2, (b[1] + b[3]) / 2)
-            out["walls"].append([round(q, 3) for q in b] + [s or 2.78, w["type"] in DR.BRICK])
+            out["walls"].append([round(q, 3) for q in b] + [s or 2.78, "b" if w["type"] in DR.BRICK else ("g" if w["type"] == "T9" else ("l" if w["type"] == "T3" else "s"))])
     for p in W.COLS:
         if G.is_rect(p):
             out["cols"].append([round(q, 3) for q in W.bbox(p)])
     for b in A.BEAMS:
-        out["beams"].append([b[0]] + list(b[2:6]) + [A.beam_soffit(b[1])])
+        out["beams"].append([b[0]] + list(b[2:6]) + [A.beam_soffit(b[1]), b[1]])
     for h in M.HOLES:
         r = [b for b in A.BEAMS if b[0] == h["beam"]][0][2:6]
         out["holes"].append(dict(id=h["id"], x=h["x"], y=h["y"], ax="y" if (r[2] - r[0]) > (r[3] - r[1]) else "x", z=2.73, use=h["use"]))
+    out["zones"] = [[round(q, 3) for q in r] + [z["level"]] for z in A.ZONES for r in z["rects"]]
     lines = []
     for r in M.ROUTES:
         out["routes"].append(dict(k=r["kind"], pts=[(x, y, ZV) for x, y in r["pts"]])); lines.append(r["pts"])

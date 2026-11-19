@@ -56,6 +56,7 @@ const V=(x,y,z)=>new T.Vector3(x,z,y);                 // μοντέλο (x αν
 const G={}; const grp=k=>G[k]||(S.add(G[k]=new T.Group()),G[k]);
 function box(g,x0,y0,x1,y1,z0,z1,col,op){const m=new T.Mesh(new T.BoxGeometry(x1-x0,z1-z0,y1-y0),
   new T.MeshLambertMaterial({color:col,transparent:op<1,opacity:op,depthWrite:op>=1}));m.position.copy(V((x0+x1)/2,(y0+y1)/2,(z0+z1)/2));g.add(m);return m;}
+function edged(m,col){const e=new T.LineSegments(new T.EdgesGeometry(m.geometry),new T.LineBasicMaterial({color:col}));m.add(e);return m;}
 function tube(g,a,b,r,mat){const A=V(...a),B=V(...b),L=A.distanceTo(B);if(L<1e-4)return;
   const m=new T.Mesh(new T.CylinderGeometry(r,r,L,8),mat);m.position.copy(A.clone().add(B).multiplyScalar(.5));
   m.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),B.clone().sub(A).normalize());g.add(m);
@@ -66,13 +67,33 @@ function label(g,txt,x,y,z,sc,fg,bgc){const c=document.createElement('canvas'),k
   const s=new T.Sprite(new T.SpriteMaterial({map:new T.CanvasTexture(c),depthTest:false}));s.scale.set(sc*w/c.height,sc,1);s.position.copy(V(x,y,z));s.renderOrder=5;g.add(s);}
 // κτίριο
 box(grp('floor'),-1.4,-0.2,14.2,10.6,-0.06,0,0xcfc9bb,1);
-D.walls.forEach(w=>box(grp('walls'),w[0],w[1],w[2],w[3],0,w[4],w[5]?0xc98f6b:0x8d97a3,.34));
-D.cols.forEach(c=>box(grp('walls'),c[0],c[1],c[2],c[3],0,2.98,0x555c66,.45));
-D.beams.forEach(b=>{box(grp('beams'),b[1],b[2],b[3],b[4],b[5],2.98,0x6c7480,.38);});
+const WC={b:0xc98f6b,g:0xdfe3e8,l:0xdfe3e8,s:0xdfe3e8},STEEL=0x7f93a8;
+D.walls.forEach(w=>{edged(box(grp('walls'),w[0],w[1],w[2],w[3],0,w[4],WC[w[5]],w[5]==='b'?.5:.2),w[5]==='b'?0x8a5a3c:0x8a94a0);
+  if(w[5]!=='s'&&w[5]!=='l')return;                       // σκελετός: στρωτήρες κάτω / πάνω + ορθοστάτες ανά 60 cm
+  const hor=(w[2]-w[0])>=(w[3]-w[1]),t=hor?w[3]-w[1]:w[2]-w[0],L=hor?w[2]-w[0]:w[3]-w[1],d=Math.max(.03,Math.min(.10,t-.05)),g=grp('studs');
+  const c=hor?(w[1]+w[3])/2:(w[0]+w[2])/2,a0=hor?w[0]:w[1];
+  const seg=(u0,u1,z0,z1)=>hor?box(g,u0,c-d/2,u1,c+d/2,z0,z1,STEEL,1):box(g,c-d/2,u0,c+d/2,u1,z0,z1,STEEL,1);
+  seg(a0,a0+L,0,.035);seg(a0,a0+L,w[4]-.035,w[4]);
+  const n=Math.max(1,Math.ceil(L/.6));for(let i=0;i<=n;i++){const u=Math.min(a0+L-.04,a0+i*L/n);seg(u,u+.04,.035,w[4]-.035);}});
+D.cols.forEach(c=>edged(box(grp('cols'),c[0],c[1],c[2],c[3],0,2.98,0x5b626d,.8),0x2c3138));
+D.beams.forEach(b=>{edged(box(grp('beams'),b[1],b[2],b[3],b[4],b[5],2.98,0x7d8591,.72),0x2c3138);
+  label(grp('beams'),b[0]+' · '+b[6],(b[1]+b[3])/2,(b[2]+b[4])/2,3.05,0.15,'#ffffff','#4a515c');});
+// ψευδοροφή: κύριοι οδηγοί ανά 1,00 m, δευτερεύοντες ανά 50 cm, κρεμάσεις ανά 90 cm ως την πλάκα (ή ως το δοκάρι)
+const topAt=(x,y)=>{let t=2.78;D.beams.forEach(b=>{if(x>=b[1]&&x<=b[3]&&y>=b[2]&&y<=b[4])t=Math.min(t,b[5]);});return t;};
+const rodM=new T.MeshLambertMaterial({color:0x30363f});
+D.zones.forEach(z=>{const [x0,y0,x1,y1,Lv]=z,gc=grp('ceil'),gb=grp('board');box(gb,x0,y0,x1,y1,Lv,Lv+.0125,0xf2f0ea,.55);
+  const hor=(x1-x0)>=(y1-y0),zs=Lv+.0125,zp=zs+.027;                 // δευτερεύοντες πάνω στο φύλλο, κύριοι από πάνω τους
+  const U0=hor?x0:y0,U1=hor?x1:y1,W0=hor?y0:x0,W1=hor?y1:x1;
+  const ns=Math.max(1,Math.round((U1-U0)/.5));for(let i=0;i<=ns;i++){const u=Math.min(U1-.06,U0+i*(U1-U0)/ns);hor?box(gc,u,W0,u+.06,W1,zs,zs+.027,0xb9c4cf,1):box(gc,W0,u,W1,u+.06,zs,zs+.027,0xb9c4cf,1);}
+  const np=Math.max(1,Math.round((W1-W0)/1.0));for(let i=0;i<=np;i++){const w=Math.min(W1-.16,Math.max(W0+.10,W0+i*(W1-W0)/np));
+    hor?box(gc,U0,w,U1,w+.06,zp,zp+.027,STEEL,1):box(gc,w,U0,w+.06,U1,zp,zp+.027,STEEL,1);
+    const nh=Math.max(1,Math.round((U1-U0)/.9));for(let k=0;k<=nh;k++){const u=Math.min(U1-.15,Math.max(U0+.15,U0+k*(U1-U0)/nh)),px=hor?u:w+.03,py=hor?w+.03:u,tp=topAt(px,py);
+      if(tp-zp<.07)continue;tube(grp('hang'),[px,py,zp+.027],[px,py,tp],.007,rodM);box(grp('hang'),px-.03,py-.03,px+.03,py+.03,zp+.027,zp+.05,0x30363f,1);}}});
 D.rooms.forEach(r=>label(grp('names'),r[0],r[1],r[2],0.03,0.26,'#1c2330','rgba(255,255,255,.82)'));
 const mh=new T.MeshLambertMaterial({color:0xa0199e});
-D.holes.forEach(h=>{const a=h.ax==='y'?[h.x,h.y-.17,h.z]:[h.x-.17,h.y,h.z],b=h.ax==='y'?[h.x,h.y+.17,h.z]:[h.x+.17,h.y,h.z];tube(grp('holes'),a,b,.0375,mh);
-  label(grp('holes'),h.id,h.x,h.y,3.12,0.2,'#ffffff','#a0199e');});
+D.holes.forEach(h=>{const a=h.ax==='y'?[h.x,h.y-.19,h.z]:[h.x-.19,h.y,h.z],b=h.ax==='y'?[h.x,h.y+.19,h.z]:[h.x+.19,h.y,h.z];tube(grp('holes'),a,b,.0375,mh);
+  [a,b].forEach(q=>{const r=new T.Mesh(new T.TorusGeometry(.055,.012,8,20),mh);r.position.copy(V(...q));if(h.ax==='x')r.rotation.y=Math.PI/2;grp('holes').add(r);});
+  label(grp('holes'),h.id+' Ø75',h.x,h.y,3.28,0.2,'#ffffff','#a0199e');});
 const RC={pwr:0xd0312d,weak:0x1f8a4c,hvac:0x7a3fc4,feed:0x111111};
 D.routes.forEach(r=>{const m=new T.MeshLambertMaterial({color:RC[r.k]||0xd0312d});for(let i=1;i<r.pts.length;i++)tube(grp('routes'),r.pts[i-1],r.pts[i],r.k==='feed'?.03:.018,m);});
 // κατεβάσματα
@@ -92,8 +113,9 @@ function row(par,key,txt,col,on,n){const l=document.createElement('label'),i=doc
   l.appendChild(document.createTextNode(txt));if(n!=null){const c=document.createElement('span');c.className='n';c.textContent=n;l.appendChild(c);}par.appendChild(l);}
 const pm=document.getElementById('modes'),pl=document.getElementById('layers');
 MODES.forEach(m=>{if(cnt[m[0]])row(pm,'m_'+m[0],m[1],m[2],true,cnt[m[0]]);});
-row(pl,'routes','Οδεύσεις στο ταβάνι',0xd0312d,true);row(pl,'holes','Οπές στα δοκάρια',0xa0199e,true);row(pl,'beams','Δοκάρια',0x6c7480,true);
-row(pl,'walls','Τοίχοι και κολόνες',0x9aa3ad,true);row(pl,'names','Ονόματα χώρων',null,true);row(pl,'ids','Αριθμοί σημείων',null,false);
+row(pl,'routes','Οδεύσεις καλωδίων στο ταβάνι',0xd0312d,true);row(pl,'holes','Οπές Ø75 στα δοκάρια',0xa0199e,true);row(pl,'beams','Δοκάρια (μπετό)',0x7d8591,true);row(pl,'cols','Κολόνες (μπετό)',0x5b626d,true);
+row(pl,'studs','Σίδερα τοίχων: ορθοστάτες ανά 60 cm',0x7f93a8,true);row(pl,'ceil','Σίδερα οροφής: οδηγοί ανά 50 / 100 cm',0xb9c4cf,true);row(pl,'hang','Κρεμάσεις οροφής ανά 90 cm',0x30363f,true);
+row(pl,'board','Φύλλο γυψοσανίδας οροφής',0xf2f0ea,false);row(pl,'walls','Φύλλα τοίχων και τούβλα',0xdfe3e8,true);row(pl,'names','Ονόματα χώρων',null,true);row(pl,'ids','Αριθμοί σημείων',null,false);
 // κάμερα
 const tg=V(6.3,5.2,1.2);let th=-0.8,ph=0.95,rad=22;
 function place(){cam.position.set(tg.x+rad*Math.sin(ph)*Math.sin(th),tg.y+rad*Math.cos(ph),tg.z+rad*Math.sin(ph)*Math.cos(th));cam.lookAt(tg);}
