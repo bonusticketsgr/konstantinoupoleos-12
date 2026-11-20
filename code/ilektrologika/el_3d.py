@@ -394,6 +394,8 @@ def build():
         r = [b for b in A.BEAMS if b[0] == h["beam"]][0][2:6]
         out["holes"].append(dict(id=h["id"], x=h["x"], y=h["y"], ax="y" if (r[2] - r[0]) > (r[3] - r[1]) else "x", z=2.73, use=h["use"]))
     out["zones"] = [[round(q, 3) for q in r] + [z["level"]] for z in A.ZONES for r in z["rects"]]
+    K = getattr(M, "KOUT", None)                                                 # R15: κατακόρυφη παρειά του κούτελου δίπλα στη Δ3.1 (Υπν.2), από το +2,48 ως την οροφή του δωματίου
+    out["vfaces"] = [[K["x0"], K["y0"], K["x1"], round(K["y0"] + 0.0125, 4), K["lv"], round([z["level"] for z in A.ZONES if z["id"] == "Ζ10"][0] + 0.0125, 4)]] if K else []
     out["furn"] = [[round(q, 3) for q in f[1]] + [f[2], f[3] if f[3] is not None else 2.46, f[0]] for f in RT._C["furn"]]
     out["doors"] = [[round(q, 3) for q in d] for d in RT._C["doors"]]
     mode = {d["id"]: d["mode"] for d in M.DROPS}

@@ -124,8 +124,17 @@ def run():
         add("Πέρασμα", p["id"], "OK" if hit else "ΛΑΘΟΣ", "%s · %s – %s%s" % (p["beam"], p["n"], p["title"], " · ΟΠΕΣ ΣΤΟ ΚΑΛΟΥΠΙ (ξυλότυποι)" if p["new"] else ""))
     z9 = [z for z in A.ZONES if z["id"] == "Ζ9"][0]
     soff = [A.beam_soffit(b[1]) for b in A.BEAMS if b[0] == "Δ3.1"][0]
-    add("Πέρασμα", "ΧΩΡΙΣ-ΠΡΕΚΙ", "OK" if abs(z9["level"] - soff) < 0.002 else "ΛΑΘΟΣ", "το άνοιγμα χωλ → σαλόνι ΜΕΝΕΙ όπως οι ανόψεις %s (+%s, περασιά με το δοκάρι): "
-        "κανένα πρέκι, κανένα κούτελο – τα καλώδια περνούν από τις οπές ΟΠ5 / ΟΠ1" % (A.REV, _f(z9["level"])))
+    z4 = [z for z in A.ZONES if z["id"] == "Ζ4"][0]
+    add("Πέρασμα", "ΧΩΛ-2,48", "OK" if abs(z9["level"] - soff) < 0.002 and abs(z4["level"] - soff) < 0.002 else "ΛΑΘΟΣ", "ΟΛΟ το χωλ και το άνοιγμα χωλ → σαλόνι στο +%s, περασιά με το δοκάρι Δ3.1 "
+        "(ιδιοκτήτης 20/11) – κανένα δόντι στο άνοιγμα· τα καλώδια περνούν από τις οπές ΟΠ5 / ΟΠ1" % _f(z4["level"]))
+    K = M.KOUT
+    kz = [z for z in A.ZONES if z["id"] == "Ζ15"][0]; sbk = A.SLABS[kz["slab"]]
+    b31 = [b for b in A.BEAMS if b[0] == "Δ3.1"][0]
+    okk = abs(K["y1"] - b31[3]) < 0.002 and abs(kz["level"] - soff) < 0.002 and K["clear"] >= 0.15 - 1e-6 and not any(
+        G.in_rect(x_, K["y0"] + 0.02, W.bbox(p_), tol=-0.002) for p_ in W.COLS for x_ in (K["x0"] + 0.05, (K["x0"] + K["x1"]) / 2, K["x1"] - 0.05))
+    add("Πέρασμα", "ΚΟΥΤΕΛΟ", "OK" if okk else "ΛΑΘΟΣ", "κούτελο γυψοσανίδας κολλητά στη βόρεια παρειά της Δ3.1, στο Υπν.2 σε όλο το πλάτος του (x %s–%s): κενό %s cm καθαρό × %s cm ύψος "
+        "(+%s ως την πλάκα +%s) · κάτω παρειά +%s = κάτω παρειά του δοκαριού · με σκελετό και φύλλο βγαίνει %s cm από το δοκάρι (ιδιοκτήτης 20/11: «κενό πάχους 15 και ύψους 30»)"
+        % (_f(K["x0"]), _f(K["x1"], 3), _f(K["clear"] * 100, 0), _f((sbk - kz["level"]) * 100, 0), _f(kz["level"]), _f(sbk), _f(kz["level"]), _f((K["y1"] - K["y0"]) * 100, 0)))
     wn = [W.bbox(w["pts"]) for w in W.WALLS if w["id"] in ("T2-04", "T2N-01", "T2-06")]
     add("Πέρασμα", "ΤΟΙΧΟΣ-Δ3.1", "OK" if all(abs(b[3] - 5.15) < 0.002 for b in wn) else "ΛΑΘΟΣ", "ο βόρειος τοίχος του καθιστικού ΟΠΩΣ οι τοιχοποιίες %s: παρειά στο 5,15, περασιά με τη δοκό Δ3.1 – "
         "κανένα κανάλι, καμία αλλαγή τοιχοποιίας" % W.REV)
@@ -162,10 +171,29 @@ def run():
     add("Συμπυκνώματα", "ΚΜ1-" + c["hole"], "OK" if lo - 1e-6 <= z_in <= hi + 1e-6 else "ΛΑΘΟΣ", "Ø32 από την αντλία του μηχανήματος: ροή +%s κολλητά στην πλάκα → %s m με 1 %% → +%s στο δοκάρι · "
         "μέσα στο χιτώνιο χωρά με ροή από +%s ως +%s" % (_f(z_unit, 3), _f(L), _f(z_in, 3), _f(lo, 3), _f(hi, 3)))
     need = c["ceil_liv"] + 0.0125 + c["ins"]
-    add("Συμπυκνώματα", "ΚΜ1-ΣΑΛΟΝΙ", "OK" if z_in >= need - 1e-6 else "ΛΑΘΟΣ", "ταβάνι σαλονιού +%s: ο Ø32 με μόνωση 9 mm θέλει ροή ≥ +%s · έχει +%s στο χαμηλότερο σημείο, περιθώριο %s cm"
-        % (_f(c["ceil_liv"]), _f(need, 3), _f(z_in, 3), _f((z_in - need) * 100, 1)))
+    add("Συμπυκνώματα", "ΚΜ1-ΛΩΡΙΔΑ", "OK" if z_in >= need - 1e-6 else "ΛΑΘΟΣ", "κενό της λωρίδας εισόδου (οροφή +%s): ο Ø32 με μόνωση 9 mm θέλει ροή ≥ +%s · έχει +%s στο χαμηλότερο σημείο"
+        % (_f(c["ceil_liv"]), _f(need, 3), _f(z_in, 3)))
+    sy = [t for t in M.TRUNKS3 if t["id"] == "ΣΥ"][0]["pts"]
+    runs = [(a_, b_) for a_, b_ in zip(sy, sy[1:]) if _m.hypot(b_[0] - a_[0], b_[1] - a_[1]) > 0.02]
+    slopes = [(a_[2] - b_[2]) / _m.hypot(b_[0] - a_[0], b_[1] - a_[1]) for a_, b_ in runs]
+    kr = [(a_, b_) for a_, b_ in runs if abs(a_[1] - b_[1]) < 1e-6 and abs(a_[1] - (K["y1"] - K["clear"] / 2)) < 0.002]
+    Lk = sum(abs(a_[0] - b_[0]) for a_, b_ in kr); zend = min(b_[2] for a_, b_ in kr)
+    in_k = sum(max(0.0, min(max(a_[0], b_[0]), K["x1"]) - max(min(a_[0], b_[0]), K["x0"])) for a_, b_ in kr)
+    needk = kz["level"] + 0.0125 + c["ins"]
+    okc = bool(kr) and min(slopes) >= 0.0099 and zend >= needk - 1e-6 and c["d"] + 2 * c["ins"] <= K["clear"] - 0.04 and all(h_["id"] != "ΟΠ1" or not any("αποχέτευση" in l_[0] for l_ in h_["lines"]) for h_ in M.HOLES)
+    add("Συμπυκνώματα", "ΚΜ1-ΚΟΥΤΕΛΟ", "OK" if okc else "ΛΑΘΟΣ", "μετά την ΟΠ2 ο Ø32 τρέχει κολλητά στη βόρεια παρειά του δοκαριού: %s m μέσα στο κούτελο του Υπν.2 και %s m στο κενό του χωλ, κλίση παντού ≥ 1 %% "
+        "(στη λωρίδα %s %%, μετά την ΟΠ2 2,6 %%) · ροή +%s στην ΟΠ2 → +%s πάνω από το πλυντήριο (θέλει ≥ +%s, περιθώριο %s cm) · με τη μόνωση Ø%d mm μέσα σε κενό %d cm"
+        % (_f(in_k), _f(Lk - in_k), _f(min(slopes) * 100, 1), _f(max(a_[2] for a_, b_ in kr), 3), _f(zend, 3), _f(needk, 3), _f((zend - needk) * 100, 1), round((c["d"] + 2 * c["ins"]) * 1000), round(K["clear"] * 100)))
+    ka, kb = max(kr, key=lambda q: abs(q[0][0] - q[1][0]))
+    cl = []
+    for h_ in H:
+        if h_["beam"] == "Δ3.1" and h_["id"] != c["hole"] and min(ka[0], kb[0]) <= h_["x"] <= max(ka[0], kb[0]):
+            zt = ka[2] + (kb[2] - ka[2]) * (h_["x"] - ka[0]) / (kb[0] - ka[0]) + c["d"] + c["ins"]
+            cl.append((h_["id"], (h_["z"] - M.HOLE_D / 2) - zt))
+    add("Συμπυκνώματα", "ΚΜ1-ΣΤΟΜΙΑ", "OK" if cl and min(q[1] for q in cl) >= 0.01 - 1e-6 else "ΛΑΘΟΣ", "στο χωλ ο Ø32 περνά μπροστά από τα χιτώνια %s: με τη μόνωσή του μένει %s cm ΚΑΤΩ από το κάτω άκρο τους – "
+        "τα καλώδια βγαίνουν ελεύθερα από πάνω του" % (" · ".join(q[0] for q in cl), " · ".join(_f(q[1] * 100, 1) for q in cl)))
     add("Συμπυκνώματα", "ΚΜ1-ΚΑΤΕΒΑΣΜΑ", "OK" if G.in_rect(c["drop"][0], c["drop"][1], c["drop_in"]) else "ΛΑΘΟΣ",
-        "κατέβασμα μέσα στη ντουλάπα του χωλ (όχι σε σκυρόδεμα, όχι στο πάτωμα) → σιφώνι πλυντηρίου")
+        "πέφτει μέσα στην εσοχή του πλυντηρίου (όχι σε σκυρόδεμα, όχι στο πάτωμα) → σιφώνι πλυντηρίου")
     for fr in M.FLOOR_RUNS:                                             # R13: στο δάπεδο ΜΟΝΟ ό,τι αποφάσισε ο ιδιοκτήτης
         hit = [k for k, p in enumerate(W.COLS) if G.is_rect(p) and any(G.seg_hits_rect(a_, b_, W.bbox(p)) for a_, b_ in zip(fr["pts"], fr["pts"][1:]))]
         dmax = max(t[1] for t in fr["tubes"]) / 1000.0

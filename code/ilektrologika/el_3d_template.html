@@ -218,6 +218,7 @@ D.beams.forEach(b=>{const m=new T.Mesh(new T.BoxGeometry(b[3]-b[1],2.98-b[5],b[4
   label(grp('beams'),b[0]+' · '+b[6],(b[1]+b[3])/2,(b[2]+b[4])/2,3.05,0.15,'#ffffff','#4a515c',9,13);});
 // ψευδοροφή: κύριοι οδηγοί ανά 1,00 m, δευτερεύοντες ανά 50 cm, κρεμάσεις ανά 90 cm ως την πλάκα (ή ως το δοκάρι)
 const topAt=(x,y)=>{let t=2.78;D.beams.forEach(b=>{if(x>=b[1]&&x<=b[3]&&y>=b[2]&&y<=b[4])t=Math.min(t,b[5]);});return t;};
+(D.vfaces||[]).forEach(f=>mbox(grp('board'),f[0],f[1],f[2],f[3],f[4],f[5],BOARD));
 D.zones.forEach(z=>{const [x0,y0,x1,y1,Lv]=z,gc=grp('ceil'),gb=grp('board');mbox(gb,x0,y0,x1,y1,Lv,Lv+.0125,BOARD);
   const hor=(x1-x0)>=(y1-y0),zs=Lv+.0125,zp=zs+.027;                 // δευτερεύοντες πάνω στο φύλλο, κύριοι από πάνω τους
   const U0=hor?x0:y0,U1=hor?x1:y1,W0=hor?y0:x0,W1=hor?y1:x1;
