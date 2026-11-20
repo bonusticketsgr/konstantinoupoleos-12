@@ -119,6 +119,14 @@ def verdict(d, e=None):
         r = d["inn"]; pts = [(r[0] + (r[2] - r[0]) * i / 6.0, r[1] + (r[3] - r[1]) * j / 6.0) for i in range(1, 6) for j in range(1, 6)]
         free = [p for p in pts if not any(G.in_rect(p[0], p[1], b[2:6]) for b in A.BEAMS)]
         return bool(free), "ΜΕΣΑ ΑΠΟ ΤΗ ΝΤΟΥΛΑΠΑ" if m == "back" or e["furn"] else "ΠΙΣΩ ΑΠΟ ΤΗ ΝΤΟΥΛΑΠΑ → ΜΕΣΑ ΣΤΗΝ ΕΠΕΝΔΥΣΗ", None
+    if m == "out":                                 # R17: ΑΠΟ ΕΞΩ – τούβλο πίσω από την επένδυση, δοκάρι από πάνω, και πίσω από το τούβλο εξώστης (καμία ψευδοροφή)
+        br = [q for q in e["walls"] if q[1] in BRICK]
+        if not br or not over:
+            return False, "δεν είναι επένδυση πάνω σε τούβλο κάτω από δοκάρι", None
+        right = (br[0][2] + br[0][3]) / 2 > e["wc"]
+        outside = not [q for q in e["ceil"] if (q[0] >= br[0][3] - 0.01 if right else q[1] <= br[0][2] + 0.01)]
+        ok = outside and M.ZO <= over[0][4] - 0.012
+        return ok, "ΑΠΟ ΕΞΩ: από το ταβάνι του εξώστη, τρύπα στο τούβλο στο +%s" % G.fmt(M.ZO), None
     if m == "floor":
         fr = [q for q in M.FLOOR_RUNS if q["id"] == d["run"]]
         if not fr:
@@ -235,6 +243,12 @@ def draw(d, x, ytop, w, h):
                 sc.text(hc + 0.07, Z0 + 0.085, "+" + G.fmt(M.ZLOW), size=4.8, font="Inter-Bold", color=SH.CABLE)
         elif m == "floor":
             SH._path(sc, [(hc, Z0 + 0.02), (hc, Z0 + 0.30)], lw=1.5)
+        elif m == "out":                                 # από το ταβάνι του εξώστη κάτω στην όψη, τρύπα στο τούβλο κάτω από το δοκάρι, και κάτω μέσα στην επένδυση
+            br = [q for q in e["walls"] if q[1] in BRICK][0]; s2 = 1 if (br[2] + br[3]) / 2 > hc else -1
+            face = max(br[3], e["over"][0][3]) if s2 > 0 else min(br[2], e["over"][0][2])
+            xo = face + s2 * 0.045
+            SH._path(sc, [(xo + s2 * 0.20, ZS - 0.045), (xo, ZS - 0.045), (xo, M.ZO), (hc, M.ZO), (hc, Z0 + 0.03)], lw=1.5)
+            sc.text(xo + s2 * 0.03, M.ZO - 0.015, "+" + G.fmt(M.ZO), size=4.8, font="Inter-Bold", color=SH.CABLE, anchor="l" if s2 > 0 else "r")
     yy = ytop - 22 - sh - 9
     vcol = NO if dec else (GO if m in ("top", "side") else (0.75, 0.42, 0.05))
     yv = D.para(x, yy, ("ΟΧΙ ΑΠΟ ΠΑΝΩ → " if m not in ("top", "side") else "") + vd, w - 10, size=5.5, font="Inter-Bold", color=vcol if ok else NO)

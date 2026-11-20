@@ -31,10 +31,18 @@ def C():
 def _plan(fn, title):
     P.begin_plan(); v = P.view(OX, OY, S); v.sym = 1.0
     P.base(v, W, site=False, rooms=True, furniture=True)
+    kitchen_tags(v)
     fn(v)
     P.end_plan()
     P.view_title(title, "Κλίμακα 1:50"); P.scale_bar(50)
     return v
+
+
+def kitchen_tags(v):
+    """R17: ψυγείο στη ΝΔ γωνία της κουζίνας · πλυντήριο πιάτων δεξιά του νεροχύτη (τα έπιπλα του σχεδίου τοιχοποιιών δεν τα γράφουν)."""
+    f, d = M.FRIDGE, M.DISHW
+    D.halo_text(v, (f[0] + f[2]) / 2, (f[1] + f[3]) / 2 + 0.16, "ΨΥΓΕΙΟ", size=3.8, color=MUTE)
+    D.halo_text(v, (d[0] + d[2]) / 2, d[1] + 0.07, "ΠΛ. ΠΙΑΤΩΝ", size=3.4, color=MUTE)
 
 
 def _finish(no, theme, sub2):

@@ -206,7 +206,7 @@ def run():
     covered = set(w_ for d_ in M.DROPS for w_ in d_["walls"])
     for d_ in M.DROPS:
         e_ = DR.env(d_); okd, vd, gap = DR.verdict(d_, e_)
-        lazy = d_["mode"] in ("via", "back", "floor") and not e_["over"]            # δηλώνεται πλάγιος τρόπος ενώ ο τοίχος δεν είναι καν κάτω από δοκάρι
+        lazy = d_["mode"] in ("via", "back", "floor", "out") and not e_["over"]            # δηλώνεται πλάγιος τρόπος ενώ ο τοίχος δεν είναι καν κάτω από δοκάρι
         add("Κατέβασμα", "ΤΟΜΗ " + d_["id"], "ΛΑΘΟΣ" if (not okd or lazy) else "OK", "%s (%s): %s" % (d_["title"], " · ".join(d_["walls"]), vd))
     miss = sorted(set(G.face_of(W, p[1], p[2], p[3])[1] for p in wall_points()) - covered - {None})
     add("Κατέβασμα", "ΚΑΛΥΨΗ", "OK" if not miss else "ΛΑΘΟΣ", "κάθε τοίχος με πρίζα / διακόπτη έχει τομή κατεβάσματος στο ΗΛ-14" + ((" – ΛΕΙΠΟΥΝ: " + ", ".join(miss)) if miss else ""))
@@ -489,7 +489,7 @@ def circuit_lengths():
         dev.setdefault(f[3], []).append((f[1], f[2], 2.6, "S" if f[0] == "ΚΜ1" else "N"))
     for sh in M.SHUTTERS:
         x, y, d = sh["motor"]
-        dev.setdefault(sh["c"], []).append((x, y, M.H_HI, zone_of("ΚΑΘ" if sh["win"] in ("W2.01", "W2.02") else "ΥΠ1", x, y)))
+        dev.setdefault(sh["c"], []).append((x, y, M.H_HI, zone_of(sh.get("room", "ΥΠ1"), x, y)))
     for l in M.WALL_LIGHTS:
         c = M.GROUPS[l[6]]["c"]
         dev.setdefault(c, []).append((l[1], l[2], l[5], zone_of(l[7], l[1], l[2])))
@@ -539,7 +539,7 @@ def circuit_runs():
         dev.setdefault(f[3], []).append((f[1], f[2], 2.6, "S" if f[0] == "ΚΜ1" else "N"))
     for sh in M.SHUTTERS:
         x, y, d = sh["motor"]
-        dev.setdefault(sh["c"], []).append((x, y, M.H_HI, zone_of("ΚΑΘ" if sh["win"] in ("W2.01", "W2.02") else "ΥΠ1", x, y)))
+        dev.setdefault(sh["c"], []).append((x, y, M.H_HI, zone_of(sh.get("room", "ΥΠ1"), x, y)))
     for l in M.WALL_LIGHTS:
         dev.setdefault(M.GROUPS[l[6]]["c"], []).append((l[1], l[2], l[5], zone_of(l[7], l[1], l[2])))
     for q in M.SPOTS:
