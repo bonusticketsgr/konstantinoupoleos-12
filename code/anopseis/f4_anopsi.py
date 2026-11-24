@@ -36,9 +36,9 @@ sys.path.insert(0, os.path.join(HERE, "..", "toixopoiies"))
 import b1_anopsi as B
 import f4_model as W   # τοιχοποιίες Δ΄ (R09)
 
-REV = "R12"
-DATE = "18/11/2026"
-REV_PREV = "R11 (18/11/2026)"
+REV = "R13"
+DATE = "24/11/2026"
+REV_PREV = "R12 (18/11/2026)"
 
 TOP_SLAB = B.TOP_SLAB
 SLABS = dict(B.SLABS, **{"Σ7 σκάλα h15": 2.83, "Π5 h15": 2.83})

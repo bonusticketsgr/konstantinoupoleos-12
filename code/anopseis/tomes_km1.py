@@ -29,9 +29,11 @@ import checks, sheets
 from draw import View, PAGE_W, PAGE_H, DARK, GREY, LIGHT, DIMC, frame_and_title, north_arrow, new_canvas
 from reportlab.pdfbase import pdfmetrics
 
-REV, DATE = "R02", "18/11/2026"
+REV, DATE = "R03", "24/11/2026"
+SHOW_NOTES = False   # 24/11/2026 (Γιάννης: «βγάλε από όλα τα σχέδια τις σημειώσεις, να υπάρχουν μόνο σχέδια») – κείμενα / βήματα / πλαίσια-μηνύματα εκτός, μένουν σχέδια + υπόμνημα
 OUTDIR = os.path.join(HERE, "..", "..", "ΚΩΝΣΤΑΝΤΙΝΟΥΠΟΛΕΩΣ_12_ΑΡΓΥΡΟΥΠΟΛΗ", "ΑΝΟΨΕΙΣ")
-BASE = "Ανόψεις Β1 %s · Δ΄ R12 · ισόγειο %s · τοιχοποιίες Β1 %s · γέμισμα δαπέδων 12 cm" % (A.REV, G.REV, A.W.REV)
+import f4_anopsi as F4
+BASE = "Ανόψεις Β1 %s · Δ΄ %s · ισόγειο %s · τοιχοποιίες Β1 %s · γέμισμα δαπέδων 12 cm" % (A.REV, F4.REV, G.REV, A.W.REV)
 
 MM = 72 / 25.4
 
@@ -511,6 +513,8 @@ def wrap(s, font, size, w):
 
 
 def para(c, x, y, w, s, size=7.0, font="Inter", color=DARK, lead=None, indent=0):
+    if not SHOW_NOTES:
+        return y
     lead = lead or size + 2.4
     for i, l in enumerate(wrap(s, font, size, w - indent)):
         c.setFont(font, size); c.setFillColorRGB(*color)
@@ -519,6 +523,12 @@ def para(c, x, y, w, s, size=7.0, font="Inter", color=DARK, lead=None, indent=0)
 
 
 def head(c, x, y, s, size=9.5, color=DARK):
+    if not SHOW_NOTES:
+        return y
+    return _head(c, x, y, s, size, color)
+
+
+def _head(c, x, y, s, size=9.5, color=DARK):
     c.setFont("Inter-Bold", size); c.setFillColorRGB(*color); c.drawString(x, y, s)
     return y - size - 5
 
@@ -543,6 +553,8 @@ STEPS = [
 
 
 def steps_panel(c, x, y, w, only=None, size=7.2, title="Η ΔΙΑΔΡΟΜΗ ΒΗΜΑ – ΒΗΜΑ"):
+    if not SHOW_NOTES:
+        return y
     y = head(c, x, y, title)
     for i, (t, d) in enumerate(STEPS, 1):
         if only and i not in only:
@@ -555,7 +567,7 @@ def steps_panel(c, x, y, w, only=None, size=7.2, title="Η ΔΙΑΔΡΟΜΗ ΒΗ
 
 
 def legend(c, x, y, items, size=6.4, w=250, title="ΥΠΟΜΝΗΜΑ"):
-    y = head(c, x, y, title, 8.5)
+    y = _head(c, x, y, title, 8.5)
     for kind, col, txt in items:
         yy = y + 2
         if kind == "line":
@@ -858,10 +870,12 @@ def sheet_plan(c):
               "Συμπυκνώματα: στο σιφώνι του ΜΠΡΟΣΤΙΝΟΥ μπαλκονιού (υδρορροή ΥΔ2), μέσα στο δάπεδο κατά μήκος του τοίχου της εισόδου.",
               "Οροφή λωρίδας εισόδου και κουζίνας %s = ΠΕΡΑΣΙΑ ΜΕ ΤΑ ΔΟΚΑΡΙΑ (το φύλλο περνά κάτω από το δοκάρι) – ενιαία, χωρίς δόντι. Η λωρίδα 1,10 μετριέται "
               "από τον τοίχο. Μηχάνημα slim ως %s cm ύψος. Εξωτερική μονάδα στον ΒΑ εξώστη." % (lv(LV_STRIP), cm(UNIT["hmax"]))]:
-        c.setFillColorRGB(*DARK); c.circle(x2 + 2.5, y2 + 2.4, 1.3, stroke=0, fill=1)
+        if SHOW_NOTES:
+            c.setFillColorRGB(*DARK); c.circle(x2 + 2.5, y2 + 2.4, 1.3, stroke=0, fill=1)
         y2 = para(c, x2 + 9, y2, w / 2 - 20, t, size=6.8) - 2
     y = min(y, y2) - 10
-    c.setStrokeColorRGB(*LIGHT); c.setLineWidth(0.5); c.line(x, y + 6, x + w, y + 6)
+    if SHOW_NOTES:
+        c.setStrokeColorRGB(*LIGHT); c.setLineWidth(0.5); c.line(x, y + 6, x + w, y + 6)
     y -= 8
     yl = steps_panel(c, x, y, w, size=6.8)
     legend(c, x, yl - 4, [("line", MAG, "ψυκτικά ΚΜ1 μέσα στην ΨΕΥΔΟΡΟΦΗ"),
@@ -889,6 +903,8 @@ def cross_mark(sv, u, z, col, r=3.6):
 
 def msg_box(c, X, Y, w, title, lines, size=6.2):
     """Κόκκινο πλαίσιο-μήνυμα· (X, Y) = πάνω-αριστερά."""
+    if not SHOW_NOTES:
+        return 0
     h = 13 + len(lines) * (size + 2.2) + 4
     c.setFillColorRGB(1, 1, 1); c.setStrokeColorRGB(*RED); c.setLineWidth(1.0); c.roundRect(X, Y - h, w, h, 4, stroke=1, fill=1)
     c.setFillColorRGB(*RED); c.setFont("Inter-Bold", size + 0.8); c.drawString(X + 6, Y - 11, title)
@@ -899,6 +915,8 @@ def msg_box(c, X, Y, w, title, lines, size=6.2):
 
 
 def bullets(c, x, y, w, items, size=7.2):
+    if not SHOW_NOTES:
+        return y
     for t in items:
         c.setFillColorRGB(*DARK); c.circle(x + 2.5, y + 2.6, 1.4, stroke=0, fill=1)
         y = para(c, x + 10, y, w - 12, t, size=size) - 4
@@ -1734,7 +1752,7 @@ def sheet_gf(c):
         ("ΒΑ ΒΕΡΑΝΤΑ", "Εξωτερική μονάδα. Τα συμπυκνώματα της ΚΜ1 στο ισόγειο πάνε στο σιφώνι του WC (όπως ήταν)."),
     ]
     y = head(c, x, y, "Η ΔΙΑΔΡΟΜΗ ΒΗΜΑ – ΒΗΜΑ")
-    for i, (t, d) in enumerate(gsteps, 1):
+    for i, (t, d) in enumerate(gsteps if SHOW_NOTES else [], 1):
         badge(c, x + 7, y + 2.5, i, 7.0)
         c.setFont("Inter-Bold", 7.2); c.setFillColorRGB(*DARK); c.drawString(x + 20, y, t)
         y -= 10.2

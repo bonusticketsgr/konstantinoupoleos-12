@@ -20,17 +20,18 @@ from lib import MM, FONT_R, FONT_B, BLACK, GRAY, BLUE
 FLOOR = os.environ.get("STAIR_FLOOR", "gf")
 T_FLOOR = 0.12                           # ΓΕΜΙΣΜΑ δαπέδων διαμερισμάτων / πλατύσκαλων ορόφων: 12 cm (Γιάννης 17/11/2026· η μελέτη 15)
 CFGS = {
-    "gf": dict(sheet="Σ3β", rev="R11", lo="ΙΣΟΓΕΙΟΥ", hi="Α΄ ΟΡΟΦΟΥ", lo_s="ισόγειο", hi_s="Α΄", file="Σ3β_Σκάλα_ισογείου_Α_ορόφου", ssl0=0.30, ffl0=0.74,
+    "gf": dict(sheet="Σ3β", rev="R12", lo="ΙΣΟΓΕΙΟΥ", hi="Α΄ ΟΡΟΦΟΥ", lo_s="ισόγειο", hi_s="Α΄", file="Σ3β_Σκάλα_ισογείου_Α_ορόφου", ssl0=0.30, ffl0=0.74,
                ffl0_study=0.45, ssl1=3.65, wall=9.70, beam="Δ13.1  25/40", east="τοίχος / Δ10.2 25/50", base="Σ3_ΕΦ · A-10-GF · A-10-1F"),
-    "a": dict(sheet="Σ4β", rev="R02", lo="Α΄ ΟΡΟΦΟΥ", hi="Β΄ ΟΡΟΦΟΥ", lo_s="Α΄", hi_s="Β΄", file="Σ4β_Σκάλα_Α_Β_ορόφου", ssl0=3.65, ssl1=6.75,
+    "a": dict(sheet="Σ4β", rev="R03", lo="Α΄ ΟΡΟΦΟΥ", hi="Β΄ ΟΡΟΦΟΥ", lo_s="Α΄", hi_s="Β΄", file="Σ4β_Σκάλα_Α_Β_ορόφου", ssl0=3.65, ssl1=6.75,
               wall=9.55, beam="Δ12.2  25/40", east="τοίχος / Δ10.2 25/40", base="Σ4_ΕΦ · A-10-1F · A-10-2F"),
-    "b": dict(sheet="Σ5β", rev="R02", lo="Β΄ ΟΡΟΦΟΥ", hi="Γ΄ ΟΡΟΦΟΥ", lo_s="Β΄", hi_s="Γ΄", file="Σ5β_Σκάλα_Β_Γ_ορόφου", ssl0=6.75, ssl1=9.85,
+    "b": dict(sheet="Σ5β", rev="R03", lo="Β΄ ΟΡΟΦΟΥ", hi="Γ΄ ΟΡΟΦΟΥ", lo_s="Β΄", hi_s="Γ΄", file="Σ5β_Σκάλα_Β_Γ_ορόφου", ssl0=6.75, ssl1=9.85,
               wall=9.55, beam="Δ12.2  25/40", east="τοίχος / Δ10.2 25/40", base="Σ5_ΕΦ · A-10-2F · A-10-3F"),
-    "c": dict(sheet="Σ6β", rev="R02", lo="Γ΄ ΟΡΟΦΟΥ", hi="Δ΄ ΟΡΟΦΟΥ", lo_s="Γ΄", hi_s="Δ΄", file="Σ6β_Σκάλα_Γ_Δ_ορόφου", ssl0=9.85, ssl1=12.95,
+    "c": dict(sheet="Σ6β", rev="R03", lo="Γ΄ ΟΡΟΦΟΥ", hi="Δ΄ ΟΡΟΦΟΥ", lo_s="Γ΄", hi_s="Δ΄", file="Σ6β_Σκάλα_Γ_Δ_ορόφου", ssl0=9.85, ssl1=12.95,
               wall=9.55, beam="Δ12.2  25/40", east="τοίχος / Δ10.2 25/40", base="Σ6_ΕΦ · A-10-3F · A-10-4F"),
 }
 CFG = CFGS[FLOOR]; TYP = FLOOR != "gf"
-REV, DATE = CFG["rev"], "17/11/2026"
+REV, DATE = CFG["rev"], "24/11/2026"
+SHOW_NOTES = False   # 24/11/2026 (Γιάννης: «βγάλε από όλα τα σχέδια τις σημειώσεις, να υπάρχουν μόνο σχέδια») – στη στήλη μένουν τίτλος, κλίμακα, επεξήγηση χρωμάτων, έργο
 OUT = os.path.join(HERE, "..", "..", "ΚΩΝΣΤΑΝΤΙΝΟΥΠΟΛΕΩΣ_12_ΑΡΓΥΡΟΥΠΟΛΗ", "ΞΥΛΟΤΥΠΟΙ")
 NAME = "%s_A3_%s.pdf" % (CFG["file"], REV)
 
@@ -453,6 +454,8 @@ def info_a3(sh, x, y0, y1, scale_txt):
     y = yb + 9 * MM; sh.oline(x, y - 4 * MM, x + 40 * MM, y - 4 * MM, 0.4)
     def blk(head, lines, color=BLACK):
         nonlocal y
+        if not SHOW_NOTES and not head.startswith(('ΜΕΣΑ ΣΤΟ ΦΑΝΑΡΙ', 'ΚΟΚΚΙΝΟ', 'ΚΑΦΕ', 'ΜΠΛΕ')):
+            return
         sh.otext(xx, y, head, size=7.0, bold=True, color=color); y += 3.5 * MM
         for ln in lines: sh.otext(xx, y, ln, size=6.5); y += 3.2 * MM
         y += 2.0 * MM

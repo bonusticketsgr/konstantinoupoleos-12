@@ -17,7 +17,8 @@ from shapely.geometry import LineString
 import stair_s3 as S
 from stair_s3 import lib, MM, FONT_R, FONT_B, BLACK, GRAY, BLUE, View, level_mark, cm, mt, lv, CONC, WALLC, RED, FIN, PLATC, DOORC
 
-REV, DATE = "R01", "17/11/2026"
+REV, DATE = "R02", "24/11/2026"
+SHOW_NOTES = False   # 24/11/2026 (Γιάννης: «βγάλε από όλα τα σχέδια τις σημειώσεις, να υπάρχουν μόνο σχέδια») – στη στήλη μένουν τίτλος, κλίμακα, επεξήγηση χρωμάτων, έργο
 OUT = S.OUT
 NAME = "Σ7β_Σκάλα_Δ_ορόφου_σοφίτας_A3_%s.pdf" % REV
 
@@ -184,6 +185,8 @@ def info_a3(sh, x, y0, y1, scale_txt):
     y = yb + 9 * MM; sh.oline(x, y - 4 * MM, x + 40 * MM, y - 4 * MM, 0.4)
     def blk(head, lines, color=BLACK):
         nonlocal y
+        if not SHOW_NOTES and not head.startswith(('ΦΑΝΑΡΙ', 'ΚΟΚΚΙΝΟ', 'ΚΑΦΕ', 'ΜΠΛΕ')):
+            return
         sh.otext(xx, y, head, size=7.0, bold=True, color=color); y += 3.5 * MM
         for ln in lines: sh.otext(xx, y, ln, size=6.5); y += 3.2 * MM
         y += 2.0 * MM

@@ -230,7 +230,12 @@ def _sw(fill=None, stroke=None, hatch=False):
     return f
 
 
+SHOW_NOTES = False      # 24/11/2026 (Γιάννης: «βγάλε από όλα τα σχέδια τις σημειώσεις, να υπάρχουν μόνο σχέδια») – οι NOTES_* μένουν στα μοντέλα / στα .md
+
+
 def side_notes(c, lines, x=1010, y=740, w=150, title="ΣΗΜΕΙΩΣΕΙΣ", size=5.2):
+    if not SHOW_NOTES:
+        return y
     c.setFont("Inter-SemiBold", 6.4); c.setFillColorRGB(*DARK); c.drawString(x, y, title)
     yy = y - 10
     for s in lines:
@@ -1001,9 +1006,9 @@ def _tri(c_, x, y):
     return pp
 
 
-SHEETS = (sheet_an01, sheet_an02, sheet_an03, sheet_an04)
+SHEETS = (sheet_an01, sheet_an02, sheet_an03) + ((sheet_an04,) if SHOW_NOTES else ())   # ΑΝ-04 (έλεγχος / αλλαγές / ανοικτά) = μόνο κείμενο → εκτός τεύχους από 24/11
 
 
 def sheets_for():
-    """Φύλλα του δεμένου ορόφου: ΑΝ-01…04 + ΑΝ-05 αναμονών όπου υπάρχουν (σοφίτα)."""
+    """Φύλλα του δεμένου ορόφου: ΑΝ-01…03 (+04 μόνο με SHOW_NOTES) + ΑΝ-05 αναμονών όπου υπάρχουν (σοφίτα)."""
     return SHEETS + ((sheet_an05,) if getattr(A, "STUBS", None) else ())

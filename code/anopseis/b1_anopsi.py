@@ -81,9 +81,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "toixopoiies"))
 import b1_model as W   # τοιχοποιίες Β1 (R30)
 
-REV = "R23"
-DATE = "18/11/2026"
-REV_PREV = "R22 (18/11/2026)"
+REV = "R24"
+DATE = "24/11/2026"
+REV_PREV = "R23 (18/11/2026)"
 
 # ---------------------------------------------------------------- φέρων οργανισμός (Σ5)
 TOP_SLAB = 2.98

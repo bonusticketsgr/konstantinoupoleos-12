@@ -244,8 +244,8 @@ def merge(path_sk):
 def main():
     sh = lib.Sheet({"region": (0, 0, 0, 0)}, [], scale=SC, page_w=420, page_h=297, sx0=0, sy0=0)
     draw(sh)
-    os.makedirs(OUT, exist_ok=True)
-    path = os.path.join(OUT, NAME)
+    # 24/11/2026 (Γιάννης: «βγάλε από το main τις τομές των σκαλών, δεν χρειάζονται»): οι τομές ΔΕΝ είναι παραδοτέο – γράφονται σε προσωρινό φάκελο
+    import tempfile; path = os.path.join(os.environ.get("STAIR_SECTIONS_OUT", tempfile.gettempdir()), NAME)
     sh.doc.set_metadata(dict(title="ΣΚ – Σκάλες υπόγειο → ισόγειο → Α΄, ενιαία τομή", author="ARKAD Ι.Κ.Ε."))
     sh.doc.save(path, garbage=4, deflate=True)
     print("->", NAME, "· μήκος αναπτύγματος %.2f m = %.0f mm" % (S_END, S_END / SC * 1000))

@@ -394,7 +394,8 @@ def main():
         sh = lib.Sheet({"region": (0, 0, 0, 0)}, [], scale=SC, page_w=297, page_h=420, sx0=0, sy0=0)
         hr = section(sh, cut); title(sh, cut, n, hr); sh.flush()
         doc.insert_pdf(sh.doc); allhr[cut[0]] = hr
-    os.makedirs(OUT, exist_ok=True); path = os.path.join(OUT, NAME)
+    # 24/11/2026 (Γιάννης: «βγάλε από το main τις τομές των σκαλών, δεν χρειάζονται»): οι τομές ΔΕΝ είναι παραδοτέο – γράφονται σε προσωρινό φάκελο
+    import tempfile; path = os.path.join(os.environ.get("STAIR_SECTIONS_OUT", tempfile.gettempdir()), NAME)
     doc.set_metadata(dict(title="ΣΚ-Τ – Τομές κλιμακοστασίου υπόγειο → ισόγειο → Α΄ (Α-Α … ΣΤ-ΣΤ)", author="ARKAD Ι.Κ.Ε."))
     doc.save(path, garbage=4, deflate=True); print("->", NAME, "(%d φύλλα)" % doc.page_count)
     for nm, hr in allhr.items():

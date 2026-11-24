@@ -16,7 +16,8 @@ sys.path.insert(0, os.path.join(HERE, "..", "xylotypoi_S1_S2"))
 import lib
 from lib import MM, FONT_R, FONT_B, BLACK, GRAY, BLUE
 
-REV, DATE = "R15", "17/11/2026"
+REV, DATE = "R16", "24/11/2026"
+SHOW_NOTES = False   # 24/11/2026 (Γιάννης: «βγάλε από όλα τα σχέδια τις σημειώσεις, να υπάρχουν μόνο σχέδια») – στη στήλη μένουν τίτλος, κλίμακα, επεξήγηση χρωμάτων, έργο
 OUT = os.path.join(HERE, "..", "..", "ΚΩΝΣΤΑΝΤΙΝΟΥΠΟΛΕΩΣ_12_ΑΡΓΥΡΟΥΠΟΛΗ", "ΞΥΛΟΤΥΠΟΙ")
 
 # ---------------------------------------------------------------- μοντέλο
@@ -430,6 +431,8 @@ def info_a3(sh, x, y0, y1, scale_txt):
     y = yb + 9 * MM; sh.oline(x, y - 4 * MM, x + 40 * MM, y - 4 * MM, 0.4)
     def blk(head, lines, color=BLACK):
         nonlocal y
+        if not SHOW_NOTES and not head.startswith(('ΜΕΣΑ ΣΤΟ ΦΑΝΑΡΙ', 'ΚΟΚΚΙΝΟ', 'ΚΑΦΕ', 'ΜΠΛΕ')):
+            return
         sh.otext(xx, y, head, size=7.0, bold=True, color=color); y += 3.5 * MM
         for ln in lines: sh.otext(xx, y, ln, size=6.5); y += 3.2 * MM
         y += 2.0 * MM
