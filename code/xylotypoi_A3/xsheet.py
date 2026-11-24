@@ -12,7 +12,7 @@ from xdims import recover
 import xextract as X
 
 A3W, A3H = 420.0, 297.0
-SCALES = [50, 60, 75, 80, 100]
+SCALES = [50, 55, 60, 65, 70, 75, 80, 100]      # R08 (Α3): και 1:55 / 1:65 / 1:70 – κάθε φύλλο στη μεγαλύτερη κλίμακα που χωρά, να γεμίζει τη σελίδα
 COLFILL = (0.80, 0.80, 0.80)
 # μεγέθη κειμένων στο χαρτί (pt): (στόχος, ελάχιστο)
 # R01 (Γιάννης 10/11/2026: «μίκρυνε λίγο τις γραμματοσειρές, μάζεψέ το λίγο») – περίπου 10–12 % μικρότερα από το R00
@@ -651,6 +651,11 @@ def prep(page, DR, cfg, S_loc=S):
             if t["text"] == mv[0]:
                 for k_ in ("cx", "x0", "x1"): t[k_] += mv[1]
                 for k_ in ("cy", "y0", "y1"): t[k_] += mv[2]
+    for mx, my, mtxt, dx_, dy_ in cfg.get("move_at", []):   # R08: (x, y, κείμενο, dx, dy) σε pt πηγής – μετακίνηση ΜΙΑΣ ετικέτας / τιμής διάστασης σε συγκεκριμένη θέση
+        for t in T:
+            if t["text"] == mtxt and abs(t["cx"] - mx) < 8 and abs(t["cy"] - my) < 8:
+                for k_ in ("cx", "x0", "x1"): t[k_] += dx_
+                for k_ in ("cy", "y0", "y1"): t[k_] += dy_
     log0 = []; fills = []; holes = []; stair = None
     if not cfg.get("section"):
         stair = prep_stair(G, cfg, log0)           # R07: τελική σκάλα του τεύχους σκαλών αντί για τα σχηματικά του μελετητή
@@ -973,14 +978,17 @@ def draw(sh, D, bb_in, FC=None, sides=(), log=None, datum=None, inner=()):
         else: an = (1 if d["tx"] < d["x0"] else -1, 0, h0)
         P(t, "dim", anchor=an, skip=nd + i, nudge="along")
     for ci, ch in enumerate(ich):
-        vals = [p[0] for p in ch["pts"]]
+        vals = [p[0] for p in ch["pts"]]; prev_short = False
         for a, b in zip(vals[:-1], vals[1:]):
             s_ = sh.fmt((b - a) / S); sz = 7.6
             if any(hz == ch["horiz"] and abs(a - (blank_cal[0 if hz else 1] + m0 * S)) < 2 and abs(b - (blank_cal[0 if hz else 1] + m1 * S)) < 2 for hz, m0, m1 in blank): continue
+            # R08 (Α3, μικρότερες κλίμακες): δύο διαδοχικά κοντά τμήματα που δεν χωρούν την τιμή τους – η δεύτερη τιμή από την ΑΛΛΗ πλευρά της γραμμής
+            short = (b - a) * K < FONT_R.text_length(s_, fontsize=sz) + 2; flip = short and prev_short; prev_short = short and not flip
+            off = -(1.9 + sz * 0.37) / K if not flip else (1.9 + sz * 0.37) / K
             if ch["horiz"]:
-                t = dict(cx=(a + b) / 2, cy=ch["pos"] - (1.9 + sz * 0.37) / K, dir=(1.0, 0.0), text=s_)
+                t = dict(cx=(a + b) / 2, cy=ch["pos"] + off, dir=(1.0, 0.0), text=s_)
             else:
-                t = dict(cx=ch["pos"] - (1.9 + sz * 0.37) / K, cy=(a + b) / 2, dir=(0.0, -1.0), text=s_)
+                t = dict(cx=ch["pos"] + off, cy=(a + b) / 2, dir=(0.0, -1.0), text=s_)
             P(t, "dim", sizes=(7.6, 6.0), skip=pl.n_dims + ci, nudge="along")
     for d in unres:
         t = dict(cx=d["tx"], cy=d["ty"], dir=(1.0, 0.0) if d["dir"] == "H" else (0.0, -1.0), text=d["value"])
