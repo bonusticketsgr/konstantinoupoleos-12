@@ -471,7 +471,7 @@ def curtains(D, M):
 MOODS = {
     # ουρανός (HDRI της αποθήκης) · αζιμούθιο ήλιου (από βορρά δεξιόστροφα) · ένταση ουρανού · πρόσθετος ζεστός ήλιος · έκθεση · spots (W) · φωτιστικά · LED
     "day": dict(hdri="qwantani_late_afternoon_puresky", sun_az=250.0, sky=1.0, sky_tint=(1.0, 0.97, 0.93), sun=3.0, sun_col=(1.0, 0.84, 0.66), sun_el=19.0,
-                exposure=1.70, spot=8.0, lamp=14.0, led=10.0, led_soft=4.0, spot_emit=8.0, wb=6350.0),
+                exposure=1.70, gamma=1.16, spot=8.0, lamp=14.0, led=10.0, led_soft=4.0, spot_emit=8.0, wb=6350.0),
     "evening": dict(hdri="table_mountain_1_puresky", sun_az=262.0, sky=0.10, sky_tint=(1.0, 0.85, 0.75), sun=0.0, sun_col=(1.0, 0.6, 0.4), sun_el=6.0,
                     exposure=2.6, spot=10.0, lamp=12.0, led=9.0, led_soft=6.0, spot_emit=5.0, wb=6500.0),
 }
@@ -632,7 +632,7 @@ def render_setup(res, samples, S, device="cpu"):
             vs.look = lk; break
         except Exception:
             continue
-    vs.exposure = S["exposure"]; vs.gamma = 1.0
+    vs.exposure = S["exposure"]; vs.gamma = S.get("gamma", 1.0)       # gamma > 1: ανεβάζει τους μεσαίους τόνους (φωτεινό, «αέρινο» εσωτερικό) χωρίς να καίει τα τζάμια
     try:                                                            # ζεστή ισορροπία λευκού (Blender ≥ 4.3)
         vs.use_white_balance = True; vs.white_balance_temperature = S.get("wb", 6500.0); vs.white_balance_tint = 6.0
     except Exception:
