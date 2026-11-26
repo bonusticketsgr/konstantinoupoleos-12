@@ -4,13 +4,18 @@
     <python με bpy> scene.py --views all --res 1920x1080 --samples 400 --out <φάκελος>
 
 Το κτίριο (τοίχοι, κολόνες, δοκάρια, στάθμες οροφής, κουφώματα, κουζίνα, θέσεις επίπλων, φώτα, διακόπτες / πρίζες) διαβάζεται από το scene.json.
-Έπιπλα, υφάσματα, διακοσμητικά, φυτά, κουρτίνες, ό,τι φαίνεται έξω από τα τζάμια: ΕΝΔΕΙΚΤΙΚΑ (ύφος παρουσίασης – δεν είναι μέρος της μελέτης)."""
+Έπιπλα, υφάσματα, διακοσμητικά, φυτά, κουρτίνες, ό,τι φαίνεται έξω από τα τζάμια: ΕΝΔΕΙΚΤΙΚΑ (ύφος παρουσίασης – δεν είναι μέρος της μελέτης).
+
+ΥΦΟΣ (Γιάννης 26/11/2026: «πολύ παιδικά … πιο ζεστά … ξύλο δρύινο … σαν τα render του ISV … cosy … 7000/μέτρο» · «φαρδιά σανίδα»): ζεστός μινιμαλισμός –
+φυσική δρυς σε φαρδιά σανίδα, καπλαμάς δρυός, τραβερτίνης, κρεμ μπουκλέ, λινά, δέρμα κονιάκ, μπρούντζος, ήλιος απογεύματος.
+Πραγματικές υφές / ουρανός / μοντέλα φυτών από την αποθήκη (assets.py · fetch_assets.py)· αν λείπουν, η σκηνή βγαίνει με τα απλά υπολογιστικά υλικά."""
 import argparse, json, math, os, sys, time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import bpy
 from mathutils import Vector, Euler
+import assets as A
 import lib as L
 from lib import mbox, prism, place, rprism, cyl, tube, P, srgb, obj_from, RNG
 import kitchen as KT
@@ -25,60 +30,86 @@ SHOWN = ("Ζ1", "Ζ2", "Ζ3", "Ζ4", "Ζ9")             # χώροι που φα
 
 def materials():
     M = {}
-    M["wall"] = L.paint("wall", srgb(236, 233, 226))
-    M["ceil"] = L.paint("ceil", srgb(244, 243, 239), bump=0.012)
-    M["white"] = L.plain("white_lacq", srgb(236, 235, 231), rough=0.38)
-    M["front"] = L.plain("front", srgb(227, 223, 214), rough=0.45)
-    M["carcass"] = L.plain("carcass", srgb(74, 72, 68), rough=0.6)
-    M["oak"] = {a: L.wood("oak_" + a, a) for a in "XYZ"}
-    M["floor"] = L.wood("oak_floor", "X", c_dark=(178, 152, 120), c_light=(214, 194, 164), rough=0.36, attr="plank", tone_var=0.075, scale=0.8)
-    M["floor_gap"] = L.plain("floor_gap", srgb(64, 50, 38), rough=0.85)
-    M["quartz"] = L.stone("quartz")
-    M["black"] = L.plain("black", srgb(30, 30, 30), rough=0.42)
+    pbr = L.pbr
+    M["wall"] = pbr("wall", "white_stucco", color=(240, 234, 224), size=2.0, rough=0.9, bump=0.10, bump_dist=0.004, vary=False, tex_mix=0.30,
+                    fallback=lambda: L.paint("wall", srgb(240, 234, 224)))
+    M["ceil"] = L.paint("ceil", srgb(248, 246, 241), bump=0.012)
+    M["white"] = L.plain("white_lacq", srgb(240, 235, 226), rough=0.42)
+    M["carcass"] = L.plain("carcass", srgb(46, 40, 35), rough=0.6)
+    # δρυς: φυσική (καπλαμάς επίπλων / κουζίνας) · σκούρα καπνιστή (τραπέζι, λεπτομέρειες)
+    M["oak"] = {a: pbr("oak_" + a, "oak_veneer_05", color=(188, 150, 108), proj="grain", axis=a, rough_mul=0.95, bump=0.25, bump_dist=0.0008,
+                       fallback=(lambda a=a: L.wood("oak_" + a, a, c_dark=(160, 124, 86), c_light=(202, 168, 126)))) for a in "XYZ"}
+    M["oak_dark"] = {a: pbr("oakd_" + a, "oak_veneer_01", color=(86, 62, 44), proj="grain", axis=a, rough_mul=0.9, bump=0.3, bump_dist=0.0008, size=1.3,
+                            fallback=(lambda a=a: L.wood("oakd_" + a, a, c_dark=(62, 44, 32), c_light=(104, 78, 56)))) for a in "XYZ"}
+    # δάπεδο: φυσική δρυς σε ΦΑΡΔΙΑ σανίδα, ματ λάδι – άλλα νερά και ελαφρά άλλος τόνος σε κάθε σανίδα
+    M["floor"] = pbr("oak_floor", "oak_veneer_01", color=(192, 158, 118), proj="grain", axis="X", rough_mul=0.9, bump=0.35, bump_dist=0.0008, attr="plank", tone_var=0.10,
+                     sat=0.92, fallback=lambda: L.wood("oak_floor", "X", c_dark=(170, 136, 98), c_light=(206, 176, 136), rough=0.4, attr="plank", tone_var=0.075, scale=0.8))
+    M["floor_gap"] = L.plain("floor_gap", srgb(58, 42, 30), rough=0.85)
+    M["quartz"] = L.travertine("k_stone", color=(224, 212, 192), dark=(202, 186, 162), rough=0.30, axis="X", pits=0.25)      # πάγκος / πλάτη κουζίνας
+    M["travertine"] = L.travertine("travertine", color=(218, 204, 182), dark=(190, 172, 146), rough=0.40, axis="X")
+    M["travertine_z"] = L.travertine("travertine_z", color=(218, 204, 182), dark=(190, 172, 146), rough=0.40, axis="Z")
+    M["black"] = L.plain("black", srgb(28, 27, 26), rough=0.42)
     M["black_glass"] = L.plain("black_glass", srgb(12, 12, 13), rough=0.06)
     M["screen"] = L.plain("screen", srgb(9, 9, 10), rough=0.13)
-    M["display"] = L.emit("display", (0.6, 0.8, 1.0, 1), 0.5)
-    M["nickel"] = L.plain("nickel", (0.72, 0.70, 0.66, 1), rough=0.28, metal=1.0)
+    M["display"] = L.emit("display", (1.0, 0.85, 0.6, 1), 0.4)
+    M["bronze"] = L.plain("bronze", (0.48, 0.36, 0.22, 1), rough=0.30, metal=1.0)
+    M["tap"] = M["bronze"]
+    M["nickel"] = M["bronze"]
     M["steel"] = L.plain("steel", (0.62, 0.62, 0.62, 1), rough=0.32, metal=1.0)
-    M["alu"] = L.plain("alu_bronze", srgb(60, 54, 48), rough=0.45, metal=0.55)
+    M["alu"] = L.plain("alu_bronze", srgb(52, 46, 40), rough=0.45, metal=0.55)
     M["glass"] = L.glass()
     M["glass_clear"] = L.glass("glass_clear", view=(0.9, 0.93, 0.92, 1.0))
-    M["sheer"] = L.sheer()
-    M["sofa"] = L.fabric("sofa", srgb(176, 166, 150), weave=520.0, bump=0.35, sheen=0.4, boucle=True)
-    M["rug"] = L.fabric("rug", srgb(224, 216, 200), weave=240.0, bump=0.9, sheen=0.5, boucle=True, mottle=0.10)
-    M["cord"] = L.fabric("cord", srgb(206, 192, 164), weave=380.0, bump=0.5, sheen=0.1)
-    M["p_sage"] = L.fabric("p_sage", srgb(132, 148, 124), weave=600.0, bump=0.3)
-    M["p_cream"] = L.fabric("p_cream", srgb(230, 223, 208), weave=420.0, bump=0.5, boucle=True)
-    M["p_rust"] = L.fabric("p_rust", srgb(178, 106, 72), weave=600.0, bump=0.3)
-    M["p_mustard"] = L.fabric("p_mustard", srgb(200, 162, 88), weave=500.0, bump=0.4)
-    M["shade"] = L.leaf("shade", srgb(238, 230, 212), srgb(238, 230, 212), rough=0.85, trans=0.6)
-    M["ceramic"] = L.plain("ceramic", srgb(232, 228, 220), rough=0.35)
-    M["ceramic_sand"] = L.plain("ceramic_sand", srgb(198, 178, 152), rough=0.6)
+    M["sheer"] = L.sheer(color=(0.96, 0.94, 0.89, 1.0), opacity=0.60)
+    # υφάσματα
+    M["sofa"] = pbr("sofa", "curly_teddy_natural", color=(226, 216, 198), bump=1.0, bump_dist=0.005, sheen=0.35, vary=False,
+                    fallback=lambda: L.fabric("sofa", srgb(226, 216, 198), weave=520.0, bump=0.35, sheen=0.4, boucle=True))
+    M["rug"] = pbr("rug", "poly_wool_herringbone", color=(224, 214, 196), size=0.62, bump=1.0, bump_dist=0.006, sheen=0.4, vary=False,
+                   fallback=lambda: L.fabric("rug", srgb(224, 214, 196), weave=240.0, bump=0.9, sheen=0.5, boucle=True, mottle=0.10))
+    M["chair"] = pbr("chair", "rough_linen", color=(212, 201, 182), bump=0.8, bump_dist=0.002, sheen=0.3, vary=False,
+                     fallback=lambda: L.fabric("chair", srgb(212, 201, 182), weave=520.0, bump=0.4))
+    M["drape"] = pbr("drape", "rough_linen", color=(204, 192, 172), size=0.4, bump=0.8, bump_dist=0.002, sheen=0.3, vary=False,
+                     fallback=lambda: L.fabric("drape", srgb(204, 192, 172), weave=420.0, bump=0.4))
+    M["p_olive"] = pbr("p_olive", "velour_velvet", color=(98, 100, 72), bump=0.6, sheen=0.7, vary=False, fallback=lambda: L.fabric("p_olive", srgb(98, 100, 72), weave=600.0, bump=0.3))
+    M["p_cream"] = pbr("p_cream", "curly_teddy_natural", color=(238, 230, 214), bump=1.0, bump_dist=0.005, sheen=0.35, size=0.26, vary=False,
+                       fallback=lambda: L.fabric("p_cream", srgb(238, 230, 214), weave=420.0, bump=0.5, boucle=True))
+    M["p_caramel"] = pbr("p_caramel", "hessian_230", color=(158, 110, 76), bump=0.8, sheen=0.3, vary=False, fallback=lambda: L.fabric("p_caramel", srgb(158, 110, 76), weave=500.0, bump=0.4))
+    M["p_taupe"] = pbr("p_taupe", "rough_linen", color=(146, 130, 112), bump=0.8, sheen=0.3, vary=False, fallback=lambda: L.fabric("p_taupe", srgb(146, 130, 112), weave=600.0, bump=0.3))
+    M["throw"] = pbr("throw", "hessian_230", color=(206, 188, 160), size=0.2, bump=1.0, bump_dist=0.004, sheen=0.4, vary=False,
+                     fallback=lambda: L.fabric("throw", srgb(206, 188, 160), weave=300.0, bump=0.6))
+    M["shade"] = L.leaf("shade", srgb(240, 230, 208), srgb(236, 226, 204), rough=0.85, trans=0.6)
+    M["ceramic"] = L.plain("ceramic", srgb(234, 229, 220), rough=0.35)
+    M["ceramic_sand"] = L.plaster("ceramic_sand", srgb(196, 176, 150), rough=0.65)
+    M["ceramic_m"] = L.plaster("ceramic_m", srgb(236, 231, 222), rough=0.7)
+    M["plaster"] = L.plaster("plaster", srgb(244, 241, 235), rough=0.92)
     M["soil"] = L.plain("soil", srgb(52, 42, 34), rough=0.95)
     M["bark"] = L.plain("bark", srgb(94, 76, 60), rough=0.8)
     M["stem"] = L.plain("stem", srgb(88, 112, 70), rough=0.6)
-    M["leaf"] = L.leaf("leaf", srgb(62, 92, 54), srgb(94, 122, 70))
-    M["leaf2"] = L.leaf("leaf2", srgb(58, 100, 60), srgb(98, 136, 80))
+    M["leaf"] = L.leaf("leaf", srgb(72, 92, 60), srgb(104, 122, 82))
+    M["leaf2"] = L.leaf("leaf2", srgb(66, 96, 60), srgb(104, 132, 84))
     M["leaf_euca"] = L.leaf("leaf_euca", srgb(120, 142, 124), srgb(152, 168, 148), trans=0.15)
-    M["grass"] = L.leaf("grass", srgb(98, 122, 70), srgb(144, 154, 96), trans=0.2)
-    M["paper"] = L.plain("paper", srgb(242, 238, 230), rough=0.8)
+    M["grass"] = L.leaf("grass", srgb(96, 112, 70), srgb(150, 148, 98), trans=0.2)
+    M["dry"] = L.plain("dry", srgb(176, 152, 112), rough=0.8)
+    M["dry_plume"] = L.leaf("dry_plume", srgb(222, 204, 170), srgb(198, 176, 138), rough=0.9, trans=0.35)
+    M["paper"] = L.plain("paper", srgb(240, 235, 226), rough=0.85)
     M["wax"] = L.plain("wax", srgb(240, 234, 220), rough=0.5)
-    M["lemon"] = L.plain("lemon", srgb(228, 192, 62), rough=0.45)
+    M["lemon"] = L.plain("lemon", srgb(222, 186, 70), rough=0.5)
     M["amber"] = L.plain("amber", srgb(118, 72, 34), rough=0.12)
-    M["bk_sand"] = L.plain("bk_sand", srgb(206, 190, 160), rough=0.6)
-    M["bk_sage"] = L.plain("bk_sage", srgb(130, 146, 128), rough=0.6)
-    M["bk_char"] = L.plain("bk_char", srgb(58, 58, 60), rough=0.6)
-    M["bk_rust"] = L.plain("bk_rust", srgb(172, 102, 72), rough=0.6)
-    M["bk_white"] = L.plain("bk_white", srgb(236, 232, 224), rough=0.6)
-    M["balc_tile"] = L.plain("balc_tile", srgb(202, 192, 174), rough=0.5)
-    M["ext_white"] = L.paint("ext_white", srgb(240, 238, 232), bump=0.05)
+    M["bk_sand"] = L.plain("bk_sand", srgb(206, 190, 160), rough=0.7)
+    M["bk_olive"] = L.plain("bk_olive", srgb(112, 114, 88), rough=0.7)
+    M["bk_char"] = L.plain("bk_char", srgb(52, 50, 48), rough=0.7)
+    M["bk_umber"] = L.plain("bk_umber", srgb(128, 92, 66), rough=0.7)
+    M["bk_white"] = L.plain("bk_white", srgb(236, 231, 222), rough=0.7)
+    M["balc_tile"] = L.plain("balc_tile", srgb(204, 194, 176), rough=0.55)
+    M["ext_white"] = L.paint("ext_white", srgb(240, 236, 228), bump=0.05)
     M["bld"] = L.building()
     M["foliage"] = L.foliage()
-    M["ground"] = L.plain("ground", srgb(126, 124, 116), rough=1.0)
-    M["plate"] = L.plain("plate", srgb(242, 242, 240), rough=0.3)
+    M["ground"] = L.plain("ground", srgb(104, 108, 88), rough=1.0)
+    M["plate"] = L.plain("plate", srgb(242, 240, 236), rough=0.3)
     M["grille"] = L.plain("grille", srgb(40, 40, 40), rough=0.6)
-    M["jute"] = L.fabric("jute", srgb(198, 176, 140), weave=160.0, bump=1.0, sheen=0.1, mottle=0.12)
-    M["mirror"] = L.plain("mirror", (0.92, 0.92, 0.92, 1), rough=0.0, metal=1.0)
+    # κουζίνα: κάτω ντουλάπια ζεστό γκρεζ ματ · επάνω + στήλη ψυγείου καπλαμάς δρυός · μπάζα σκούρα
+    M["k_low"] = L.plain("k_low", srgb(184, 174, 158), rough=0.5)
+    M["k_up"] = M["oak"]["Z"]
+    M["k_plinth"] = L.plain("k_plinth", srgb(50, 44, 39), rough=0.55)
     return M
 
 
@@ -158,12 +189,12 @@ def arch(D, M):
 
 
 def floor(D, M):
-    """Δρύινο δάπεδο σε σανίδες 19 × 190 cm κατά μήκος του σαλονιού (Α–Δ), με τυχαία μετάθεση ανά σειρά."""
+    """Δρύινο δάπεδο σε ΦΑΡΔΙΑ σανίδα 24 × 220 cm (Γιάννης 26/11: «φαρδιά σανίδα») κατά μήκος του σαλονιού (Α–Δ), με τυχαία μετάθεση ανά σειρά."""
     lv = zone_rect(D, "Ζ1"); k1 = zone_rect(D, "Ζ3", 0); k2 = zone_rect(D, "Ζ3", 1); h = zone_rect(D, "Ζ4")
     wy = [w for w in D["walls"] if w["id"] == "T2-04"][0]["box"][1]              # βόρεια παρειά του βόρειου τοίχου του σαλονιού (5,05)
     xk = [w for w in D["walls"] if w["id"] == "T6A-01"][0]["box"][2]             # 9,55
     rects = [(1.399, wy, xk, 9.45), (xk, 7.60, 13.87, 9.45), (9.589, 9.45, 12.81, 10.17), (h[0] - 0.001, h[1] - 0.10, 6.5, wy)]
-    PW, PL, GP = 0.19, 1.90, 0.0007
+    PW, PL, GP = 0.24, 2.20, 0.0011
     x_min, x_max = min(r[0] for r in rects), max(r[2] for r in rects)
     y_min, y_max = min(r[1] for r in rects), max(r[3] for r in rects)
     verts, faces, vals = [], [], []
@@ -358,64 +389,95 @@ def ceiling_items(D, M):
 
 # ====================================================================== ΕΠΙΠΛΑ / ΔΙΑΚΟΣΜΗΣΗ
 def furnish(D, M, K):
-    sf = FU.sofa(D, M)
+    zc = [z for z in D["zones"] if z["id"] == "Ζ1"][0]["level"]
+    FU.sofa(D, M)
     ch = FU.coffee_table(D, M)
     s0 = D["sofa"]["main"]; s1 = D["sofa"]["ret"]; cf = D["coffee"]
-    FU.rug(D, M, (s0[0] - 0.15, s0[3] - 0.38, s1[2] - 0.12, cf[3] + 0.85))
+    FU.rug(D, M, (s0[0] - 0.10, s0[3] - 0.42, s1[2] + 0.25, cf[3] + 0.95))
     tvu = [e for e in D["equip"] if e[0] == "tv"][0]
     wall_y = tvu[4]
-    cx = (cf[0] + cf[2]) / 2                                        # η TV στον άξονα του τραπεζιού σαλονιού
-    cx = min(max(cx, tvu[1] + 1.02), tvu[3] - 0.92)
-    tv = FU.tv_unit(D, M, cx - 0.90, cx + 0.90, wall_y)
+    xw = zone_rect(D, "Ζ1")[0]                                      # δυτικός τοίχος
+    cx = (max(tvu[1], xw + 0.01) + tvu[3]) / 2                      # η TV στο κέντρο της σύνθεσης
+    tv = FU.tv_wall(D, M, max(tvu[1], xw + 0.012), tvu[3] - 0.004, wall_y, zc, cx)
     FU.dining_table(D, M)
     FU.chairs(D, M)
     lamp = FU.floor_lamp(M, s0[0] - 0.22, s0[1] + 0.36)
-    # φυτό δαπέδου στη ΝΔ γωνία, δίπλα στο έπιπλο της TV
-    DC.tree("tree", M, tvu[1] + 0.27, wall_y - 0.33, 0.0, height=1.95)
-    # κάδρα πάνω από τον καναπέ
+    # πολυθρόνα (δέρμα κονιάκ) στη ΝΑ πλευρά της παρέας, γυρισμένη προς τον καναπέ + βοηθητικό
+    FU.lounge_chair(M, 4.78, 8.22, rz=LOUNGE_RZ)
+    hs = FU.side_table(M, 5.52, 8.62)
+    DC.vase("side_vase", M, 5.50, 8.60, hs, kind=3, scale=0.62, rz=20)
+    # ελιά σε γλάστρα στη ΝΔ γωνία, δίπλα στη σύνθεση της TV (μοντέλο· αλλιώς το απλό φυτό)
+    tx, ty = xw + 0.42, wall_y - 0.62
+    zt = DC.pot("tree_pot", tx, ty, 0.0, 0.25, 0.20, 0.46, M["ceramic_sand"], M)
+    if L.model("island_tree_03", tx - 0.08, ty + 0.05, zt - 0.03, rz=TREE_RZ, scale=0.74, name="olive", group="decor", recenter=False,
+               pick=lambda n: n == "island_tree_03_LOD0") is None:
+        DC.tree("tree", M, tx, ty, 0.0, height=1.95)
+    # πίνακας πάνω από τον καναπέ (ένας μεγάλος αφηρημένος καμβάς)
     ya = zone_rect(D, "Ζ1")[1]
-    cxs = (s0[0] + s0[2]) / 2 - 0.10
-    DC.picture("art1", M, cxs - 0.44, 1.62, 0.70, 1.00, ya, DC.art_image("hills"))
-    DC.picture("art2", M, cxs + 0.44, 1.62, 0.70, 1.00, ya, DC.art_image("arches"))
-    # τραπεζάκι σαλονιού: βιβλία, μπολ, κερί
-    zt = DC.books("ct_book", M, cf[0] + 0.30, (cf[1] + cf[3]) / 2 + 0.03, ch, ((0.24, 0.31, 0.028, "bk_sand"), (0.22, 0.29, 0.024, "bk_char")), rz=8)
-    DC.candle("ct_candle", M, cf[0] + 0.30, (cf[1] + cf[3]) / 2 + 0.03, zt, r=0.032, h=0.07)
-    DC.bowl("ct_bowl", M, cf[2] - 0.30, (cf[1] + cf[3]) / 2 - 0.04, ch, r=0.135, h=0.06, mat=M["ceramic_sand"])
-    DC.books("ct_shelf", M, (cf[0] + cf[2]) / 2 + 0.05, (cf[1] + cf[3]) / 2, 0.148, ((0.26, 0.33, 0.03, "bk_white"), (0.23, 0.30, 0.025, "bk_sage"), (0.21, 0.28, 0.02, "bk_rust")), rz=92)
-    # έπιπλο TV: βάζο με κλαδιά, βιβλία, φυτό
-    DC.vase_branches("tv_vase", M, cx + 0.72, (tv["y0"] + tv["y1"]) / 2, tv["top"], seed=4, scale=0.95)
-    DC.books("tv_book", M, cx - 0.66, (tv["y0"] + tv["y1"]) / 2 + 0.01, tv["top"], ((0.25, 0.32, 0.03, "bk_char"), (0.23, 0.30, 0.026, "bk_sand"), (0.20, 0.27, 0.02, "bk_white")), rz=96)
-    # τραπεζαρία: βάζο με ευκάλυπτο στο κέντρο
+    cxs = (s0[0] + s0[2]) / 2 - 0.12
+    DC.picture("art1", M, cxs, 1.60, 1.70, 1.05, ya, DC.art_image("abstract"), frame_mat=M["oak"]["Z"])
+    # τραπεζάκι σαλονιού: βιβλία, κερί, ξύλινο μπολ, γλαστράκι
+    cmx, cmy = (cf[0] + cf[2]) / 2, (cf[1] + cf[3]) / 2
+    zt = DC.books("ct_book", M, cf[0] + 0.28, cmy + 0.03, ch, ((0.25, 0.32, 0.03, "bk_sand"), (0.23, 0.30, 0.026, "bk_char"), (0.20, 0.27, 0.02, "bk_white")), rz=8)
+    DC.candle("ct_candle", M, cf[0] + 0.28, cmy + 0.03, zt, r=0.034, h=0.07)
+    if L.model("wooden_bowl_01", cf[2] - 0.30, cmy - 0.03, ch, rz=25, scale=0.95, name="ct_bowl", group="decor") is None:
+        DC.bowl("ct_bowl", M, cf[2] - 0.30, cmy - 0.03, ch, r=0.135, h=0.06, mat=M["ceramic_sand"])
+    DC.potted("ct_plant", M, cmx + 0.04, cmy + 0.12, ch, "small", rz=70)
+    # έπιπλο TV: βάζα, βιβλία, πορτατίφ
+    ym = (tv["y0"] + tv["y1"]) / 2
+    zv = DC.vase("tv_vase", M, tv["x1"] - 0.28, ym, tv["top"], kind=2, scale=1.0, rz=30)
+    DC.dry_stems("tv_stems", M, tv["x1"] - 0.28, ym, zv - 0.07, n=9, h=0.62, spread=0.5, seed=4)
+    DC.vase("tv_vase2", M, tv["x1"] - 0.58, ym + 0.04, tv["top"], kind=1, scale=0.62, rz=80)
+    DC.books("tv_book", M, tv["x0"] + 0.62, ym + 0.01, tv["top"], ((0.25, 0.32, 0.03, "bk_char"), (0.23, 0.30, 0.026, "bk_sand"), (0.20, 0.27, 0.02, "bk_olive")), rz=96)
+    tl = FU.table_lamp(M, tv["x0"] + 0.24, ym + 0.02, tv["top"])
+    # τραπεζαρία: βάζο με ξερά στάχυα + μπολ
     t = D["table"]
-    DC.vase_branches("dt_vase", M, (t[0] + t[2]) / 2 + 0.10, (t[1] + t[3]) / 2, 0.75, seed=11, scale=1.1, mat=M["ceramic"])
-    DC.bowl("dt_bowl", M, (t[0] + t[2]) / 2 - 0.42, (t[1] + t[3]) / 2 + 0.05, 0.75, r=0.12, h=0.055, mat=M["ceramic_sand"])
-    # στρογγυλός καθρέπτης στον βόρειο τοίχο, δίπλα στην τραπεζαρία (ο μπουφές έφυγε – Γιάννης 26/11: «βγάλε το μπουφέ»)
-    FU.mirror_round(M, (t[0] + t[2]) / 2, 1.50, 0.80, ya)
+    tcx, tcy = (t[0] + t[2]) / 2, (t[1] + t[3]) / 2
+    zv = DC.vase("dt_vase", M, tcx + 0.12, tcy, 0.75, kind=2, scale=1.15, rz=10)
+    DC.dry_stems("dt_stems", M, tcx + 0.12, tcy, zv - 0.08, n=12, h=0.78, spread=0.6, seed=11)
+    DC.bowl("dt_bowl", M, tcx - 0.42, tcy + 0.04, 0.75, r=0.13, h=0.055, mat=M["ceramic_sand"])
+    # ανάγλυφο «λευκό σε λευκό» στον βόρειο τοίχο, δίπλα στην τραπεζαρία (ο μπουφές έφυγε – Γιάννης 26/11: «βγάλε το μπουφέ»)
+    DC.relief("art2", M, tcx - 0.05, 1.58, 0.84, 1.14, ya)
     DC.kitchen_items(M, K)
-    return dict(lamp=lamp)
+    return dict(lamp=lamp, tlamp=tl)
+
+
+LOUNGE_RZ = 215.0          # στροφή της πολυθρόνας (μοίρες, αριστερόστροφα σε κάτοψη Blender)
+TREE_RZ = 200.0
 
 
 def curtains(D, M):
+    """Διάφανα λινά από οροφή ως δάπεδο σε ράγα οροφής (χωρίς κουρτινόξυλο) + λινές κουρτίνες μαζεμένες στις άκρες."""
     lv = zone_rect(D, "Ζ1")
     zc = [z for z in D["zones"] if z["id"] == "Ζ1"][0]["level"]
     w1 = [w for w in D["wins"] if w["name"] == "W2.01"][0]["box"]; w2 = [w for w in D["wins"] if w["name"] == "W2.02"][0]["box"]
-    xt = lv[0] + 0.095; yt = lv[3] - 0.095
+    xt = lv[0] + 0.10; yt = lv[3] - 0.10
     mbox("track_w", xt - 0.011, lv[1] + 0.04, xt + 0.011, lv[3] - 0.01, zc - 0.016, zc - EPS, M["white"])
     mbox("track_s", w2[0] - 0.02, yt - 0.011, w2[2] + 0.06, yt + 0.011, zc - 0.016, zc - EPS, M["white"])
     z0, z1 = 0.012, zc - 0.016
-    DC.curtain("cur_w1", M, "y", w1[1] - 0.38, w1[1] + 1.30, xt, z0, z1, wave=0.115, amp=0.032, seed=1)
-    DC.curtain("cur_w2", M, "y", w1[3] - 0.36, w1[3] - 0.05, xt, z0, z1, wave=0.055, amp=0.045, seed=2)
-    DC.curtain("cur_s1", M, "x", w2[0] + 0.02, w2[0] + 0.40, yt, z0, z1, wave=0.055, amp=0.045, seed=3)
-    DC.curtain("cur_s2", M, "x", w2[2] - 0.34, w2[2] + 0.04, yt, z0, z1, wave=0.055, amp=0.045, seed=4)
+    # δυτική συρόμενη: διάφανο απλωμένο στα 2/3 (ο ήλιος του απογεύματος περνά μέσα του), μαζεμένο στο νότιο άκρο
+    DC.curtain("cur_w1", M, "y", w1[1] - 0.30, w1[1] + 2.25, xt, z0, z1, wave=0.125, amp=0.034, seed=1)
+    DC.curtain("cur_w2", M, "y", w1[3] - 0.34, w1[3] - 0.03, xt, z0, z1, wave=0.055, amp=0.045, seed=2)
+    # νότια συρόμενη: διάφανα στα δύο άκρα, ανοιχτή στη μέση προς το πράσινο
+    DC.curtain("cur_s1", M, "x", w2[0] + 0.02, w2[0] + 1.20, yt, z0, z1, wave=0.12, amp=0.034, seed=3)
+    DC.curtain("cur_s2", M, "x", w2[2] - 1.05, w2[2] + 0.04, yt, z0, z1, wave=0.12, amp=0.034, seed=4)
+    # λινές κουρτίνες (πιο βαριές) μαζεμένες, σε δεύτερη ράγα προς το δωμάτιο
+    xd = xt + 0.075; yd = yt - 0.075
+    DC.curtain("drape_w", M, "y", w1[1] - 0.34, w1[1] - 0.02, xd, z0, z1, wave=0.07, amp=0.04, mat=M["drape"], seed=7)
+    DC.curtain("drape_s", M, "x", w2[2] - 0.30, w2[2] + 0.06, yd, z0, z1, wave=0.07, amp=0.04, mat=M["drape"], seed=8)
 
 
 # ====================================================================== ΦΩΤΑ
 MOODS = {
-    #            ήλιος: ύψος, αζιμούθιο (από βορρά δεξιόστροφα), ένταση · ουρανός · έκθεση · spots (W) · φωτιστικό δαπέδου (W) · LED κουζίνας
-    "day": dict(sun_el=20.0, sun_az=260.0, sun=4.2, sun_col=(1.0, 0.89, 0.76), sky=0.32, exposure=1.40, spot=14.0, lamp=10.0, led=18.0, spot_emit=10.0),
-    "evening": dict(sun_el=2.5, sun_az=262.0, sun=0.0, sun_col=(1.0, 0.6, 0.4), sky=0.05, exposure=3.6, spot=10.0, lamp=9.0, led=9.0, spot_emit=5.0),
+    # ουρανός (HDRI της αποθήκης) · αζιμούθιο ήλιου (από βορρά δεξιόστροφα) · ένταση ουρανού · πρόσθετος ζεστός ήλιος · έκθεση · spots (W) · φωτιστικά · LED
+    "day": dict(hdri="qwantani_late_afternoon_puresky", sun_az=250.0, sky=1.0, sky_tint=(1.0, 0.97, 0.93), sun=3.0, sun_col=(1.0, 0.84, 0.66), sun_el=19.0,
+                exposure=1.70, spot=8.0, lamp=14.0, led=10.0, led_soft=4.0, spot_emit=8.0, wb=6350.0),
+    "evening": dict(hdri="table_mountain_1_puresky", sun_az=262.0, sky=0.10, sky_tint=(1.0, 0.85, 0.75), sun=0.0, sun_col=(1.0, 0.6, 0.4), sun_el=6.0,
+                    exposure=2.6, spot=10.0, lamp=12.0, led=9.0, led_soft=6.0, spot_emit=5.0, wb=6500.0),
 }
-WARM = (1.0, 0.80, 0.58)
+WARM = (1.0, 0.83, 0.64)
+# θέση του ήλιου μέσα σε κάθε εικόνα ουρανού: (u = οριζόντια θέση 0…1, ύψος σε μοίρες) – μετρημένα στην ίδια την εικόνα
+HDRI_SUN = {"qwantani_late_afternoon_puresky": (0.600, 19.0), "table_mountain_1_puresky": (0.636, 13.0), "autumn_field_puresky": (0.600, 29.0)}
 
 
 def lights(D, M, mood, spots, extra):
@@ -429,24 +491,34 @@ def lights(D, M, mood, spots, extra):
         pass
     nt = w.node_tree; nt.nodes.clear()
     out = nt.nodes.new("ShaderNodeOutputWorld"); bg = nt.nodes.new("ShaderNodeBackground")
-    sky = nt.nodes.new("ShaderNodeTexSky")
-    for st in ("MULTIPLE_SCATTERING", "NISHITA"):                   # Blender 5.x · 4.x
-        try:
-            sky.sky_type = st; break
-        except Exception:
-            continue
-    sky.sun_disc = False
-    sky.sun_elevation = math.radians(max(S["sun_el"], 1.0)); sky.sun_rotation = math.radians(SKY_ROT(S["sun_az"]))
-    try:
-        sky.aerosol_density = 1.4; sky.ozone_density = 1.2
-    except Exception:
-        pass
-    nt.links.new(sky.outputs[0], bg.inputs["Color"]); bg.inputs["Strength"].default_value = S["sky"]
+    hp = A.hdri(S["hdri"])
+    sun_el = S["sun_el"]
+    if hp:                                                           # πραγματικός ουρανός (φωτογραφία 360°) – στρέφεται ώστε ο ήλιος να έρχεται από το αζιμούθιο sun_az
+        u, sun_el = HDRI_SUN.get(S["hdri"], (0.5, S["sun_el"]))
+        env = nt.nodes.new("ShaderNodeTexEnvironment"); env.image = bpy.data.images.load(hp)
+        tc = nt.nodes.new("ShaderNodeTexCoord"); mp = nt.nodes.new("ShaderNodeMapping")
+        alpha = (u - 0.5) * 360.0
+        mp.inputs["Rotation"].default_value = (0.0, 0.0, math.radians(HDRI_SIGN * (90.0 - alpha + S["sun_az"])))
+        nt.links.new(tc.outputs["Generated"], mp.inputs["Vector"]); nt.links.new(mp.outputs[0], env.inputs["Vector"])
+        mul = nt.nodes.new("ShaderNodeVectorMath"); mul.operation = "MULTIPLY"; mul.inputs[1].default_value = S["sky_tint"]
+        nt.links.new(env.outputs[0], mul.inputs[0]); nt.links.new(mul.outputs[0], bg.inputs["Color"])
+        bg.inputs["Strength"].default_value = S["sky"]
+    else:                                                            # χωρίς αποθήκη: υπολογιστικός ουρανός
+        sky = nt.nodes.new("ShaderNodeTexSky")
+        for st in ("MULTIPLE_SCATTERING", "NISHITA"):               # Blender 5.x · 4.x
+            try:
+                sky.sky_type = st; break
+            except Exception:
+                continue
+        sky.sun_disc = False
+        sky.sun_elevation = math.radians(max(sun_el, 1.0)); sky.sun_rotation = math.radians(S["sun_az"])
+        nt.links.new(sky.outputs[0], bg.inputs["Color"]); bg.inputs["Strength"].default_value = 0.32 * S["sky"]
     nt.links.new(bg.outputs[0], out.inputs["Surface"])
-    if S["sun"] > 0:
-        sun = bpy.data.lights.new("sun", "SUN"); sun.energy = S["sun"]; sun.color = S["sun_col"]; sun.angle = math.radians(1.2)
+    sun_e = S["sun"] if hp else max(S["sun"], 4.2 * (1 if S["sky"] > 0.5 else 0))
+    if sun_e > 0:                                                    # ζεστός ήλιος απογεύματος (πάνω από τον ήλιο του ουρανού, στην ίδια διεύθυνση)
+        sun = bpy.data.lights.new("sun", "SUN"); sun.energy = sun_e; sun.color = S["sun_col"]; sun.angle = math.radians(1.6)
         so = bpy.data.objects.new("sun", sun); L.coll("lights").objects.link(so)
-        el, az = math.radians(S["sun_el"]), math.radians(S["sun_az"])
+        el, az = math.radians(sun_el), math.radians(S["sun_az"])
         to_sun = Vector((math.cos(el) * math.sin(az), math.cos(el) * math.cos(az), math.sin(el)))
         so.rotation_euler = (-to_sun).to_track_quat("-Z", "Y").to_euler()
     # πύλες φωτός στα ανοίγματα (βοηθούν τη δειγματοληψία του ουρανού)
@@ -459,7 +531,6 @@ def lights(D, M, mood, spots, extra):
         a.cycles.is_portal = True
         o = bpy.data.objects.new("portal_" + wn["name"], a); L.coll("lights").objects.link(o)
         cx, cy, cz = (b[0] + b[2]) / 2, (b[1] + b[3]) / 2, (wn["z0"] + wn["z1"]) / 2
-        lv = zone_rect(D, "Ζ1")
         inward = Vector((0, 1, 0)) if (horiz and cy > 8) else Vector((1, 0, 0)) if (not horiz and cx < 5) else Vector((0, 1, 0)) if horiz else Vector((-1, 0, 0))
         o.location = P(cx, cy, cz)
         o.rotation_euler = inward.to_track_quat("-Z", "Y").to_euler()
@@ -475,16 +546,16 @@ def lights(D, M, mood, spots, extra):
             tw = Vector((-1, 0, 0)) if s["x"] - lv[0] <= lv[3] - s["y"] + 1e-6 else Vector((0, -1, 0))
             d = (Vector((0, 0, -1)) + tw * 0.42).normalized()
         o.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
-    # φωτιστικό δαπέδου
-    lx, ly, lz = extra["lamp"]
-    l = bpy.data.lights.new("floor_lamp", "POINT"); l.energy = S["lamp"]; l.color = WARM; l.shadow_soft_size = 0.05
-    o = bpy.data.objects.new("floor_lamp", l); L.coll("lights").objects.link(o); o.location = P(lx, ly, lz)
+    # φωτιστικό δαπέδου + πορτατίφ (κινητά)
+    for nm in ("lamp", "tlamp"):
+        if extra.get(nm):
+            lx, ly, lz = extra[nm]
+            l = bpy.data.lights.new(nm, "POINT"); l.energy = S["lamp"] * (1.0 if nm == "lamp" else 0.55); l.color = WARM; l.shadow_soft_size = 0.05
+            o = bpy.data.objects.new(nm, l); L.coll("lights").objects.link(o); o.location = P(lx, ly, lz)
     return S
 
 
-def SKY_ROT(az_deg):
-    """Γωνία sun_rotation της υφής ουρανού για αζιμούθιο ήλιου az (από βορρά, δεξιόστροφα) – βλ. calibrate.py."""
-    return az_deg
+HDRI_SIGN = 1.0            # φορά στροφής του κόμβου Mapping (ελεγμένη με δοκιμαστική απόδοση: η ηλιόλουστη λωρίδα στο δάπεδο δείχνει προς ΑΒΑ)
 
 
 # ====================================================================== ΚΑΜΕΡΕΣ
@@ -495,7 +566,7 @@ VIEWS = {
     # Γιάννης 26/11: «μην μου βγάλεις τον καναπέ μόνο του και το χωλ» → καμία λήψη μόνο του καναπέ, καμία του χωλ
     "03_trapezaria": ((5.35, 8.60, 1.36), (9.3, 6.45, 1.36), 16.5, -0.07),
     "04_kouzina": ((9.50, 8.92, 1.45), (13.6, 8.42, 1.45), 14.0, -0.06),
-    "05_kouzina_pros_saloni": ((13.25, 8.78, 1.45), (8.6, 8.55, 1.45), 14.5, -0.06),
+    "05_kouzina_pros_saloni": ((13.30, 8.70, 1.45), (8.6, 8.47, 1.45), 14.5, -0.06),
 }
 
 
@@ -562,6 +633,10 @@ def render_setup(res, samples, S, device="cpu"):
         except Exception:
             continue
     vs.exposure = S["exposure"]; vs.gamma = 1.0
+    try:                                                            # ζεστή ισορροπία λευκού (Blender ≥ 4.3)
+        vs.use_white_balance = True; vs.white_balance_temperature = S.get("wb", 6500.0); vs.white_balance_tint = 6.0
+    except Exception:
+        pass
     print("view:", vs.view_transform, "| look:", vs.look, "| denoiser:", c.denoiser if c.use_denoising else "-")
 
 
@@ -571,6 +646,7 @@ def build(mood="day"):
     M = materials()
     S = MOODS[mood]
     M["led"] = L.emit("led", (WARM[0], WARM[1], WARM[2], 1), S["led"])
+    M["led_soft"] = L.emit("led_soft", (WARM[0], WARM[1], WARM[2], 1), S["led_soft"])
     M["spot_on"] = L.emit("spot_on", (WARM[0], WARM[1], WARM[2], 1), S["spot_emit"])
     arch(D, M)
     floor(D, M)
@@ -603,9 +679,12 @@ def main():
     ap.add_argument("--suffix", default="")
     ap.add_argument("--device", default="cpu", choices=("cpu", "gpu"))
     ap.add_argument("--format", default="png", choices=("png", "jpg"))
+    ap.add_argument("--assets", default="", help="φάκελος-αποθήκη υφών / ουρανού / μοντέλων (βλ. fetch_assets.py)")
+    ap.add_argument("--tex", default="2k"); ap.add_argument("--hdri", default="4k"); ap.add_argument("--model", default="2k")
     a = ap.parse_args(sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:])     # και μέσα από το Blender: blender -b -P scene.py -- …
     res = tuple(int(v) for v in a.res.split("x"))
     t0 = time.time()
+    print("αποθήκη υφών:", A.configure(a.assets or None, a.tex, a.hdri, a.model))
     D, M, S = build(a.mood)
     render_setup(res, a.samples, S, a.device)
     print("σκηνή: %d αντικείμενα · %.1f s" % (len(bpy.data.objects), time.time() - t0))

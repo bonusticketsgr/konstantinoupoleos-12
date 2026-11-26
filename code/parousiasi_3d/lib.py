@@ -571,8 +571,8 @@ def building(name="bld"):
     wz = cell(sep.outputs["Z"], 3.1, 0.28, 0.78)
     win = nt.nodes.new("ShaderNodeMath"); win.operation = "MULTIPLY"; nt.links.new(wx, win.inputs[0]); nt.links.new(wz, win.inputs[1])
     oi = nt.nodes.new("ShaderNodeObjectInfo")
-    wall = _mix(nt, srgb(232, 226, 214), srgb(206, 196, 180), oi.outputs["Random"])
-    col = _mix(nt, wall, srgb(138, 148, 156), win.outputs[0])
+    wall = _mix(nt, srgb(236, 230, 218), srgb(214, 204, 188), oi.outputs["Random"])
+    col = _mix(nt, wall, srgb(96, 98, 98), win.outputs[0])
     nt.links.new(col, b.inputs["Base Color"])
     rr = nt.nodes.new("ShaderNodeMapRange"); rr.inputs["To Min"].default_value = 0.9; rr.inputs["To Max"].default_value = 0.15
     nt.links.new(win.outputs[0], rr.inputs["Value"]); nt.links.new(rr.outputs[0], b.inputs["Roughness"])
@@ -597,3 +597,247 @@ def foliage(name="foliage"):
     nt.links.new(b.outputs[0], out.inputs["Surface"])
     _MATS[name] = m
     return m
+
+
+# ------------------------------------------------------------------ υλικά με ΠΡΑΓΜΑΤΙΚΕΣ υφές (αρχεία της αποθήκης – βλ. assets.py)
+import assets as A
+
+_IMG, _MEAN = {}, {}
+# πραγματικό μέγεθος μιας επανάληψης κάθε υφής (m)
+TEX_SIZE = {"oak_veneer_01": 1.83, "oak_veneer_05": 1.00, "curly_teddy_natural": 0.33, "hessian_230": 0.27, "rough_linen": 0.27, "velour_velvet": 0.28,
+            "poly_wool_herringbone": 0.27, "leather_white": 0.30, "white_stucco": 2.00}
+TEX_GRAIN_U = {"oak_veneer_05"}                              # υφές ξύλου με τα νερά ΟΡΙΖΟΝΤΙΑ μέσα στην εικόνα (οι άλλες: κατακόρυφα)
+
+
+def _image(path, data=False):
+    k = (path, data)
+    if k not in _IMG:
+        im = bpy.data.images.load(path)
+        if data:
+            im.colorspace_settings.name = "Non-Color"
+        _IMG[k] = im
+    return _IMG[k]
+
+
+def _mean(path):
+    """Μέσο χρώμα της υφής (γραμμικό) – για να «βαφτεί» η υφή στο χρώμα που θέλουμε χωρίς να χαθούν τα νερά / η ύφανσή της."""
+    if path not in _MEAN:
+        import numpy as np
+        im = bpy.data.images.load(path, check_existing=False); im.scale(24, 24)
+        a = np.empty(24 * 24 * 4, np.float32); im.pixels.foreach_get(a); bpy.data.images.remove(im)
+        m = a.reshape(-1, 4)[:, :3].mean(axis=0)
+        _MEAN[path] = tuple(float(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4) for c in m)
+    return _MEAN[path]
+
+
+def _math(nt, op, a, b=None):
+    n = nt.nodes.new("ShaderNodeMath"); n.operation = op
+    for i, v in enumerate((a, b)):
+        if v is None:
+            continue
+        if isinstance(v, (int, float)):
+            n.inputs[i].default_value = v
+        else:
+            nt.links.new(v, n.inputs[i])
+    return n.outputs[0]
+
+
+def _grain_uv(nt, vec, axis, swap=False):
+    """Συντεταγμένες υφής ξύλου: σε ΚΑΘΕ έδρα τα νερά τρέχουν κατά τον άξονα axis του αντικειμένου (στις έδρες-σόκορα: κατά τον επόμενο άξονα)."""
+    g = "XYZ".index(axis); a, b = [i for i in range(3) if i != g]
+    sep = nt.nodes.new("ShaderNodeSeparateXYZ"); nt.links.new(vec, sep.inputs[0])
+    geo = nt.nodes.new("ShaderNodeNewGeometry")
+    vt = nt.nodes.new("ShaderNodeVectorTransform"); vt.vector_type = "NORMAL"; vt.convert_from = "WORLD"; vt.convert_to = "OBJECT"
+    nt.links.new(geo.outputs["Normal"], vt.inputs[0])
+    ab = nt.nodes.new("ShaderNodeVectorMath"); ab.operation = "ABSOLUTE"; nt.links.new(vt.outputs[0], ab.inputs[0])
+    sn = nt.nodes.new("ShaderNodeSeparateXYZ"); nt.links.new(ab.outputs[0], sn.inputs[0])
+    Na, Nb, Ng = sn.outputs[a], sn.outputs[b], sn.outputs[g]
+    isA = _math(nt, "MULTIPLY", _math(nt, "GREATER_THAN", Na, Nb), _math(nt, "GREATER_THAN", Na, Ng))
+    isG = _math(nt, "MULTIPLY", _math(nt, "GREATER_THAN", Ng, Na), _math(nt, "GREATER_THAN", Ng, Nb))
+
+    def pick(p, q, f):                                       # f = 0 → p · f = 1 → q
+        m = nt.nodes.new("ShaderNodeMix"); m.data_type = "FLOAT"
+        nt.links.new(f, m.inputs[0]); nt.links.new(p, m.inputs[2]); nt.links.new(q, m.inputs[3])
+        return m.outputs[0]
+    u = pick(sep.outputs[a], sep.outputs[b], isA)
+    v = pick(sep.outputs[g], sep.outputs[b], isG)
+    c = nt.nodes.new("ShaderNodeCombineXYZ"); nt.links.new(u, c.inputs[1 if swap else 0]); nt.links.new(v, c.inputs[0 if swap else 1])
+    return c.outputs[0]
+
+
+def pbr(name, aid, color=None, size=None, proj="box", axis="Z", rough=None, rough_mul=1.0, bump=1.0, bump_dist=0.002, attr=None, tone_var=0.0,
+        vary=True, sheen=0.0, coat=0.0, sat=1.0, fallback=None, metal=0.0, tex_mix=1.0):
+    """Υλικό από υφή της αποθήκης (χρώμα, τραχύτητα, ανάγλυφο). color = το χρώμα-στόχος (sRGB 0..255): η υφή «βάφεται» σε αυτό κρατώντας τα νερά της.
+    proj: 'box' (υφάσματα, σοβάς – χωρίς κατεύθυνση) · 'grain' (ξύλο – νερά κατά τον άξονα axis). attr = attribute ανά έδρα (σανίδες): άλλα νερά / τόνος ανά σανίδα.
+    Αν η υφή δεν έχει κατέβει → fallback (το παλιό υπολογιστικό υλικό)."""
+    if name in _MATS:
+        return _MATS[name]
+    T = A.texture(aid)
+    if T is None:
+        m = fallback() if callable(fallback) else fallback
+        _MATS[name] = m
+        return m
+    size = size or TEX_SIZE.get(aid, 1.0)
+    m, nt, out = _new(name)
+    b = nt.nodes.new("ShaderNodeBsdfPrincipled")
+    vec = _coords(nt, vary=vary, attr=attr)
+    box = proj == "box"
+    if not box:
+        vec = _grain_uv(nt, vec, axis, swap=aid in TEX_GRAIN_U)
+    mp = nt.nodes.new("ShaderNodeMapping"); mp.inputs["Scale"].default_value = (1.0 / size,) * 3
+    nt.links.new(vec, mp.inputs["Vector"])
+
+    def tex(path, data):
+        tx = nt.nodes.new("ShaderNodeTexImage"); tx.image = _image(path, data)
+        if box:
+            tx.projection = "BOX"; tx.projection_blend = 0.25
+        nt.links.new(mp.outputs[0], tx.inputs["Vector"])
+        return tx
+    td = tex(T["diff"], False)
+    col = td.outputs["Color"]
+    if abs(sat - 1.0) > 1e-3:
+        hsv = nt.nodes.new("ShaderNodeHueSaturation"); hsv.inputs["Saturation"].default_value = sat
+        nt.links.new(col, hsv.inputs["Color"]); col = hsv.outputs["Color"]
+    if color is not None:
+        mean = _mean(T["diff"]); tgt = srgb(*color)
+        gain = tuple(tgt[i] / max(mean[i], 1e-3) for i in range(3))
+        mul = nt.nodes.new("ShaderNodeVectorMath"); mul.operation = "MULTIPLY"; mul.inputs[1].default_value = gain
+        nt.links.new(col, mul.inputs[0]); col = mul.outputs[0]
+        if tex_mix < 1.0:                                    # λιγότερη αντίθεση της υφής (π.χ. σοβάς: σχεδόν ενιαίο χρώμα)
+            col = _mix(nt, tgt, col, tex_mix)
+    if attr and tone_var > 0:
+        at = nt.nodes.new("ShaderNodeAttribute"); at.attribute_name = attr
+        mr = nt.nodes.new("ShaderNodeMapRange"); mr.inputs["To Min"].default_value = 1 - tone_var; mr.inputs["To Max"].default_value = 1 + tone_var
+        nt.links.new(at.outputs["Fac"], mr.inputs["Value"])
+        sc = nt.nodes.new("ShaderNodeVectorMath"); sc.operation = "SCALE"
+        nt.links.new(col, sc.inputs[0]); nt.links.new(mr.outputs[0], sc.inputs["Scale"]); col = sc.outputs[0]
+    nt.links.new(col, b.inputs["Base Color"])
+    if rough is not None:
+        b.inputs["Roughness"].default_value = rough
+    elif "rough" in T:
+        tr = tex(T["rough"], True)
+        r = _math(nt, "MULTIPLY", tr.outputs["Color"], rough_mul)
+        cl = nt.nodes.new("ShaderNodeClamp"); cl.inputs["Min"].default_value = 0.08; cl.inputs["Max"].default_value = 1.0
+        nt.links.new(r, cl.inputs["Value"]); nt.links.new(cl.outputs[0], b.inputs["Roughness"])
+    if bump > 0 and "disp" in T:
+        th = tex(T["disp"], True)
+        nt.links.new(_bump(nt, th.outputs["Color"], bump, bump_dist), b.inputs["Normal"])
+    _set(b, Sheen_Weight=sheen, Sheen_Roughness=0.5, Coat_Weight=coat, Coat_Roughness=0.2, Metallic=metal)
+    nt.links.new(b.outputs[0], out.inputs["Surface"])
+    _MATS[name] = m
+    return m
+
+
+def travertine(name, color=(214, 200, 178), dark=(186, 168, 142), rough=0.38, axis="X", pits=0.5):
+    """Τραβερτίνης (υπολογιστικός): ζεστό μπεζ με μαλακές λωρίδες κατά τον άξονα axis και μικρούς πόρους."""
+    if name in _MATS:
+        return _MATS[name]
+    m, nt, out = _new(name)
+    b = nt.nodes.new("ShaderNodeBsdfPrincipled")
+    vec = _coords(nt, vary=True)
+    mp = nt.nodes.new("ShaderNodeMapping")
+    s = {"X": (0.35, 3.0, 11.0), "Y": (3.0, 0.35, 11.0), "Z": (11.0, 3.0, 0.35)}[axis]
+    mp.inputs["Scale"].default_value = s
+    nt.links.new(vec, mp.inputs["Vector"])
+    n = nt.nodes.new("ShaderNodeTexNoise"); _set(n, Scale=1.0, Detail=9.0, Roughness=0.68, Distortion=1.4)
+    nt.links.new(mp.outputs[0], n.inputs["Vector"])
+    ramp = nt.nodes.new("ShaderNodeValToRGB")
+    e = ramp.color_ramp.elements
+    e[0].position = 0.30; e[0].color = srgb(*dark); e[1].position = 0.70; e[1].color = srgb(*color)
+    nt.links.new(n.outputs["Fac"], ramp.inputs["Fac"])
+    # πόροι: μικρές σκούρες κουκκίδες, μακρόστενες κατά τις λωρίδες
+    mp2 = nt.nodes.new("ShaderNodeMapping")
+    s2 = {"X": (60.0, 260.0, 420.0), "Y": (260.0, 60.0, 420.0), "Z": (420.0, 260.0, 60.0)}[axis]
+    mp2.inputs["Scale"].default_value = s2
+    nt.links.new(vec, mp2.inputs["Vector"])
+    vo = nt.nodes.new("ShaderNodeTexVoronoi"); vo.inputs["Scale"].default_value = 1.0
+    nt.links.new(mp2.outputs[0], vo.inputs["Vector"])
+    n3 = nt.nodes.new("ShaderNodeTexNoise"); _set(n3, Scale=14.0, Detail=2.0)
+    nt.links.new(vec, n3.inputs["Vector"])
+    thr = nt.nodes.new("ShaderNodeMapRange"); thr.inputs["From Min"].default_value = 0.52; thr.inputs["From Max"].default_value = 0.66
+    thr.inputs["To Min"].default_value = 0.10; thr.inputs["To Max"].default_value = 0.30 * pits
+    nt.links.new(n3.outputs["Fac"], thr.inputs["Value"])
+    pit = _math(nt, "LESS_THAN", vo.outputs["Distance"], thr.outputs[0])
+    col = _mix(nt, ramp.outputs["Color"], srgb(max(dark[0] - 46, 0), max(dark[1] - 46, 0), max(dark[2] - 46, 0)), _math(nt, "MULTIPLY", pit, 0.75))
+    nt.links.new(col, b.inputs["Base Color"])
+    rr = nt.nodes.new("ShaderNodeMapRange"); rr.inputs["To Min"].default_value = rough; rr.inputs["To Max"].default_value = 0.9
+    nt.links.new(pit, rr.inputs["Value"]); nt.links.new(rr.outputs[0], b.inputs["Roughness"])
+    inv = _math(nt, "SUBTRACT", 1.0, pit)
+    nt.links.new(_bump(nt, inv, 0.6, 0.0012), b.inputs["Normal"])
+    nt.links.new(b.outputs[0], out.inputs["Surface"])
+    _MATS[name] = m
+    return m
+
+
+def plaster(name, color, rough=0.9):
+    """Γύψινο ανάγλυφο / κεραμικό ματ με ελαφριά τραχύτητα."""
+    if name in _MATS:
+        return _MATS[name]
+    m, nt, out = _new(name)
+    b = nt.nodes.new("ShaderNodeBsdfPrincipled")
+    _set(b, Base_Color=color, Roughness=rough)
+    vec = _coords(nt, vary=False)
+    n = nt.nodes.new("ShaderNodeTexNoise"); _set(n, Scale=95.0, Detail=6.0, Roughness=0.7)
+    nt.links.new(vec, n.inputs["Vector"])
+    nt.links.new(_bump(nt, n.outputs["Fac"], 0.35, 0.002), b.inputs["Normal"])
+    nt.links.new(b.outputs[0], out.inputs["Surface"])
+    _MATS[name] = m
+    return m
+
+
+# ------------------------------------------------------------------ έτοιμα μοντέλα (.blend της αποθήκης)
+_MODELS = {}
+
+
+def _model_objs(aid):
+    if aid not in _MODELS:
+        p = A.model(aid)
+        if not p:
+            _MODELS[aid] = None
+        else:
+            with bpy.data.libraries.load(p, link=False) as (src, dst):
+                dst.objects = list(src.objects)
+            _MODELS[aid] = [o for o in dst.objects if o is not None and o.type == "MESH"]
+    return _MODELS[aid]
+
+
+def has_model(aid):
+    return bool(_model_objs(aid))
+
+
+def model(aid, x, y, z, rz=0.0, scale=1.0, pick=None, name=None, group="decor", mats=None, recenter=True, drop=None):
+    """Τοποθετεί αντίγραφο μοντέλου (κοινά δεδομένα πλέγματος – τα πολλά αντίγραφα δεν βαραίνουν). (x, y, z) = κέντρο βάσης, συντεταγμένες ΜΟΝΤΕΛΟΥ κτιρίου.
+    pick = ποια αντικείμενα του αρχείου (συνάρτηση ονόματος → bool)· mats = {κομμάτι ονόματος υλικού: νέο υλικό}· drop = κομμάτια ονόματος αντικειμένων που παραλείπονται.
+    Επιστρέφει το κενό-γονέα ή None αν το μοντέλο δεν έχει κατέβει."""
+    objs = _model_objs(aid)
+    if not objs:
+        return None
+    if pick is None:
+        lod = any(o.name.endswith("_LOD0") for o in objs)
+        pick = (lambda n: n.endswith("_LOD0")) if lod else (lambda n: True)
+    sel = [o for o in objs if pick(o.name) and not (drop and any(d in o.name for d in drop))]
+    if not sel:
+        return None
+    lo = Vector((1e9, 1e9, 1e9)); hi = Vector((-1e9, -1e9, -1e9))
+    for o in sel:
+        for c in o.bound_box:
+            w = o.matrix_basis @ Vector(c)
+            lo = Vector((min(lo.x, w.x), min(lo.y, w.y), min(lo.z, w.z))); hi = Vector((max(hi.x, w.x), max(hi.y, w.y), max(hi.z, w.z)))
+    off = Vector(((lo.x + hi.x) / 2, (lo.y + hi.y) / 2, lo.z)) if recenter else Vector((0, 0, 0))
+    root = bpy.data.objects.new(name or aid, None)
+    coll(group).objects.link(root)
+    for o in sel:
+        c = o.copy()
+        coll(group).objects.link(c)
+        c.parent = root
+        c.location = c.location - off
+        if mats:
+            for sl in c.material_slots:
+                for key, nm in mats.items():
+                    if sl.material is not None and key in sl.material.name:
+                        sl.link = "OBJECT"; sl.material = nm
+    root.location = P(x, y, z)
+    root.rotation_euler = Euler((0, 0, math.radians(rz)))
+    root.scale = (scale, scale, scale)
+    root["size"] = (hi.x - lo.x, hi.y - lo.y, hi.z - lo.z)
+    return root

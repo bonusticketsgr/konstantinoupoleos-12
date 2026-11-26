@@ -191,60 +191,104 @@ def grass(name, M, x, y, z, n=140, h=0.55, spread=0.10, seed=1):
 
 
 # ------------------------------------------------------------------ κάδρα
-def art_image(kind, W=560, H=800):
+def _fbm(rs, H, W, base, octaves=5):
+    """Μαλακός θόρυβος (άθροισμα παρεμβεβλημένων τυχαίων πλεγμάτων) 0..1."""
+    out = np.zeros((H, W), np.float32); amp, tot = 1.0, 0.0
+    for o in range(octaves):
+        n = base * 2 ** o
+        g = rs.rand(n + 2, int(n * W / H) + 2).astype(np.float32)
+        yy = np.linspace(0, n, H, endpoint=False); xx = np.linspace(0, g.shape[1] - 2, W, endpoint=False)
+        y0 = yy.astype(int); x0 = xx.astype(int); fy = (yy - y0)[:, None]; fx = (xx - x0)[None, :]
+        fy = fy * fy * (3 - 2 * fy); fx = fx * fx * (3 - 2 * fx)
+        v = (g[y0][:, x0] * (1 - fy) * (1 - fx) + g[y0 + 1][:, x0] * fy * (1 - fx) + g[y0][:, x0 + 1] * (1 - fy) * fx + g[y0 + 1][:, x0 + 1] * fy * fx)
+        out += v * amp; tot += amp; amp *= 0.5
+    return out / tot
+
+
+def art_image(kind="abstract", W=1100, H=700, seed=7):
+    """Αφηρημένος πίνακας σε ζεστούς ουδέτερους τόνους (λευκό του λινού, άμμος, τοπ, κάρβουνο, λίγη ώχρα) – σαν τοπίο από στρώσεις."""
+    rs = np.random.RandomState(seed)
     v, u = np.mgrid[0:H, 0:W].astype(np.float32)
-    u /= W; v /= H                                       # v = 0 κάτω (η εικόνα του Blender ξεκινά από κάτω)
-    asp = W / H
-    x = u * asp
-    paper = np.array([0.955, 0.940, 0.905], np.float32)
-    img = np.ones((H, W, 3), np.float32) * paper
-    aa = 1.5 / H
+    u /= W; v /= H                                       # v = 0 κάτω
+    linen, sand, taupe, umber, coal, ochre = (0.93, 0.905, 0.86), (0.80, 0.72, 0.60), (0.58, 0.51, 0.43), (0.36, 0.29, 0.23), (0.17, 0.16, 0.15), (0.72, 0.53, 0.26)
+    img = np.ones((H, W, 3), np.float32) * np.array(linen, np.float32)
+    n1 = _fbm(rs, H, W, 3); n2 = _fbm(rs, H, W, 6); n3 = _fbm(rs, H, W, 14); n4 = _fbm(rs, H, W, 2)
 
-    def blend(d, col):
-        m = np.clip(0.5 - d / aa, 0, 1)[..., None]
+    def layer(mask, col, k=1.0):
+        m = np.clip(mask, 0, 1)[..., None] * k
         img[:] = img * (1 - m) + np.array(col, np.float32) * m
-
-    terr, sage, sand, coal, ochre = (0.74, 0.44, 0.30), (0.56, 0.63, 0.53), (0.84, 0.75, 0.61), (0.23, 0.23, 0.24), (0.82, 0.64, 0.30)
-    if kind == "hills":
-        blend(np.hypot(x - 0.62 * asp, v - 0.70) - 0.17 * asp * 1.45, terr)
-        blend(v - (0.47 + 0.09 * np.sin(2.3 * u * 3.1 + 0.4)), sage)
-        blend(v - (0.33 + 0.07 * np.sin(3.3 * u * 3.1 + 2.1)), sand)
-        blend(v - (0.18 + 0.05 * np.sin(2.7 * u * 3.1 + 4.2)), coal)
-    else:
-        cx, cy = 0.5 * asp, 0.36
-        r = np.hypot(x - cx, v - cy)
-        for rr, col in ((0.36, terr), (0.285, sand), (0.21, sage), (0.135, ochre)):
-            t = 0.052
-            arch = np.where(v >= cy, np.abs(r - rr * asp * 1.4) - t / 2, np.maximum(np.abs(np.abs(x - cx) - rr * asp * 1.4) - t / 2, 0.14 - v))
-            blend(arch, col)
-        blend(np.hypot(x - 0.5 * asp, v - 0.36) - 0.035, coal)
-    img += (np.random.RandomState(4).rand(H, W, 1).astype(np.float32) - 0.5) * 0.02
+    layer((n4 - 0.42) * 2.2 * (v > 0.5), (0.88, 0.85, 0.80), 0.7)                       # αχνά «σύννεφα» επάνω
+    h1 = 0.46 + 0.16 * (n1 - 0.5)                                                       # πλατιά ζώνη άμμου
+    layer((h1 - v) * 14 + (n3 - 0.5) * 1.6, sand, 0.92)
+    h2 = 0.36 + 0.20 * (n2 - 0.5)
+    layer((h2 - v) * 18 + (n3 - 0.5) * 2.2, taupe, 0.85)
+    band = np.exp(-((v - (0.40 + 0.10 * (n1 - 0.5))) / 0.035) ** 2)                     # σκούρα «γραμμή ορίζοντα», σπασμένη
+    layer(band * (n2 > 0.47) * 1.3 + (n3 - 0.62) * 2, umber, 0.9)
+    h3 = 0.17 + 0.16 * (n2 - 0.5)
+    layer((h3 - v) * 16 + (n3 - 0.5) * 2.0, coal, 0.88)
+    gl = np.exp(-((v - (0.52 + 0.05 * (n2 - 0.5))) / 0.008) ** 2) * (u > 0.18) * (u < 0.74) * (n3 > 0.42)
+    layer(gl, ochre, 0.85)                                                              # λεπτή χρυσή γραμμή
+    img *= (0.94 + 0.12 * _fbm(rs, H, W, 40, 3))[..., None]                             # πινελιά / καμβάς
+    img += (rs.rand(H, W, 1).astype(np.float32) - 0.5) * 0.025
     img = np.clip(img, 0, 1)
     rgba = np.concatenate([img, np.ones((H, W, 1), np.float32)], axis=2)
-    im = bpy.data.images.new("art_" + kind, W, H, alpha=False)
+    im = bpy.data.images.new("art_" + kind + str(seed), W, H, alpha=False)
     im.pixels.foreach_set(rgba.ravel())
     im.pack()
     return im
 
 
-def picture(name, M, cx, zc, w, h, wall_y, img, frame_mat=None, border=0.022, mat_w=0.07):
+def relief(name, M, cx, zc, w, h, wall_y, seed=3):
+    """Ανάγλυφο «λευκό σε λευκό» (γύψινο) σε λεπτή δρύινη κορνίζα, σε τοίχο που κοιτά νότια."""
+    rnd = __import__("random").Random(seed)
+    fm = M["oak"]["Z"]
+    x0, x1, z0, z1 = cx - w / 2, cx + w / 2, zc - h / 2, zc + h / 2
+    bd, d = 0.018, 0.05
+    mbox(name + "_fl", x0, wall_y, x0 + bd, wall_y + d, z0, z1, fm, r=0.002, seg=1, group=G)
+    mbox(name + "_fr", x1 - bd, wall_y, x1, wall_y + d, z0, z1, fm, r=0.002, seg=1, group=G)
+    mbox(name + "_ft", x0 + bd, wall_y, x1 - bd, wall_y + d, z1 - bd, z1, M["oak"]["X"], r=0.002, seg=1, group=G)
+    mbox(name + "_fb", x0 + bd, wall_y, x1 - bd, wall_y + d, z0, z0 + bd, M["oak"]["X"], r=0.002, seg=1, group=G)
+    pl = M["plaster"]
+    yb = wall_y + 0.018
+    mbox(name + "_bg", x0 + bd, wall_y, x1 - bd, yb, z0 + bd, z1 - bd, pl, group=G)
+    # ομόκεντρα τόξα που «ανατέλλουν» από κάτω + κατακόρυφες ραβδώσεις
+    ax, az = cx + 0.06 * w, z0 + bd + 0.30 * h
+    for k in range(6):
+        R = (0.10 + 0.085 * k) * w * 1.25
+        pts = []
+        for i in range(25):
+            a = math.pi * i / 24
+            px, pz = ax + R * math.cos(a), az + R * math.sin(a) * 0.95
+            if x0 + bd + 0.03 < px < x1 - bd - 0.03 and pz < z1 - bd - 0.03:
+                pts.append((px, yb + 0.004, pz))
+        if len(pts) > 3:
+            tube(name + "_arc%d" % k, pts, 0.011, pl, group=G, res=10, bevel_res=4)
+    n = 9
+    for i in range(n):
+        px = x0 + bd + 0.06 + (w - 2 * bd - 0.12) * i / (n - 1)
+        hh = (0.10 + 0.14 * rnd.random()) * h
+        tube(name + "_rib%d" % i, [(px, yb + 0.004, z0 + bd + 0.035), (px, yb + 0.004, z0 + bd + 0.035 + hh)], 0.010, pl, group=G, bevel_res=4)
+
+
+def picture(name, M, cx, zc, w, h, wall_y, img, frame_mat=None, border=0.014, mat_w=0.012):
     """Κάδρο σε τοίχο που κοιτά νότια (βόρειος τοίχος χώρου), κέντρο (cx, zc)."""
     fm = frame_mat or M["oak"]["Z"]
     x0, x1, z0, z1 = cx - w / 2, cx + w / 2, zc - h / 2, zc + h / 2
-    d = 0.028
+    d = 0.045
     mbox(name + "_fl", x0, wall_y, x0 + border, wall_y + d, z0, z1, fm, r=0.002, seg=1, group=G)
     mbox(name + "_fr", x1 - border, wall_y, x1, wall_y + d, z0, z1, fm, r=0.002, seg=1, group=G)
     mbox(name + "_ft", x0 + border, wall_y, x1 - border, wall_y + d, z1 - border, z1, M["oak"]["X"] if frame_mat is None else fm, r=0.002, seg=1, group=G)
     mbox(name + "_fb", x0 + border, wall_y, x1 - border, wall_y + d, z0, z0 + border, M["oak"]["X"] if frame_mat is None else fm, r=0.002, seg=1, group=G)
-    mbox(name + "_mat", x0 + border, wall_y, x1 - border, wall_y + 0.012, z0 + border, z1 - border, M["paper"], group=G)
+    mbox(name + "_mat", x0 + border, wall_y, x1 - border, wall_y + 0.012, z0 + border, z1 - border, M["black"], group=G)
     ix0, ix1, iz0, iz1 = x0 + border + mat_w, x1 - border - mat_w, z0 + border + mat_w, z1 - border - mat_w
-    yy = wall_y + 0.0135
+    mbox(name + "_cv", ix0, wall_y + 0.012, ix1, wall_y + 0.034, iz0, iz1, M["paper"], group=G)
+    yy = wall_y + 0.0345
     me = bpy.data.meshes.new(name + "_img")
     me.from_pydata([tuple(P(ix0, yy, iz0)), tuple(P(ix1, yy, iz0)), tuple(P(ix1, yy, iz1)), tuple(P(ix0, yy, iz1))], [], [(0, 1, 2, 3)])
     uvl = me.uv_layers.new(name="UVMap")
     for li, uv in enumerate(((0, 0), (1, 0), (1, 1), (0, 1))):
         uvl.data[li].uv = uv
-    me.materials.append(L.image_mat(name + "_m", img))
+    me.materials.append(L.image_mat(name + "_m", img, rough=0.85))
     ob = bpy.data.objects.new(name + "_img", me)
     L.coll(G).objects.link(ob)
 
@@ -278,13 +322,63 @@ def candle(name, M, x, y, z, r=0.035, h=0.09):
     tube(name + "_w", [(x, y, z + h), (x, y, z + h + 0.012)], 0.0012, M["black"], group=G, bevel_res=1)
 
 
+def potted(name, M, x, y, z, kind="small", rz=0.0, scale=1.0):
+    """Γλαστράκι: έτοιμο μοντέλο αν υπάρχει στην αποθήκη, αλλιώς το απλό υπολογιστικό φυτό."""
+    aid = {"small": "potted_plant_04", "medium": "potted_plant_02"}[kind]
+    o = L.model(aid, x, y, z, rz=rz, scale=scale, name=name, group=G, mats={"_pot": M["ceramic_m"]} if kind == "medium" else None)
+    if o is None:
+        small_plant(name, M, x, y, z, r=0.07 if kind == "small" else 0.12, h=0.12 if kind == "small" else 0.2, n=24, size=0.15 if kind == "small" else 0.3, seed=int(x * 10))
+    return o
+
+
+def vase(name, M, x, y, z, kind=2, scale=1.0, rz=0.0):
+    """Κεραμικό βάζο (μοντέλο 1…4)· αλλιώς ένα απλό εκ περιστροφής. Επιστρέφει το ύψος του χείλους."""
+    aid = "ceramic_vase_0%d" % kind
+    o = L.model(aid, x, y, z, rz=rz, scale=scale, name=name, group=G)
+    if o is not None:
+        return z + o["size"][2] * scale
+    s = scale
+    prof = [(0.0, 0.0), (0.06 * s, 0.0), (0.10 * s, 0.05 * s), (0.11 * s, 0.14 * s), (0.085 * s, 0.24 * s), (0.055 * s, 0.29 * s), (0.06 * s, 0.31 * s), (0.048 * s, 0.305 * s), (0.0, 0.30 * s)]
+    v = lathe(name, prof, M["ceramic_m"], seg=40); place(v, x, y, z)
+    return z + 0.31 * s
+
+
+def dry_stems(name, M, x, y, z, n=11, h=0.75, spread=0.5, seed=2):
+    """Ξερά στάχυα / πάμπας μέσα σε βάζο: λεπτά κοτσάνια με αφράτο φούντωμα στην κορυφή."""
+    rnd = __import__("random").Random(seed)
+    base = P(x, y, z)
+    up = Vector((0, 0, 1))
+    verts, faces = [], []
+    for i in range(n):
+        az = i * 2.399 + rnd.uniform(-0.4, 0.4)
+        lean = rnd.uniform(0.05, spread) * 0.42
+        ln = h * rnd.uniform(0.72, 1.05)
+        d = Vector((math.cos(az) * lean, math.sin(az) * lean, 1.0)).normalized()
+        bend = Vector((math.cos(az), math.sin(az), 0)) * (0.10 * ln * rnd.uniform(0.4, 1.2))
+        pts = [base + d * (ln * q) + bend * (q * q) for q in (0, 0.35, 0.7, 1.0)]
+        tube(name + "_s%d" % i, [(p.x, -p.y, p.z) for p in pts], 0.0016, M["dry"], group=G, bevel_res=1)
+        # φούντα: πολλά λεπτά «πούπουλα» γύρω από το πάνω τρίτο
+        ax = (pts[3] - pts[2]).normalized()
+        side = ax.cross(up)
+        side = side.normalized() if side.length > 1e-3 else Vector((1, 0, 0))
+        pl = ln * rnd.uniform(0.22, 0.32)
+        for j in range(46):
+            q = rnd.random()
+            p = pts[3] - ax * (pl * q) + ax * (pl * 0.25)
+            ang = rnd.uniform(0, 2 * math.pi)
+            o = side * math.cos(ang) + ax.cross(side) * math.sin(ang)
+            t = ax * rnd.uniform(0.6, 1.0) + o * rnd.uniform(0.25, 0.6) * (0.4 + q)
+            _leaf(verts, faces, p, t, up, rnd.uniform(0.04, 0.075), rnd.uniform(0.006, 0.011), droop=rnd.uniform(0.1, 0.5))
+    obj_from(name + "_plumes", verts, faces, M["dry_plume"], smooth=True, group=G, fix_normals=False)
+
+
 def kitchen_items(M, K):
     CT = K["CT"]
     x0, y0, x1, y1 = K["counter_n"]
     hx0, hx1 = K["hob"]
     # ξύλα κοπής ακουμπισμένα στην πλάτη του πάγκου, δεξιά από τις εστίες
     for i, (w, h, dx, tilt) in enumerate(((0.26, 0.38, 0.0, 9), (0.20, 0.30, 0.10, 12))):
-        b = rprism("board%d" % i, w, 0.018, h, 0.009, M["oak"]["Z" if i == 0 else "X"], re=0.004, segc=4, sege=2, group=G)
+        b = rprism("board%d" % i, w, 0.018, h, 0.009, M["oak_dark"]["Z"] if i == 0 else M["oak"]["Z"], re=0.004, segc=4, sege=2, group=G)
         place(b, hx1 + 0.22 + dx, y0 + 0.035 + i * 0.022, CT + 0.001, rx=-tilt)
     # βάζο με ξύλινες κουτάλες, αριστερά από τις εστίες
     jx, jy = hx0 - 0.20, y0 + 0.14
@@ -294,28 +388,26 @@ def kitchen_items(M, K):
     # μπολ με λεμόνια στον πάγκο του έρκερ (κάτω από το ανατολικό παράθυρο)
     ex0, ey0, ex1, ey1 = K["counter_e"]
     bx, by = (ex0 + ex1) / 2 + 0.03, (ey0 + ey1) / 2 + 0.12
-    zb = bowl("fruit_bowl", M, bx, by, CT, r=0.15, h=0.075, mat=M["ceramic"])
+    zb = bowl("fruit_bowl", M, bx, by, CT, r=0.15, h=0.075, mat=M["ceramic_m"])
     for i, (dx, dy, dz) in enumerate(((0.0, 0.0, 0.0), (0.062, 0.02, 0.0), (-0.05, 0.04, 0.0), (0.0, -0.062, 0.0), (0.012, 0.012, 0.052))):
         s = sphere("lemon%d" % i, 0.031, M["lemon"], squash=1.22)
         place(s, bx + dx, by + dy, zb + 0.034 + dz, rx=90, rz=40 * i)
-    small_plant("herb", M, (ex0 + ex1) / 2 + 0.10, ey0 + 0.22, CT, r=0.065, h=0.11, n=26, size=0.13, seed=9, potmat=M["ceramic_sand"])
-    # δυτικό άκρο του βόρειου πάγκου: δίσκος με κανάτα και φλιτζάνια, γλαστράκι
-    tx, ty = x0 + 0.42, (y0 + y1) / 2 + 0.03
-    tr = rprism("tray", 0.40, 0.27, 0.014, 0.03, M["oak"]["X"], re=0.004, segc=6, sege=2, group=G); place(tr, tx, ty, CT)
-    jg = lathe("jug", [(0.0, 0.0), (0.05, 0.0), (0.062, 0.03), (0.066, 0.10), (0.05, 0.17), (0.04, 0.20), (0.046, 0.215), (0.038, 0.212), (0.036, 0.19), (0.0, 0.185)], M["ceramic"], seg=36)
+    potted("herb", M, (ex0 + ex1) / 2 + 0.10, ey0 + 0.22, CT, "small", rz=30)
+    # δυτικό άκρο του βόρειου πάγκου: βάζο με ξερά κλαδιά, δίσκος με κανάτα και φλιτζάνια
+    zv = vase("k_vase", M, x0 + 0.24, y0 + 0.20, CT, kind=4, scale=0.95, rz=40)
+    dry_stems("k_stems", M, x0 + 0.24, y0 + 0.20, zv - 0.06, n=7, h=0.48, spread=0.45, seed=5)
+    tx, ty = x0 + 0.86, (y0 + y1) / 2 + 0.03
+    tr = rprism("tray", 0.40, 0.27, 0.014, 0.03, M["oak_dark"]["X"], re=0.004, segc=6, sege=2, group=G); place(tr, tx, ty, CT)
+    jg = lathe("jug", [(0.0, 0.0), (0.05, 0.0), (0.062, 0.03), (0.066, 0.10), (0.05, 0.17), (0.04, 0.20), (0.046, 0.215), (0.038, 0.212), (0.036, 0.19), (0.0, 0.185)], M["ceramic_m"], seg=36)
     place(jg, tx - 0.09, ty + 0.01, CT + 0.014)
     for i, (dx, dy) in enumerate(((0.07, -0.05), (0.12, 0.055))):
         cp = lathe("cup%d" % i, [(0.0, 0.0), (0.028, 0.0), (0.038, 0.02), (0.04, 0.07), (0.035, 0.07), (0.033, 0.022), (0.0, 0.012)], M["ceramic_sand"], seg=28)
         place(cp, tx + dx, ty + dy, CT + 0.014)
-    small_plant("herb3", M, x0 + 0.95, y0 + 0.17, CT, r=0.07, h=0.12, n=24, size=0.15, seed=31)
-    # διάδρομος (χαλάκι) στο πέρασμα της κουζίνας
-    ry0 = y1 + 0.20
-    rg = rprism("runner", 2.50, 0.66, 0.008, 0.012, M["jute"], re=0.003, segc=4, sege=2, group=G); place(rg, (x0 + x1) / 2 + 0.25, ry0 + 0.33, 0.0005)
-    # δίπλα στον νεροχύτη: μπουκάλι σαπουνιού + μικρό φυτό
+    # δίπλα στον νεροχύτη: μπουκάλι σαπουνιού + γλαστράκι
     sx0, sy0, sx1, sy1 = K["counter_s"]
     kx0, ky0, kx1, ky1 = K["sink"]
     bt = lathe("soap", [(0.0, 0.0), (0.028, 0.0), (0.03, 0.01), (0.03, 0.12), (0.012, 0.145), (0.012, 0.17), (0.0, 0.17)], M["amber"], seg=28); place(bt, kx1 + 0.10, sy1 - 0.09, CT)
-    small_plant("herb2", M, kx0 - 0.42, sy1 - 0.16, CT, r=0.06, h=0.10, n=20, size=0.12, seed=12)
+    potted("herb2", M, kx0 - 0.42, sy1 - 0.16, CT, "small", rz=110)
 
 
 # ------------------------------------------------------------------ κουρτίνες
