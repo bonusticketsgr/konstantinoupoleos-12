@@ -5,14 +5,9 @@ import os, sys
 from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
 OUT = os.path.join(HERE, "..", "..", "ΚΩΝΣΤΑΝΤΙΝΟΥΠΟΛΕΩΣ_12_ΑΡΓΥΡΟΥΠΟΛΗ", "ΠΑΡΟΥΣΙΑΣΗ_3D")
-NAMES = {
-    "01_saloni_apo_eisodo": "ΣΑΛΟΝΙ_01_από_την_είσοδο",
-    "02_saloni_pros_kouzina": "ΣΑΛΟΝΙ_02_προς_τραπεζαρία_και_κουζίνα",
-    "03_trapezaria": "ΣΑΛΟΝΙ_03_τραπεζαρία",
-    "04_kouzina": "ΚΟΥΖΙΝΑ_04",
-    "05_kouzina_pros_saloni": "ΚΟΥΖΙΝΑ_05_προς_το_σαλόνι",
-}
+from names import NAMES
 
 
 def main(src, dst=OUT):

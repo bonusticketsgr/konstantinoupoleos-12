@@ -430,7 +430,12 @@ def lights(D, M, mood, spots, extra):
     nt = w.node_tree; nt.nodes.clear()
     out = nt.nodes.new("ShaderNodeOutputWorld"); bg = nt.nodes.new("ShaderNodeBackground")
     sky = nt.nodes.new("ShaderNodeTexSky")
-    sky.sky_type = "MULTIPLE_SCATTERING"; sky.sun_disc = False
+    for st in ("MULTIPLE_SCATTERING", "NISHITA"):                   # Blender 5.x · 4.x
+        try:
+            sky.sky_type = st; break
+        except Exception:
+            continue
+    sky.sun_disc = False
     sky.sun_elevation = math.radians(max(S["sun_el"], 1.0)); sky.sun_rotation = math.radians(SKY_ROT(S["sun_az"]))
     try:
         sky.aerosol_density = 1.4; sky.ozone_density = 1.2
@@ -505,11 +510,30 @@ def camera(name, res):
     return o
 
 
-def render_setup(res, samples, S):
+def render_setup(res, samples, S, device="cpu"):
     sc = bpy.context.scene
     sc.render.engine = "CYCLES"
     c = sc.cycles
-    c.device = "CPU"; c.samples = samples; c.use_adaptive_sampling = True; c.adaptive_threshold = 0.015; c.adaptive_min_samples = 64
+    c.device = "CPU"
+    if device == "gpu":                                             # κάρτα γραφικών (Mac: Metal · PC: OptiX / CUDA / HIP / oneAPI)
+        try:
+            pr = bpy.context.preferences.addons["cycles"].preferences
+            for t in ("METAL", "OPTIX", "CUDA", "HIP", "ONEAPI"):
+                try:
+                    pr.compute_device_type = t; break
+                except Exception:
+                    continue
+            try:
+                pr.refresh_devices()
+            except Exception:
+                pr.get_devices()
+            for dv in pr.devices:
+                dv.use = True
+            c.device = "GPU"
+            print("GPU:", pr.compute_device_type, [dv.name for dv in pr.devices if dv.use])
+        except Exception as e:
+            print("GPU δεν βρέθηκε – απόδοση με επεξεργαστή:", e)
+    c.samples = samples; c.use_adaptive_sampling = True; c.adaptive_threshold = 0.015; c.adaptive_min_samples = 64
     c.max_bounces = 10; c.diffuse_bounces = 5; c.glossy_bounces = 5; c.transmission_bounces = 8; c.transparent_max_bounces = 24
     c.caustics_reflective = False; c.caustics_refractive = False
     c.sample_clamp_indirect = 8.0; c.sample_clamp_direct = 0.0
@@ -577,11 +601,13 @@ def main():
     ap.add_argument("--out", default=os.path.join(HERE, "out"))
     ap.add_argument("--blend", default="")
     ap.add_argument("--suffix", default="")
-    a = ap.parse_args()
+    ap.add_argument("--device", default="cpu", choices=("cpu", "gpu"))
+    ap.add_argument("--format", default="png", choices=("png", "jpg"))
+    a = ap.parse_args(sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:])     # και μέσα από το Blender: blender -b -P scene.py -- …
     res = tuple(int(v) for v in a.res.split("x"))
     t0 = time.time()
     D, M, S = build(a.mood)
-    render_setup(res, a.samples, S)
+    render_setup(res, a.samples, S, a.device)
     print("σκηνή: %d αντικείμενα · %.1f s" % (len(bpy.data.objects), time.time() - t0))
     if a.blend:
         bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath(a.blend))
@@ -590,8 +616,13 @@ def main():
     sc = bpy.context.scene
     for n in names:
         camera(n, res)
-        sc.render.image_settings.file_format = "PNG"
-        sc.render.filepath = os.path.join(a.out, n + a.suffix + ".png")
+        if a.format == "jpg":                                       # κατευθείαν το τελικό αρχείο με το ελληνικό του όνομα
+            from names import NAMES
+            sc.render.image_settings.file_format = "JPEG"; sc.render.image_settings.quality = 95
+            sc.render.filepath = os.path.join(a.out, NAMES.get(n, n) + a.suffix + ".jpg")
+        else:
+            sc.render.image_settings.file_format = "PNG"
+            sc.render.filepath = os.path.join(a.out, n + a.suffix + ".png")
         t1 = time.time()
         bpy.ops.render.render(write_still=True)
         print("ΕΙΚΟΝΑ %s: %.0f s → %s" % (n, time.time() - t1, sc.render.filepath), flush=True)
