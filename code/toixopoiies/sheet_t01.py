@@ -552,26 +552,32 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
                     v.text(cx, y0 - 0.10, w["id"], size=3.8, font="Inter-Medium")
             else:
                 v.label(cx, cy, w["id"], rot=rot)
-    # κείμενα χώρων / κουφωμάτων
-    if with_text:
-        for name, area, (x, y) in M.ROOMS:
-            v.text(x, y, name, size=6.8 if area else 6.4, font="Inter-SemiBold", color=(0.35, 0.35, 0.38))
-            if area:
-                v.text(x, y + 0.22, area, size=5.6, color=(0.45, 0.45, 0.50))
-        for lab, dim, (x, y) in M.WINDOWS:
-            v.text(x, y, "%s  %s" % (lab, dim), size=5.2 if lab != "W2.07" else 4.4, font="Inter-Medium",
-                   color=(0.30, 0.45, 0.75), anchor="l", bg=(lab == "W2.07"))
-        for ex, ey, es, er in getattr(M, "EXTRA_TEXTS", [(-1.47, 1.40, "αρχιτεκτονικό στοιχείο – σταθερό σύστημα σκίασης", 90),
-                                                        (-1.52, 7.35, "ζαρντινιέρα", 90), (7.55, 11.90, "ζαρντινιέρα", 0)]):
-            v.text(ex, ey, es, size=5.6, font="Inter-Medium", color=(0.40, 0.55, 0.40) if "ζαρντ" in es else GREY, rot=er, bg=True)
-    # διαστάσεις
+    # διαστάσεις – R33: σχεδιάζονται ΠΡΙΝ από τα κείμενα των χώρων, ώστε τα ονόματα / εμβαδά (σε λευκό φόντο) να μένουν καθαρά
     if with_dims:
         for orient, pos, pts in M.DIMS_IN:
             v.dim_chain(orient, pos, pts, size=5.0, color=DIMC, side=(+1 if (orient, pos) in getattr(M, "DIM_SIDE_PLUS", {("V", 11.48)}) else -1))
+        # εξωτερικές αλυσίδες: βοηθητικές (witness) γραμμές 0,22 m προς το κτήριο σε κάθε σημείο (R33)
+        bx0, by0, bx1, by1 = M.bbox([q for poly in M.COLS for q in poly] + [q for w_ in M.WALLS for q in w_["pts"]])
         for orient, pos, pts in M.DIMS_OUT:
-            v.dim_chain(orient, pos, pts, size=5.4 if len(pts) > 2 else 6.2, color=DIMC, side=-1, ext=0.0)
+            if orient == "H":
+                ext = 0.22 if pos < (by0 + by1) / 2 else -0.22
+            else:
+                ext = 0.22 if pos < (bx0 + bx1) / 2 else -0.22
+            v.dim_chain(orient, pos, pts, size=5.4 if len(pts) > 2 else 6.2, color=DIMC, side=-1, ext=ext)
         for x, y, s, horiz in M.THICK_NOTES:
-            v.text(x, y, s, size=4.4, color=DIMC, rot=0 if horiz else 90)
+            v.text(x, y, s, size=4.4, color=DIMC, rot=0 if horiz else 90, bg=True)
+    # κείμενα χώρων / κουφωμάτων
+    if with_text:
+        for name, area, (x, y) in M.ROOMS:
+            v.text(x, y, name, size=6.8 if area else 6.4, font="Inter-SemiBold", color=(0.25, 0.25, 0.28), bg=True)
+            if area:
+                v.text(x, y + 0.22, area, size=5.6, color=(0.40, 0.40, 0.45), bg=True)
+        for lab, dim, (x, y) in M.WINDOWS:
+            v.text(x, y, "%s  %s" % (lab, dim), size=5.2 if lab != "W2.07" else 4.4, font="Inter-Medium",
+                   color=(0.30, 0.45, 0.75), anchor="l", bg=True)
+        for ex, ey, es, er in getattr(M, "EXTRA_TEXTS", [(-1.47, 1.40, "αρχιτεκτονικό στοιχείο – σταθερό σύστημα σκίασης", 90),
+                                                        (-1.52, 7.35, "ζαρντινιέρα", 90), (7.55, 11.90, "ζαρντινιέρα", 0)]):
+            v.text(ex, ey, es, size=5.6, font="Inter-Medium", color=(0.40, 0.55, 0.40) if "ζαρντ" in es else GREY, rot=er, bg=True)
 
 
 def wall_key(c, x, y, w=214):
@@ -637,7 +643,7 @@ def scale_bar(c, x, y, pt_per_m, metres=(0, 0.5, 1, 2), label="ΚΛΙΜΑΚΑ"):
     c.restoreState()
 
 
-def sheet_t01(c, sheet_no="Τ-01"):
+def sheet_t01(c, sheet_no="Τ-01", total=None):
     v = View(c, OX, OY, getattr(M, "PT_PER_M", PT_PER_M_60))
     draw_plan(v)
     if getattr(M, "SITE", None):      # λευκό κάτω από το υπόμνημα τίτλου (το υπόβαθρο φτάνει ως εκεί)
@@ -649,7 +655,7 @@ def sheet_t01(c, sheet_no="Τ-01"):
     SH = getattr(M, "SHEET", B1_SHEET)
     frame_and_title(c, sheet_no, "ΚΑΤΟΨΗ ΤΟΙΧΟΠΟΙΙΩΝ – " + SH["floor_short"].upper() if SH["floor_short"] != "Β΄ ΟΡΟΦΟΥ" else "ΚΑΤΟΨΗ ΤΟΙΧΟΠΟΙΙΩΝ – Β΄ ΟΡΟΦΟΣ",
                     "Είδη τοιχοποιιών · διαστάσεις χάραξης · κουφώματα · εξώστες", SH["floor"],
-                    SH["base"], getattr(M, "SCALE_TXT", "Κλίμακα 1:60 · A3"), M.REV, M.DATE)
+                    SH["base"], getattr(M, "SCALE_TXT", "Κλίμακα 1:60 · A3"), M.REV, M.DATE, total=total)
     # υπόμνημα αλλαγών R15 (πάνω δεξιά) – R11/R22: ΔΕΝ τυπώνεται όταν το μοντέλο έχει SHOW_LEGEND = False (Γιάννης 07/11: «τις σημειώσεις δεν τις θέλω στα σχέδια»)
     if not getattr(M, "SHOW_LEGEND", True):
         return

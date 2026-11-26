@@ -108,7 +108,7 @@ def floor_table(c, M, left, top, width):
     return y - 20, grand * mult, tot * mult
 
 
-def sheet_t05(c, models, sheet_no="Τ-05", rev="", date="", K=None):
+def sheet_t05(c, models, sheet_no="Τ-05", rev="", date="", K=None, total=None):
     """K: μεγέθυνση των πινάκων (μεγάλα γράμματα – το φύλλο αλλιώς μένει μισοάδειο)· με 3 ορόφους 1,05 ώστε να χωράνε οι στήλες."""
     if K is None:
         K = 1.32 if len(models) <= 2 else (1.05 if len(models) == 3 else (0.80 if len(models) == 4 else 0.66))
@@ -146,4 +146,4 @@ def sheet_t05(c, models, sheet_no="Τ-05", rev="", date="", K=None):
     base = "Βάση: κατόψεις Τ-01…Τ-%02d · είδη Τ-%02d" % (n, n + 1)
     frame_and_title(c, sheet_no, ("ΠΡΟΜΕΤΡΗΣΗ ΤΟΙΧΟΠΟΙΙΩΝ – " if n <= 3 else "ΠΡΟΜΕΤΡΗΣΗ – ") + names,
                     "Τετραγωνικά ανά τυπολογία τοίχου, χωριστά ανά όροφο", "θερμοπρόσοψη 10 / 5 cm",
-                    base, "— · A3", rev, date)
+                    base, "— · A3", rev, date, total=total)

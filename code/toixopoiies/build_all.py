@@ -29,14 +29,14 @@ c = new_canvas(OUT, "Τοιχοποιίες υπογείου %s + ισογείο
 c.setPageCompression(1)
 # R25 / Δ R02 (Γιάννης 07/11): «κατόψεις στις πρώτες σελίδες, μετά είδη τοιχοποιιών μία σελίδα και μετά η προμέτρηση»
 # 07/11 βράδυ: + ΥΠΟΓΕΙΟ (b_model) ως πρώτο φύλλο
-use(Y); sheet_t01.sheet_t01(c, "Τ-01"); c.showPage()
-use(G); sheet_t01.sheet_t01(c, "Τ-02"); c.showPage()
-use(B); sheet_t01.sheet_t01(c, "Τ-03"); c.showPage()
-use(F); sheet_t01.sheet_t01(c, "Τ-04"); c.showPage()
-use(S); sheet_t01.sheet_t01(c, "Τ-05"); c.showPage()
+use(Y); sheet_t01.sheet_t01(c, "Τ-01", total=7); c.showPage()
+use(G); sheet_t01.sheet_t01(c, "Τ-02", total=7); c.showPage()
+use(B); sheet_t01.sheet_t01(c, "Τ-03", total=7); c.showPage()
+use(F); sheet_t01.sheet_t01(c, "Τ-04", total=7); c.showPage()
+use(S); sheet_t01.sheet_t01(c, "Τ-05", total=7); c.showPage()
 DATE_ALL = max((m.DATE for m in (Y, G, B, F, S)), key=lambda d: d.split("/")[::-1])   # ημερομηνία της νεότερης αναθεώρησης
 REVS = "ΥΠ %s · ΙΣ %s · Β1 %s · Δ %s · ΣΟΦ %s" % (Y.REV, G.REV, B.REV, F.REV, S.REV)
-use(B); sheet_t02.sheet_t02_all(c, [Y, G, B, F, S], "Τ-06", REVS, DATE_ALL); c.showPage()
-sheet_t05(c, [Y, G, B, F, S], "Τ-07", REVS, DATE_ALL); c.showPage()
+use(B); sheet_t02.sheet_t02_all(c, [Y, G, B, F, S], "Τ-06", REVS, DATE_ALL, total=7); c.showPage()
+sheet_t05(c, [Y, G, B, F, S], "Τ-07", REVS, DATE_ALL, total=7); c.showPage()
 c.save()
 print("OK", os.path.abspath(OUT))

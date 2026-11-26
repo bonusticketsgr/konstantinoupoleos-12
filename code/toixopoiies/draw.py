@@ -150,7 +150,7 @@ class View:
         c.restoreState()
 
     # ---- αλυσίδα διαστάσεων
-    def dim_chain(self, orient, pos, pts, size=5.0, color=DIMC, tick=0.08, side=-1, ext=0.0, font="Inter"):
+    def dim_chain(self, orient, pos, pts, size=5.0, color=DIMC, tick=0.08, side=-1, ext=0.0, font="Inter", bg=True):
         """orient 'H': γραμμή στο y=pos, σημεία x· 'V': γραμμή στο x=pos, σημεία y.
         side: -1 κείμενο προς βορρά/δύση της γραμμής, +1 προς νότο/ανατολή."""
         pts = sorted(pts)
@@ -164,27 +164,29 @@ class View:
             if orient == "H":
                 self.line(q - tick / 2, pos + tick / 2, q + tick / 2, pos - tick / 2, color=color, lw=0.5)
                 if ext:
-                    self.line(q, pos, q, pos + ext, color=(0.55, 0.55, 0.58), lw=0.25)
+                    self.line(q, pos, q, pos + ext, color=(0.50, 0.50, 0.54), lw=0.3)
             else:
                 self.line(pos - tick / 2, q + tick / 2, pos + tick / 2, q - tick / 2, color=color, lw=0.5)
                 if ext:
-                    self.line(pos, q, pos + ext, q, color=(0.55, 0.55, 0.58), lw=0.25)
+                    self.line(pos, q, pos + ext, q, color=(0.50, 0.50, 0.54), lw=0.3)
         off = 0.10 * size / 5.0
         for q0, q1 in zip(pts[:-1], pts[1:]):
             L = q1 - q0
             s = ("%.2f" % (L + 1e-6)).replace(".", ",")
             w = self.text_w(s, size, font)
             mid = (q0 + q1) / 2
+            # R33 («πιο επαγγελματικές κατόψεις για τους εργολάβους»): κάθε αριθμός σε λευκό φόντο – δεν τον κόβουν έπιπλα,
+            # γραμμές άλλων αλυσίδων ή το αχνό υπόβαθρο του περιβάλλοντος χώρου
             if orient == "H":
                 if w <= L - 0.04:
-                    self.text(mid, pos + side * off, s, size=size, font=font, color=color)
+                    self.text(mid, pos + side * off, s, size=size, font=font, color=color, bg=bg)
                 else:   # κοντό τμήμα: κείμενο κάθετα δίπλα στη γραμμή
-                    self.text(mid, pos + side * (off + w / 2 + 0.02), s, size=size, font=font, color=color, rot=90)
+                    self.text(mid, pos + side * (off + w / 2 + 0.02), s, size=size, font=font, color=color, rot=90, bg=bg)
             else:
                 if w <= L - 0.04:
-                    self.text(pos + side * off, mid, s, size=size, font=font, color=color, rot=90)
+                    self.text(pos + side * off, mid, s, size=size, font=font, color=color, rot=90, bg=bg)
                 else:
-                    self.text(pos + side * (off + 0.02), mid, s, size=size, font=font, color=color)
+                    self.text(pos + side * (off + 0.02), mid, s, size=size, font=font, color=color, bg=bg)
 
     # ---- πόρτα
     def door(self, hinge, leaf_end, jamb, arc=True):
@@ -205,49 +207,84 @@ def new_canvas(path, title):
     return c
 
 
-def frame_and_title(c, sheet_no, theme, sub1, sub2, base, scale_txt, rev, date):
-    """Πλαίσιο σελίδας και υπόμνημα τίτλου (κάτω λωρίδα), όπως το R14."""
+def frame_and_title(c, sheet_no, theme, sub1, sub2, base, scale_txt, rev, date, total=None, stage=None):
+    """Πλαίσιο σελίδας και πινακίδα (κάτω λωρίδα 72 pt).
+    R33 (26/11/2026 – Γιάννης: «θέλω τις κατόψεις πιο επαγγελματικές, θα τις τυπώσω για τους εργολάβους»): πέντε κελιά –
+    ΕΡΓΟ (έργο · θέση · εργοδότης / κατασκευή / σχεδίαση · στάδιο) · ΘΕΜΑ (+ η σύμβαση των διαστάσεων) · ΒΑΣΗ ΣΧΕΔΙΑΣΜΟΥ ·
+    ΚΛΙΜΑΚΑ / ΗΜΕΡΟΜΗΝΙΑ / ΑΝΑΘΕΩΡΗΣΗ / ΦΥΛΛΟ · ΑΡ. ΣΧΕΔΙΟΥ. Ίδιο ύψος με πριν (τίποτα πάνω από την πινακίδα δεν μετακινείται)."""
     m = 20
     c.setStrokeColorRGB(*DARK); c.setLineWidth(1.0)
     c.rect(m, m, PAGE_W - 2 * m, PAGE_H - 2 * m, stroke=1, fill=0)
+    c.setLineWidth(0.35); c.rect(m - 6, m - 6, PAGE_W - 2 * m + 12, PAGE_H - 2 * m + 12, stroke=1, fill=0)   # εξωτερική γραμμή κοπής / φύλλου
     y0, hgt = m, 72
-    c.setLineWidth(0.6); c.line(m, y0 + hgt, PAGE_W - m, y0 + hgt)
-    xs = [m, 425, 725, 1000, PAGE_W - m]
+    c.setLineWidth(0.9); c.line(m, y0 + hgt, PAGE_W - m, y0 + hgt)
+    xs = [m, 335, 660, 905, 1035, PAGE_W - m]
+    c.setLineWidth(0.5)
     for x in xs[1:-1]:
         c.line(x, y0, x, y0 + hgt)
     def t(x, y, s, font="Inter", size=8, color=DARK, maxw=None):
-        while maxw and size > 5.5 and c.stringWidth(s, font, size) > maxw:      # το κείμενο μένει μέσα στο κελί του (μικρότερα γράμματα αν χρειαστεί)
+        while maxw and size > 5.0 and c.stringWidth(s, font, size) > maxw:      # το κείμενο μένει μέσα στο κελί του (μικρότερα γράμματα αν χρειαστεί)
             size -= 0.25
         c.setFont(font, size); c.setFillColorRGB(*color); c.drawString(x, y, s)
-    top = y0 + hgt - 14
-    t(xs[0] + 10, top, "ΕΡΓΟ", "Inter-Medium", 6.5, GREY)
-    t(xs[0] + 10, top - 16, "ΠΕΝΤΑΟΡΟΦΟ ΚΤΗΡΙΟ ΚΑΤΟΙΚΙΩΝ – ΑΡΓΥΡΟΥΠΟΛΗ", "Inter-SemiBold", 8)
-    t(xs[0] + 10, top - 28, "Κωνσταντινουπόλεως 12 & Αγ. Βαρβάρας · Ο.Τ. 103-15", "Inter", 8)
-    t(xs[0] + 10, top - 40, "Εργοδότης: INTERKAT Α.Ε. · Κατασκευή: ARKAD Ι.Κ.Ε.", "Inter", 8)
-    t(xs[1] + 10, top, "ΘΕΜΑ ΣΧΕΔΙΟΥ", "Inter-Medium", 6.5, GREY)
-    cw = xs[2] - xs[1] - 18                          # ωφέλιμο πλάτος του κελιού «ΘΕΜΑ ΣΧΕΔΙΟΥ»
-    t(xs[1] + 10, top - 18, theme, "Inter-Bold", 11, maxw=cw)
-    t(xs[1] + 10, top - 31, sub1, "Inter-Medium", 7.5, maxw=cw)
-    t(xs[1] + 10, top - 42, sub2, "Inter-Medium", 7.5, maxw=cw)
-    t(xs[2] + 10, top, "ΒΑΣΗ", "Inter-Medium", 6.5, GREY)
-    # η «Βάση» αναδιπλώνεται μέσα στο κελί της (μακριά κείμενα έμπαιναν στο κελί του αριθμού σχεδίου – τελικός έλεγχος 17/11)
+    def hdr(x, s):
+        t(x + 8, y0 + hgt - 11, s, "Inter-Medium", 5.6, GREY)
+    top = y0 + hgt - 11
+    # ΕΡΓΟ
+    hdr(xs[0], "ΕΡΓΟ")
+    c.setFont("Inter-Bold", 10); c.setFillColorRGB(*DARK); c.drawRightString(xs[1] - 10, top - 1, "arkad.")
+    t(xs[0] + 8, top - 14, "ΠΕΝΤΑΟΡΟΦΟ ΚΤΗΡΙΟ ΚΑΤΟΙΚΙΩΝ ΜΕ ΥΠΟΓΕΙΟ & ΣΟΦΙΤΑ", "Inter-SemiBold", 8, maxw=xs[1] - xs[0] - 16)
+    t(xs[0] + 8, top - 25, "Κωνσταντινουπόλεως 12 & Αγ. Βαρβάρας · Ο.Τ. 103-15 · Αργυρούπολη", "Inter", 7.2, maxw=xs[1] - xs[0] - 16)
+    t(xs[0] + 8, top - 36, "Εργοδότης INTERKAT Α.Ε. · Κατασκευή – σχεδίαση ARKAD Ι.Κ.Ε.", "Inter", 7.2, maxw=xs[1] - xs[0] - 16)
+    t(xs[0] + 8, top - 47, "Στάδιο: " + (stage or "ΣΧΕΔΙΑ ΕΦΑΡΜΟΓΗΣ – ΚΑΤΑΣΚΕΥΗ"), "Inter-Medium", 6.6, GREY, maxw=xs[1] - xs[0] - 16)
+    # ΘΕΜΑ
+    hdr(xs[1], "ΘΕΜΑ ΣΧΕΔΙΟΥ")
+    cw = xs[2] - xs[1] - 16
+    t(xs[1] + 8, top - 16, theme, "Inter-Bold", 11.5, maxw=cw)
+    t(xs[1] + 8, top - 28, sub1, "Inter-Medium", 7.2, maxw=cw)
+    t(xs[1] + 8, top - 38, sub2, "Inter-Medium", 7.2, maxw=cw)
+    t(xs[1] + 8, top - 49, "Διαστάσεις σε m, από παρειές σκυροδέματος · δεν μετράμε πάνω στο σχέδιο · κάθε ασυμφωνία αναφέρεται πριν από την κατασκευή",
+      "Inter", 5.6, GREY, maxw=cw)
+    # ΒΑΣΗ
+    hdr(xs[2], "ΒΑΣΗ ΣΧΕΔΙΑΣΜΟΥ")
+    bw = xs[3] - xs[2] - 16
+    base = base[6:].strip() if base.startswith("Βάση:") else base
     bl, cur = [], ""
     for wd in base.split(" "):
         tt = (cur + " " + wd).strip()
-        if c.stringWidth(tt, "Inter", 7.2) > xs[3] - xs[2] - 20 and cur:
+        if c.stringWidth(tt, "Inter", 6.8) > bw and cur:
             bl.append(cur); cur = wd
         else:
             cur = tt
     for i_, ln_ in enumerate((bl + [cur])[:5]):
-        t(xs[2] + 10, top - 16 - i_ * 10, ln_, "Inter", 7.2)
-    t(xs[3] + 10, top, "ΑΡ. ΣΧΕΔΙΟΥ", "Inter-Medium", 6.5, GREY)
-    t(xs[3] + 10, top - 28, sheet_no, "Inter-Bold", 22)
-    t(xs[3] + 10, top - 42, scale_txt, "Inter-SemiBold", 8)
-    dr = "%s · %s" % (date, rev)                     # πολλές αναθεωρήσεις (ενιαία τεύχη): μικρότερα γράμματα ώστε να μένει μέσα στο κελί
-    fs = 7.5
-    while fs > 5.0 and c.stringWidth(dr, "Inter", fs) > xs[4] - xs[3] - 16:
-        fs -= 0.25
-    t(xs[3] + 10, top - 54, dr, "Inter", fs)
+        t(xs[2] + 8, top - 14 - i_ * 9, ln_, "Inter", 6.8)
+    # ΚΛΙΜΑΚΑ / ΗΜΕΡΟΜΗΝΙΑ / ΑΝΑΘΕΩΡΗΣΗ / ΦΥΛΛΟ
+    sc = scale_txt.replace("Κλίμακα", "").strip()
+    rows = [("ΚΛΙΜΑΚΑ", sc), ("ΗΜΕΡΟΜΗΝΙΑ", date), ("ΑΝΑΘΕΩΡΗΣΗ", rev)]
+    if total:
+        rows.append(("ΦΥΛΛΟ", "%s / %s" % (sheet_no.split("-")[-1].lstrip("0") or sheet_no, total)))
+    rh = (hgt - 4) / 4.0
+    for i_, (k_, v_) in enumerate(rows):
+        yy = y0 + hgt - (i_ + 1) * rh + 4
+        if i_:
+            c.setLineWidth(0.3); c.setStrokeColorRGB(0.70, 0.70, 0.72); c.line(xs[3], yy + rh - 4, xs[4], yy + rh - 4)
+        t(xs[3] + 8, yy, k_, "Inter-Medium", 5.4, GREY)
+        c.setFillColorRGB(*DARK); fs = 7.4
+        avail = xs[4] - xs[3] - 66
+        while c.stringWidth(v_, "Inter-SemiBold", fs) > avail and fs > 5.6:
+            fs -= 0.25
+        if c.stringWidth(v_, "Inter-SemiBold", fs) > avail and " · " in v_:      # πολλές αναθεωρήσεις (ενιαία τεύχη): δύο γραμμές
+            parts = v_.split(" · "); k = len(parts) // 2 + len(parts) % 2
+            l1, l2 = " · ".join(parts[:k]), " · ".join(parts[k:])
+            fs = 5.4
+            while max(c.stringWidth(l1, "Inter-SemiBold", fs), c.stringWidth(l2, "Inter-SemiBold", fs)) > avail + 10 and fs > 4.4:
+                fs -= 0.2
+            c.setFont("Inter-SemiBold", fs); c.drawRightString(xs[4] - 8, yy + 4.5, l1); c.drawRightString(xs[4] - 8, yy - 2.5, l2)
+        else:
+            c.setFont("Inter-SemiBold", fs); c.drawRightString(xs[4] - 8, yy, v_)
+    # ΑΡ. ΣΧΕΔΙΟΥ
+    hdr(xs[4], "ΑΡ. ΣΧΕΔΙΟΥ")
+    c.setFont("Inter-Bold", 26); c.setFillColorRGB(*DARK)
+    c.drawCentredString((xs[4] + xs[5]) / 2, y0 + 14, sheet_no)
 
 
 def north_arrow(c, x, y, r=10):
