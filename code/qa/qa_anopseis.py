@@ -68,6 +68,8 @@ def cands(A):
         if "supply" in u: pt(u["supply"]["x"][0], fy, u["id"]); pt(u["supply"]["x"][1], fy, u["id"])
         if "hatch" in u: pt(u["hatch"]["x"][0], fy, u["id"]); pt(u["hatch"]["x"][1], fy, u["id"])
     for s in A.SPOTS: pt(s[2], s[3], s[0])
+    for h in getattr(A, "BEAM_HOLES", []):        # R26: χιτώνιο ΟΠ2 στη Δ3.1 – οι ακμές του (οι βοηθητικές γραμμές της διάστασης φτάνουν ως τη δοκό)
+        out.extend([("x", h["x"], 4.40, 5.15, h["id"])])
     for p in A.PENDANTS: pt(p[1], p[2], p[0])
     for d in A.DETECTORS: pt(d[2], d[3], d[0])
     for l in A.LED: pt(*l[1], l[0]); pt(*l[2], l[0])

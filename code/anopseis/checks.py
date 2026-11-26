@@ -235,6 +235,22 @@ def run():
         x0, y0, x1, y1 = u["rect"]
         z_unit = min(slab_at(zu, x, y) for x in (x0, x1) for y in (y0, y1)) - A.HANG - u["hmax"]      # κάτω πλευρά της μονάδας (κρεμασμένη ψηλά)
         route = LineString(dr["pts"])
+        if dr.get("pump"):              # R26: ΜΕ ΑΝΤΛΙΑ – η αντλία ανεβάζει κολλητά στην πλάκα, από εκεί φυσική ροή ως το κατέβασμα: ο σωλήνας
+            r = dr["od"] / 2            # πρέπει σε κάθε σημείο να μένει ΠΑΝΩ από τη γυψοσανίδα της ζώνης που διασχίζει (οι δοκοί: μέσα από χιτώνιο)
+            z0 = slab_at(zu, x0, y0) - dr["pump"]["top_gap"] - r
+            worst, where = 9.0, ""
+            for i in range(int(route.length / 0.05) + 1):
+                pt = route.interpolate(i * 0.05); z = zone_at(pt.x, pt.y)
+                if z is None or any(bb.buffer(0.01).contains(pt) for bb in beams):
+                    continue
+                zp = z0 - dr["slope_min"] * (i * 0.05)
+                m_ = zp - r - (z["level"] + C["board"])
+                if m_ < worst: worst, where = m_, z["id"]
+            add(dr["id"], "Κλιματισμός", dr["text"], "κλίση ≥ %g %% από την πλάκα ως το κατέβασμα · ο σωλήνας πάνω από τη γυψοσανίδα σε όλη τη διαδρομή" % (dr["slope_min"] * 100),
+                "μήκος %s m · άξονας %s → %s · ελάχιστο κενό κάτω από τον σωλήνα %d mm (%s)" % (
+                    ("%.2f" % route.length).replace(".", ","), L(z0), L(z0 - dr["slope_min"] * route.length), round(worst * 1000), where),
+                "OK" if worst > 0.010 else ("ΟΡΙΑΚΟ" if worst >= -1e-9 else "ΑΠΟΚΛΙΣΗ"))
+            continue
         if not dr.get("beam"):          # R21: όδευση ΧΩΡΙΣ δοκό στη διαδρομή – μονάδα → κατέβασμα μέσα στο ίδιο κενό
             r = dr["od"] / 2
             ze = zone_at(*dr["pts"][-1])
@@ -270,9 +286,18 @@ def run():
     for nb in getattr(A, "NO_BEAM", []):
         route = LineString(nb["pts"])
         hit = [b[0] for b in A.BEAMS if route.intersection(box(*b[2:]).buffer(-0.002)).length > 0.005]
-        add(nb["id"], "Κλιματισμός", nb["text"], "καμία διέλευση κάτω από δοκό (ιδιοκτήτης 18/11)",
-            ("περνά κάτω από: " + ", ".join(hit)) if hit else "μήκος %s m · καμία δοκός στη διαδρομή" % ("%.2f" % route.length).replace(".", ","),
-            "ΑΠΟΚΛΙΣΗ" if hit else "OK")
+        # R26: διέλευση ΜΕΣΑ από τη δοκό σε χιτώνιο (BEAM_HOLES, ηλεκτρολογικά R15) – επιτρέπεται, ΟΡΙΑΚΟ όσο εκκρεμεί η έγκριση του στατικού
+        holes = [h for h in getattr(A, "BEAM_HOLES", []) if h["id"] in nb.get("holes", [])]
+        thru = []
+        for h in list(holes):
+            bm = [b for b in A.BEAMS if b[0] == h["beam"]][0]
+            seg = route.intersection(box(*bm[2:]).buffer(-0.002))
+            if seg.length > 0.005 and all(abs(q[0] - h["x"]) <= h["d"] / 2 - 0.01 + 1e-9 for q in seg.coords):
+                hit = [b_ for b_ in hit if b_ != h["beam"]]; thru.append("%s (%s Ø%d, x %.2f)" % (h["beam"], h["id"], round(h["d"] * 1000), h["x"]))
+        add(nb["id"], "Κλιματισμός", nb["text"], "καμία διέλευση ΚΑΤΩ από δοκό (ιδιοκτήτης 18/11) · μέσα από δοκό μόνο σε χιτώνιο (R26)",
+            ("περνά κάτω από: " + ", ".join(hit)) if hit else ("μήκος %s m · " % ("%.2f" % route.length).replace(".", ",") +
+            ("ΜΕΣΑ από τη %s – εκκρεμεί έγκριση στατικού" % ", ".join(thru) if thru else "καμία δοκός στη διαδρομή")),
+            "ΑΠΟΚΛΙΣΗ" if hit else ("ΟΡΙΑΚΟ" if thru else "OK"))
     # οδεύσεις μέσα στο γέμισμα δαπέδου: όχι μέσα από σκυρόδεμα · χωρούν στο ωφέλιμο γέμισμα (γέμισμα − επικάλυψη) · συμπυκνώματα: Ø + κλίση × μήκος
     conc = unary_union([Polygon(p) for p in W.COLS] + [Polygon(p) for p in getattr(W, "COLS2", [])])
     for fr in getattr(A, "FLOOR_RUNS", []):

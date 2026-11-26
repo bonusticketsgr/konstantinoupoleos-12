@@ -627,6 +627,14 @@ def sheet_an02(c, no="ΑΝ-02"):
         v.line(gx - 0.07, gy - 0.07, gx + 0.07, gy + 0.07, color=COLORS["BLUE2"], lw=0.4); v.line(gx - 0.07, gy + 0.07, gx + 0.07, gy - 0.07, color=COLORS["BLUE2"], lw=0.4)
         lx, ly, anc = g_["lab_at"]
         v.text(lx, ly, g_["label"], size=4.2, color=COLORS["BLUE2"], font="Inter-Medium", anchor=anc, bg=True)
+    for h in getattr(A, "BEAM_HOLES", []):      # R26: χιτώνιο ΜΕΣΑ στη δοκό (ΟΠ2 – ηλεκτρολογικά R15)
+        bm = [b_ for b_ in A.BEAMS if b_[0] == h["beam"]][0]
+        cy_ = (bm[3] + bm[5]) / 2
+        v.circle(h["x"], cy_, h["d"] / 2 + 0.03, fill=(1, 1, 1), stroke=MAG, lw=0.9)
+        v.circle(h["x"], cy_, h["d"] / 2, fill=(1, 0.90, 0.97), stroke=MAG, lw=0.5)
+        lx, ly = h["lab_at"]
+        v.line(h["x"] - h["d"] / 2 - 0.03, cy_, lx + 0.02, ly + 0.03, color=GREY, lw=0.35)
+        v.text(lx, ly, "%s Ø%d" % (h["id"], round(h["d"] * 1000)), size=4.4, color=MAG, font="Inter-Bold", anchor="r", bg=True)
     for r in A.ROUTES:
         x, y = r["at"]
         X, Y = v.p(x, y)
@@ -679,6 +687,8 @@ def sheet_an02(c, no="ΑΝ-02"):
         items.append((_line_legend(COLORS[col_], dash_, lw_), txt_))
     if getattr(A, "BOXES", []):
         items.append((_sw((0.97, 0.80, 0.90), MAG), A.LEG_BOX))
+    if getattr(A, "BEAM_HOLES", []):         # R26: χιτώνιο μέσα στη δοκό
+        items.append((lambda c_, x, y: (c_.setStrokeColorRGB(*MAG), c_.setFillColorRGB(1, 0.90, 0.97), c_.circle(x, y, 3.2, stroke=1, fill=1)), A.LEG_HOLE))
     if getattr(A, "LEG_CHANWALL", None):     # R23: ο ενιαίος τοίχος της πόρτας εισόδου με το κανάλι σωλήνων (τοιχοποιίες Τ6Β) – (τύπος, κείμενο)
         items.append((_sw(A.W.TYPES[A.LEG_CHANWALL[0]]["fill"], DARK), A.LEG_CHANWALL[1]))
     if getattr(A, "LEG_COND", None):         # γραμμή συμπυκνωμάτων με φυσική ροή (Β1 R20 / Δ΄ R09)

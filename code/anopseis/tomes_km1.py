@@ -24,6 +24,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, "..", "toixopoiies"))
 import b1_anopsi as A
+if not hasattr(A, "DROP_R"):      # R26 ανόψεων (26/11/2026): η ΚΜ1 πάει από την οπή ΟΠ2 της Δ3.1 – το τεύχος τομών R03 (κανάλι στον τοίχο της πόρτας) ΔΕΝ ισχύει
+    raise SystemExit("ΤΟΜΕΣ ΚΜ1: το R03 σχεδιάζει τη διαδρομή της 18/11 (κατέβασμα στον τοίχο της πόρτας Τ6Β). Οι ανόψεις %s έχουν τη διαδρομή της "
+                     "ΟΠ2 (κούτελο → πλυντήριο) – θέλει νέο τεύχος R04 (το R03 στο παλαιότερες_εκδόσεις/)." % A.REV)
 import gf_anopsi as G
 import checks, sheets
 from draw import View, PAGE_W, PAGE_H, DARK, GREY, LIGHT, DIMC, frame_and_title, north_arrow, new_canvas
