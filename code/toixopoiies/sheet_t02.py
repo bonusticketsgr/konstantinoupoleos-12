@@ -34,7 +34,7 @@ def section(c, x, y_top, typ):
         if kind == "brick":
             c.setFillColorRGB(*t["fill"]); c.setStrokeColorRGB(*DARK); c.setLineWidth(0.5)
             c.rect(x0, y_top - H, W, H, stroke=1, fill=1)
-            c.setStrokeColorRGB(0.55, 0.30, 0.20); c.setLineWidth(0.25)
+            c.setStrokeColorRGB(0.42, 0.42, 0.45); c.setLineWidth(0.25)   # R35: αρμοί γκρι
             # πλέγμα τούβλου
             step = 0.019 * s if typ not in ("T4", "T4A") else 0.012 * s
             yy = y_top - step
@@ -44,7 +44,7 @@ def section(c, x, y_top, typ):
             while xx < x0 + W:
                 c.line(xx, y_top, xx, y_top - H); xx += step
         elif kind in ("gyp", "glue"):
-            c.setFillColorRGB(0.93, 0.93, 0.95) if kind == "gyp" else c.setFillColorRGB(0.80, 0.78, 0.70)
+            c.setFillColorRGB(0.93, 0.93, 0.95) if kind == "gyp" else c.setFillColorRGB(0.78, 0.78, 0.80)   # R35: κόλλα γκρι
             c.setStrokeColorRGB(*DARK); c.setLineWidth(0.4)
             c.rect(x0, y_top - H, W, H, stroke=1, fill=1)
         elif kind == "cw":
@@ -62,7 +62,7 @@ def section(c, x, y_top, typ):
         elif kind == "gap":
             c.setStrokeColorRGB(*DARK); c.setLineWidth(0.4)
             c.rect(x0, y_top - H, W, H, stroke=1, fill=0)
-            c.setFillColorRGB(0.88, 0.85, 0.93); c.rect(x0 + 0.5, y_top - H + 0.5, W - 1, H - 1, stroke=0, fill=1)
+            c.setFillColorRGB(0.955, 0.955, 0.96); c.rect(x0 + 0.5, y_top - H + 0.5, W - 1, H - 1, stroke=0, fill=1)   # R35: κενό σχεδόν λευκό
         x0 += W
     # διάσταση πάχους
     y = y_top - H - 8
@@ -166,7 +166,7 @@ def card_all(c, x, y, w, h, typ, per_floor, mdf=None):
     # μήκη / εμβαδά ανά όροφο
     yy = y + 8 + 6.6 * (len(per_floor) + 1) - 2
     if mdf:   # 07/11: εξωτερικό φύλλο MDF προς την κουζίνα
-        c.setFont("Inter", 5.4); c.setFillColorRGB(0.55, 0.30, 0.10)
+        c.setFont("Inter", 5.4); c.setFillColorRGB(*GREY)
         _t = ("εξωτ. φύλλο MDF προς κουζίνα: " + " · ".join("%s %s %.1f m²" % (a, ids, m) for a, m, ids in mdf)).replace(".", ",")
         _ls = wrap(c, _t, "Inter", 5.4, w - 16)[:2]      # R29: σε στενή κάρτα (σειρά των 6) σπάει σε δύο γραμμές
         for _i, _l in enumerate(_ls):

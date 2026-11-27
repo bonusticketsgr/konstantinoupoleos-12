@@ -106,7 +106,7 @@ class View:
                 k += spacing
         c.restoreState()
 
-    def brick(self, pts, course=0.065, brick_len=0.13, color=(0.55, 0.30, 0.20), lw=0.25):
+    def brick(self, pts, course=0.065, brick_len=0.13, color=(0.42, 0.42, 0.45), lw=0.25):   # R35: αρμοί σε γκρι (ήταν καφέ)
         """Τούβλα: οριζόντιες στρώσεις + κατακόρυφοι αρμοί σε δρομική διάταξη (κατά τον άξονα)."""
         xs = [p[0] for p in pts]; ys = [p[1] for p in pts]
         x0, y0, x1, y1 = min(xs), min(ys), max(xs), max(ys)
