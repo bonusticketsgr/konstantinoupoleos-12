@@ -527,21 +527,21 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
             cx, cy, rot, L = wall_label_pose(w)
             if w["id"] in M.LABEL_POS:
                 x, y, r, plain = M.LABEL_POS[w["id"]]
-                col = {"T3": (0.30, 0.45, 0.75), "T9": (0.45, 0.40, 0.65)}.get(w["type"], DARK)
-                if plain or w["type"] in ("T3", "T9"):
+                col = {"T3": (0.30, 0.45, 0.75), "T3M": (0.30, 0.45, 0.75), "T9": (0.45, 0.40, 0.65)}.get(w["type"], DARK)
+                if plain or w["type"] in ("T3", "T3M", "T9"):
                     v.text(x, y, w["id"], size=4.2, rot=r, color=col, font="Inter-Medium")
                 else:
                     v.label(x, y, w["id"], rot=r)
                 continue
-            if w["type"] == "T3" or w["type"] == "T9":
+            if w["type"] in ("T3", "T3M", "T9"):
                 # επενδύσεις: λεπτές – ετικέτα μπλε χωρίς κουτί, δίπλα στον τοίχο
                 x0, y0, x1, y1 = M.bbox(w["pts"])
                 if (y1 - y0) > (x1 - x0):
-                    v.text(x0 - 0.12 if w["type"] == "T3" else x1 + 0.12, cy, w["id"], size=4.6, rot=90,
-                           color=(0.30, 0.45, 0.75) if w["type"] == "T3" else (0.45, 0.40, 0.65), font="Inter-Medium")
+                    v.text(x0 - 0.12 if w["type"] != "T9" else x1 + 0.12, cy, w["id"], size=4.6, rot=90,
+                           color=(0.30, 0.45, 0.75) if w["type"] != "T9" else (0.45, 0.40, 0.65), font="Inter-Medium")
                 else:
                     v.text(cx, y0 - 0.12 if cy < 5 else y1 + 0.12, w["id"], size=4.6,
-                           color=(0.30, 0.45, 0.75) if w["type"] == "T3" else (0.45, 0.40, 0.65), font="Inter-Medium")
+                           color=(0.30, 0.45, 0.75) if w["type"] != "T9" else (0.45, 0.40, 0.65), font="Inter-Medium")
                 continue
             if L < 0.55 and M.is_rect(w["pts"]):
                 # μικρός τοίχος: η ετικέτα δίπλα του (δυτικά / βόρεια), χωρίς κουτί, για να μην τον κρύβει
