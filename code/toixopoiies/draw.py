@@ -24,6 +24,28 @@ class View:
     """Μετασχηματισμός μοντέλου (m, y προς νότο) → σελίδα (pt, y προς τα πάνω)."""
     def __init__(self, c, ox, oy, s):
         self.c, self.ox, self.oy, self.s = c, ox, oy, s
+        self.placed = []     # R36: ορθογώνια (m μοντέλου) κάθε κειμένου / ετικέτας που σχεδιάστηκε – για αποφυγή επικαλύψεων
+        self.dry = False     # True: τα κείμενα δεν σχεδιάζονται, μόνο επιστρέφουν το ορθογώνιό τους
+
+    def text_rect(self, x, y, s, size, font="Inter", anchor="c", rot=0):
+        w = pdfmetrics.stringWidth(s, font, size) / self.s + 0.04
+        h = (size + 2.0) / self.s
+        if anchor == "l":
+            cx = x + w / 2
+        elif anchor == "r":
+            cx = x - w / 2
+        else:
+            cx = x
+        if rot:
+            return (x - h / 2, y - w / 2, x + h / 2, y + w / 2)
+        return (cx - w / 2, y - h / 2, cx + w / 2, y + h / 2)
+
+    def free(self, r, margin=0.0):
+        x0, y0, x1, y1 = r
+        for a0, b0, a1, b1 in self.placed:
+            if x0 < a1 + margin and x1 > a0 - margin and y0 < b1 + margin and y1 > b0 - margin:
+                return False
+        return True
 
     def p(self, x, y):
         return self.ox + x * self.s, PAGE_H - (self.oy + y * self.s)
@@ -69,6 +91,10 @@ class View:
 
     def text(self, x, y, s, size=5, font="Inter", color=DARK, anchor="c", rot=0, dy=0, bg=False):
         """anchor: c / l / r (οριζόντια), κατακόρυφα κεντραρισμένο· rot 90 = κείμενο προς τα πάνω· bg: λευκό φόντο."""
+        r = self.text_rect(x, y, s, size, font, anchor, rot)
+        if self.dry:
+            return r
+        self.placed.append(r)
         c = self.c; X, Y = self.p(x, y)
         c.saveState(); c.translate(X, Y); c.rotate(rot)
         c.setFont(font, size); c.setFillColorRGB(*color)
@@ -79,6 +105,7 @@ class View:
             c.setFillColorRGB(*color)
         c.drawString(off, -size * 0.35 + dy, s)
         c.restoreState()
+        return r
 
     def text_w(self, s, size, font="Inter"):
         return pdfmetrics.stringWidth(s, font, size) / self.s
@@ -138,7 +165,13 @@ class View:
         c.restoreState()
 
     # ---- ετικέτα τοίχου
+    def label_rect(self, x, y, s, size=4.8, rot=0, font="Inter-SemiBold", pad=0.045):
+        w = pdfmetrics.stringWidth(s, font, size) / self.s + 2 * pad
+        h = (size + 2.0) / self.s
+        return (x - h / 2, y - w / 2, x + h / 2, y + w / 2) if rot else (x - w / 2, y - h / 2, x + w / 2, y + h / 2)
+
     def label(self, x, y, s, size=4.8, rot=0, font="Inter-SemiBold", pad=0.045):   # R35: έντονη γραμματοσειρά, ίδιο κουτί για κάθε τοίχο
+        self.placed.append(self.label_rect(x, y, s, size, rot, font, pad))
         c = self.c; X, Y = self.p(x, y)
         w = pdfmetrics.stringWidth(s, font, size) + 2 * pad * self.s
         h = size + 2.0
@@ -156,6 +189,16 @@ class View:
         pts = sorted(pts)
         c = self.c
         a, b = pts[0], pts[-1]
+        if self.dry:
+            rects = []
+            off = 0.10 * size / 5.0
+            for q0, q1 in zip(pts[:-1], pts[1:]):
+                L = q1 - q0; s_ = ("%.2f" % (L + 1e-6)).replace(".", ","); w = self.text_w(s_, size, font); mid = (q0 + q1) / 2
+                if orient == "H":
+                    rects.append(self.text_rect(mid, pos + side * off, s_, size, font) if w <= L - 0.04 else self.text_rect(mid, pos + side * (off + w / 2 + 0.02), s_, size, font, rot=90))
+                else:
+                    rects.append(self.text_rect(pos + side * off, mid, s_, size, font, rot=90) if w <= L - 0.04 else self.text_rect(pos + side * (off + 0.02), mid, s_, size, font))
+            return rects
         if orient == "H":
             self.line(a, pos, b, pos, color=color, lw=0.4)
         else:

@@ -108,7 +108,7 @@ def floor_table(c, M, left, top, width):
     return y - 20, grand * mult, tot * mult
 
 
-def sheet_t05(c, models, sheet_no="Τ-05", rev="", date="", K=None, total=None):
+def sheet_t05(c, models, sheet_no="Τ-05", rev="", date="", K=None, total=None, plans=None, types_no=None):
     """K: μεγέθυνση των πινάκων (μεγάλα γράμματα – το φύλλο αλλιώς μένει μισοάδειο)· με 3 ορόφους 1,05 ώστε να χωράνε οι στήλες."""
     if K is None:
         K = 1.32 if len(models) <= 2 else (1.05 if len(models) == 3 else (0.80 if len(models) == 4 else 0.66))
@@ -143,7 +143,7 @@ def sheet_t05(c, models, sheet_no="Τ-05", rev="", date="", K=None, total=None):
     names = " · ".join(getattr(M, "SHEET", dict(apt="Β1"))["apt"].upper() for M in models)
     n = len(models)
     # R25/Δ R02 (Γιάννης 07/11): κατόψεις Τ-01…Τ-0n · είδη ένα φύλλο Τ-0(n+1) · προμέτρηση Τ-0(n+2)
-    base = "Βάση: κατόψεις Τ-01…Τ-%02d · είδη Τ-%02d" % (n, n + 1)
+    base = "Βάση: κατόψεις %s · είδη %s" % (plans or "Τ-01…Τ-%02d" % n, types_no or "Τ-%02d" % (n + 1))
     frame_and_title(c, sheet_no, ("ΠΡΟΜΕΤΡΗΣΗ ΤΟΙΧΟΠΟΙΙΩΝ – " if n <= 3 else "ΠΡΟΜΕΤΡΗΣΗ – ") + names,
                     "Τετραγωνικά ανά τυπολογία τοίχου, χωριστά ανά όροφο", "θερμοπρόσοψη 10 / 5 cm",
                     base, "— · A3", rev, date, total=total)

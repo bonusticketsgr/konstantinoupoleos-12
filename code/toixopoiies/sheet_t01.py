@@ -417,6 +417,124 @@ def draw_window(v, poly, kind=None):
         # "D": μόνο κάσα – το φύλλο και το τόξο από τα DOORS
         a += Ls
 
+REFS = {"types": "Τ-06", "qty": "Τ-07", "walls": "Τ-08"}   # αριθμοί φύλλων για τις παραπομπές (τα θέτει το build_all)
+_BC = {}
+
+
+def _building_center():
+    k = id(M)
+    if k not in _BC:
+        bx0, by0, bx1, by1 = M.bbox([q for poly in M.COLS for q in poly] + [q for w_ in M.WALLS for q in w_["pts"]])
+        _BC[k] = ((bx0 + bx1) / 2, (by0 + by1) / 2)
+    return _BC[k]
+
+
+def jamb_linings():
+    """R36 (Γιάννης 27/11: «το αλουμίνιο θα πατήσει γυψοσανίδα, δε θέλω δόντι στο αλουμίνιο»): σε κάθε λαμπά κουφώματος που έχει δίπλα της
+    επένδυση Τ3 / Τ3Μ, η γυψοσανίδα ΓΥΡΙΖΕΙ μέσα στη λαμπά (1 φύλλο 12,5 σε κόλλα πάνω στο τούβλο / σκυρόδεμα) από την παρειά της επένδυσης
+    ως την εσωτερική παρειά της κάσας (κάσα 9 cm στον άξονα του τοίχου) – έτσι η κάσα πατά σε γυψοσανίδα και δεν μένει γυμνό τούβλο.
+    Επιστρέφει [(x0, y0, x1, y1), ...] σε m. Μόνο ορθογώνια κουφώματα (το λοξό W2.03 του Β1 είναι σε έρκερ Τ4 χωρίς Τ3)."""
+    out = []
+    clads = [w for w in M.WALLS if w["type"] in ("T3", "T3M") and M.is_rect(w["pts"])]
+    for poly in M.WINS:
+        if not M.is_rect(poly):
+            continue
+        x0, y0, x1, y1 = M.bbox(poly)
+        horiz = (x1 - x0) > (y1 - y0)
+        cen = (y0 + y1) / 2 if horiz else (x0 + x1) / 2
+        for w in clads:
+            a0, b0, a1, b1 = M.bbox(w["pts"])
+            if horiz:
+                side = None
+                touch = abs(b1 - y0) < 0.09 or abs(b0 - y1) < 0.09                  # η επένδυση κολλάει στην παρειά του τοίχου / της κολόνας του κουφώματος (Τ3 ως 8,5 cm με σκελετό σε απόσταση)
+                if abs(a1 - x0) < 0.015 and touch:     # επένδυση δυτικά του κουφώματος
+                    jx = x0; dx = +0.0125
+                elif abs(a0 - x1) < 0.015 and touch:   # ανατολικά
+                    jx = x1; dx = -0.0125
+                else:
+                    continue
+                if abs(b1 - y0) < 0.09:        # επένδυση στη βόρεια (−y) πλευρά → το σπίτι βόρεια
+                    face, frame = b0, cen - 0.045
+                else:
+                    face, frame = b1, cen + 0.045
+                out.append((min(jx, jx + dx), min(face, frame), max(jx, jx + dx), max(face, frame)))
+            else:
+                touch = abs(a1 - x0) < 0.09 or abs(a0 - x1) < 0.09
+                if abs(b1 - y0) < 0.015 and touch:
+                    jy = y0; dy = +0.0125
+                elif abs(b0 - y1) < 0.015 and touch:
+                    jy = y1; dy = -0.0125
+                else:
+                    continue
+                if abs(a1 - x0) < 0.09:
+                    face, frame = a0, cen - 0.045
+                else:
+                    face, frame = a1, cen + 0.045
+                out.append((min(face, frame), min(jy, jy + dy), max(face, frame), max(jy, jy + dy)))
+    return out
+
+
+def draw_jamb_linings(v):
+    fill = M.TYPES["T3"]["fill"]
+    for x0, y0, x1, y1 in jamb_linings():
+        v.poly([(x0, y0), (x1, y0), (x1, y1), (x0, y1)], fill=fill, stroke=DARK, lw=0.4)
+
+
+def _solid_rects(model):
+    """Ορθογώνια που δεν πρέπει να καλύπτει ετικέτα: σκυρόδεμα + τοίχοι ≥ 9 cm."""
+    k = ("solid", id(model))
+    if k not in _BC:
+        rs = [model.bbox(p) for p in model.COLS]
+        rs += [model.bbox(w["pts"]) for w in model.WALLS if model.TYPES[w["type"]]["thick"] >= 0.09]
+        _BC[k] = rs
+    return _BC[k]
+
+
+def _hits_solid(r, model, own):
+    x0, y0, x1, y1 = r
+    for a0, b0, a1, b1 in _solid_rects(model):
+        if (a0, b0, a1, b1) == own:
+            continue
+        if x0 < a1 - 0.01 and x1 > a0 + 0.01 and y0 < b1 - 0.01 and y1 > b0 + 0.01:
+            return True
+    return False
+
+
+def place_labels(v, walls, size=4.6):
+    """R36 (Γιάννης 27/11 «οι διαστάσεις και οι ετικέτες μην είναι πάνω στους τοίχους»): κάθε ετικέτα ΔΙΠΛΑ στον τοίχο της, παράλληλα,
+    σε θέση που (α) δεν πέφτει πάνω σε κείμενο / διάσταση / άλλη ετικέτα που έχει ήδη σχεδιαστεί, (β) δεν πέφτει πάνω σε σκυρόδεμα ή
+    τοίχο ≥ 9 cm. Δοκιμάζονται με τη σειρά: η θέση του LABEL_POS (αν υπάρχει) · δίπλα προς το κέντρο του κτηρίου · από την άλλη πλευρά ·
+    πιο μακριά · μετατοπισμένη κατά μήκος. Αν τίποτα δεν είναι ελεύθερο, μπαίνει δίπλα προς το κέντρο (και σημειώνεται στο qa_pdf)."""
+    bcx, bcy = _building_center()
+    for w in walls:
+        x0, y0, x1, y1 = M.bbox(w["pts"]); own = (x0, y0, x1, y1)
+        cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+        vertical = (y1 - y0) > (x1 - x0)
+        L = M.wall_length(w)
+        cands = []
+        if w["id"] in M.LABEL_POS:
+            px, py, pr, _ = M.LABEL_POS[w["id"]]
+            cands.append((px, py, pr))
+        shifts = [0.0] + [d for d in (0.25, -0.25, 0.5, -0.5, 0.8, -0.8, 1.2, -1.2) if abs(d) < max(L / 2, 0.55)]
+        for off in (0.13, 0.24, 0.36, 0.50):
+            for toward in (True, False):
+                for sh in shifts:
+                    if vertical:
+                        px = (x1 + off) if ((cx < bcx) == toward) else (x0 - off)
+                        cands.append((px, cy + sh, 90))
+                    else:
+                        py = (y1 + off) if ((cy < bcy) == toward) else (y0 - off)
+                        cands.append((cx + sh, py, 0))
+        chosen = None
+        for px, py, pr in cands:
+            r = v.label_rect(px, py, w["id"], size, pr)
+            if v.free(r, 0.01) and not _hits_solid(r, M, own):
+                chosen = (px, py, pr); break
+        if chosen is None:
+            chosen = cands[1] if len(cands) > 1 else cands[0]
+        v.label(chosen[0], chosen[1], w["id"], size=size, rot=chosen[2])
+
+
 def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_text=True, highlight=None):
     """Η κάτοψη. highlight: τύπος → μόνο αυτός χρωματιστός (για τα mini-plans του Τ-02)."""
     # δάπεδα εξωστών / βεραντών (μπεζ, όπως R14) – κάτω από τη γεωμετρία του περιβάλλοντος χώρου
@@ -518,35 +636,10 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
         draw_window(v, poly, kinds.get(i))
     if highlight:
         return
+    draw_jamb_linings(v)
     # πόρτες
     for h, l, j in M.DOORS:
         v.door(h, l, j, arc=(h != j))
-    # ετικέτες τοίχων – R35 (Γιάννης 27/11 «πιο επαγγελματικό και ευανάγνωστο με τις ετικέτες του»): ΟΛΕΣ οι ετικέτες ίδιες –
-    # κωδικός σε λευκό κουτί με περίγραμμα, ίδιο μέγεθος, κατά μήκος του τοίχου· οι λεπτές επενδύσεις (Τ3 / Τ3Μ / Τ9) και οι μικροί
-    # τοίχοι παίρνουν το κουτί ΔΙΠΛΑ τους (δεν τους κρύβει), στη θέση του LABEL_POS αν υπάρχει
-    if with_labels:
-        LS = 4.6
-        for w in M.WALLS:
-            cx, cy, rot, L = wall_label_pose(w)
-            if w["id"] in M.LABEL_POS:
-                x, y, r, plain = M.LABEL_POS[w["id"]]
-                v.label(x, y, w["id"], size=LS, rot=r)
-                continue
-            if w["type"] in ("T3", "T3M", "T9"):
-                x0, y0, x1, y1 = M.bbox(w["pts"])
-                if (y1 - y0) > (x1 - x0):
-                    v.label(x0 - 0.13 if w["type"] != "T9" else x1 + 0.13, cy, w["id"], size=LS, rot=90)
-                else:
-                    v.label(cx, y0 - 0.13 if cy < 5 else y1 + 0.13, w["id"], size=LS)
-                continue
-            if L < 0.55 and M.is_rect(w["pts"]):
-                x0, y0, x1, y1 = M.bbox(w["pts"])
-                if rot == 90:
-                    v.label(x0 - 0.13, cy, w["id"], size=LS, rot=90)
-                else:
-                    v.label(cx, y0 - 0.13, w["id"], size=LS)
-            else:
-                v.label(cx, cy, w["id"], size=LS, rot=rot)
     # διαστάσεις – R33: σχεδιάζονται ΠΡΙΝ από τα κείμενα των χώρων, ώστε τα ονόματα / εμβαδά (σε λευκό φόντο) να μένουν καθαρά
     if with_dims:
         for orient, pos, pts in M.DIMS_IN:
@@ -573,6 +666,9 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
         for ex, ey, es, er in getattr(M, "EXTRA_TEXTS", [(-1.47, 1.40, "αρχιτεκτονικό στοιχείο – σταθερό σύστημα σκίασης", 90),
                                                         (-1.52, 7.35, "ζαρντινιέρα", 90), (7.55, 11.90, "ζαρντινιέρα", 0)]):
             v.text(ex, ey, es, size=5.6, font="Inter-Medium", color=(0.40, 0.55, 0.40) if "ζαρντ" in es else GREY, rot=er, bg=True)
+    # ετικέτες τοίχων ΤΕΛΕΥΤΑΙΕΣ (R36): δίπλα στους τοίχους, σε θέση που δεν πέφτει πάνω σε διάσταση / κείμενο / άλλο τοίχο
+    if with_labels:
+        place_labels(v, M.WALLS)
 
 
 def wall_key(c, x, y, w=214):
@@ -592,7 +688,7 @@ def wall_key(c, x, y, w=214):
     c.saveState()
     c.setFillColorRGB(1, 1, 1); c.setStrokeColorRGB(*DARK); c.setLineWidth(0.5); c.rect(x, y, w, h, stroke=1, fill=1)
     c.setFont("Inter-SemiBold", 6.0); c.setFillColorRGB(*DARK); c.drawString(x + pad, y + h - 10, "ΥΠΟΜΝΗΜΑ ΤΟΙΧΟΠΟΙΙΩΝ")
-    c.setFont("Inter", 4.4); c.setFillColorRGB(*GREY); c.drawRightString(x + w - pad, y + h - 10, "τομές 1:4: Τ-06 · προμέτρηση: Τ-07 · ανά τοίχο: Τ-08")
+    c.setFont("Inter", 4.4); c.setFillColorRGB(*GREY); c.drawRightString(x + w - pad, y + h - 10, "τομές 1:4: %s · προμέτρηση: %s · ανά τοίχο: %s" % (REFS["types"], REFS["qty"], REFS["walls"]))
     c.setLineWidth(0.3); c.setStrokeColorRGB(0.70, 0.70, 0.72); c.line(x + pad, y + h - 14, x + w - pad, y + h - 14)
     for i, (fill, kind, tid, name, th) in enumerate(rows):
         yy = y + h - 14 - 2 - (i + 1) * rh

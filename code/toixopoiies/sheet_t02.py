@@ -183,7 +183,7 @@ def card_all(c, x, y, w, h, typ, per_floor, mdf=None):
     c.drawRightString(x + w - 8, yy, ("%.2f m · %.1f m²" % (tot_L, tot_A)).replace(".", ","))
 
 
-def sheet_t02_all(c, models, sheet_no, rev, date, total=None):
+def sheet_t02_all(c, models, sheet_no, rev, date, total=None, plans=None):
     """Όλα τα είδη του τεύχους σε ΜΙΑ σελίδα (3 σειρές καρτών – 5 / 6 / 5 με τα 16 είδη), με μήκη / m² ανά όροφο."""
     global M
     rows = {}   # typ → [(apt, L, area)]
@@ -221,4 +221,4 @@ def sheet_t02_all(c, models, sheet_no, rev, date, total=None):
     names = " · ".join(getattr(mdl, "SHEET", dict(apt="Β1"))["apt"].upper() for mdl in models)
     frame_and_title(c, sheet_no, "ΕΙΔΗ ΤΟΙΧΟΠΟΙΙΩΝ – ΟΛΟΙ ΟΙ ΟΡΟΦΟΙ", "Είδη τοιχοποιιών · " + names,
                     "τομές 1:4 · μήκη – εμβαδά ανά είδος και όροφο",
-                    "Βάση: κατόψεις Τ-01…Τ-%02d" % len(models), "Κλίμακα 1:4 · A3", rev, date, total=total)
+                    "Βάση: κατόψεις " + (plans or "Τ-01…Τ-%02d" % len(models)), "Κλίμακα 1:4 · A3", rev, date, total=total)

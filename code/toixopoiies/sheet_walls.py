@@ -108,7 +108,7 @@ def n_pages(models):
     return len(paginate(models))
 
 
-def sheet_walls(c, models, first_no=8, rev="", date="", total=None):
+def sheet_walls(c, models, first_no=8, rev="", date="", total=None, plans="Τ-01…Τ-05", types_no="Τ-06", qty_no="Τ-07"):
     """Σχεδιάζει όλα τα φύλλα «ανά τοίχο» (showPage ανάμεσα). Επιστρέφει πόσα φύλλα έγραψε."""
     pages = paginate(models)
     gap = 18
@@ -119,7 +119,7 @@ def sheet_walls(c, models, first_no=8, rev="", date="", total=None):
         c.setFont("Inter-Bold", 13); c.setFillColorRGB(*DARK)
         c.drawString(MARG, PAGE_H - 20 - 22, "ΤΕΤΡΑΓΩΝΙΚΑ ΑΝΑ ΤΟΙΧΟ" + (" (συνέχεια)" if pi else ""))
         c.setFont("Inter", 6.6); c.setFillColorRGB(*GREY)
-        c.drawString(MARG + 190, PAGE_H - 20 - 22, "m² = μήκος στον άξονα × ύψος ορόφου (πλάκα με πλάκα), χωρίς αφαίρεση κουφωμάτων · ίδια βάση με το Τ-07 · αρίθμηση τοίχων όπως οι κατόψεις")
+        c.drawString(MARG + 190, PAGE_H - 20 - 22, "m² = μήκος στον άξονα × ύψος ορόφου (πλάκα με πλάκα), χωρίς αφαίρεση κουφωμάτων · ίδια βάση με το " + qty_no + " · αρίθμηση τοίχων όπως οι κατόψεις")
         if pi == len(pages) - 1:
             c.setFont("Inter-Bold", 8); c.setFillColorRGB(*DARK)
             c.drawRightString(PAGE_W - MARG, PAGE_H - 20 - 22, "ΟΛΟ ΤΟ ΚΤΗΡΙΟ: " + f2(grand, 1) + " m² τοιχοποιίες")
@@ -142,6 +142,6 @@ def sheet_walls(c, models, first_no=8, rev="", date="", total=None):
         no = "Τ-%02d" % (first_no + pi)
         frame_and_title(c, no, "ΠΡΟΜΕΤΡΗΣΗ ΑΝΑ ΤΟΙΧΟ – " + names + ("  (%d/%d)" % (pi + 1, len(pages)) if len(pages) > 1 else ""),
                         "Τετραγωνικά κάθε τοίχου, ανά όροφο και είδος", "μήκος στον άξονα × ύψος ορόφου",
-                        "Βάση: κατόψεις Τ-01…Τ-05 · είδη Τ-06 · σύνολα Τ-07", "— · A3", rev, date, total=total)
+                        "Βάση: κατόψεις %s · είδη %s · σύνολα %s" % (plans, types_no, qty_no), "— · A3", rev, date, total=total)
         c.showPage()
     return len(pages)
