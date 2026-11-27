@@ -106,7 +106,7 @@ class View:
                 k += spacing
         c.restoreState()
 
-    def brick(self, pts, course=0.065, brick_len=0.13, color=(0.42, 0.42, 0.45), lw=0.25):   # R35: αρμοί σε γκρι (ήταν καφέ)
+    def brick(self, pts, course=0.065, brick_len=0.13, color=(0.55, 0.30, 0.20), lw=0.25):
         """Τούβλα: οριζόντιες στρώσεις + κατακόρυφοι αρμοί σε δρομική διάταξη (κατά τον άξονα)."""
         xs = [p[0] for p in pts]; ys = [p[1] for p in pts]
         x0, y0, x1, y1 = min(xs), min(ys), max(xs), max(ys)
@@ -138,10 +138,10 @@ class View:
         c.restoreState()
 
     # ---- ετικέτα τοίχου
-    def label(self, x, y, s, size=4.8, rot=0, font="Inter-Medium", pad=0.05):
+    def label(self, x, y, s, size=4.8, rot=0, font="Inter-SemiBold", pad=0.045):   # R35: έντονη γραμματοσειρά, ίδιο κουτί για κάθε τοίχο
         c = self.c; X, Y = self.p(x, y)
         w = pdfmetrics.stringWidth(s, font, size) + 2 * pad * self.s
-        h = size + 2.2
+        h = size + 2.0
         c.saveState(); c.translate(X, Y); c.rotate(rot)
         c.setFillColorRGB(1, 1, 1); c.setStrokeColorRGB(*DARK); c.setLineWidth(0.3)
         c.rect(-w / 2, -h / 2, w, h, stroke=1, fill=1)

@@ -95,11 +95,7 @@ def draw_site(v):
         return
     import json
     k = S.get("fade", 0.5)
-    def _grey(rgb):   # R35: ό,τι χρώμα έχει ο αρχιτέκτονας → φωτεινότητα → αχνό γκρι
-        lum = 0.30 * rgb[0] + 0.59 * rgb[1] + 0.11 * rgb[2]
-        g = 1 - (1 - lum) * k
-        return (g, g, g)
-    _draw_paths(v, json.load(open(S["json"])), _grey, clip_building=S["building"])
+    _draw_paths(v, json.load(open(S["json"])), lambda rgb: tuple(1 - (1 - ch) * k for ch in rgb), clip_building=S["building"])
 
 
 def draw_furn(v):
@@ -372,8 +368,6 @@ def draw_core(v):
 
 ALU = (0.30, 0.30, 0.34)        # προφίλ αλουμινίου (κάσα / ορθοστάτες φύλλων)
 LEAF = (0.86, 0.86, 0.88)       # σώμα φύλλου
-GLASS = (0.25, 0.25, 0.28)      # R35: τζάμι ως λεπτή σκούρα γραμμή (ήταν μπλε)
-CLAD_LAB = (0.32, 0.32, 0.36)   # R35: ετικέτες επενδύσεων Τ3 / Τ3Μ / Τ9 (ήταν μπλε / μωβ)
 
 
 def draw_window(v, poly, kind=None):
@@ -408,18 +402,18 @@ def draw_window(v, poly, kind=None):
         R(a, -d / 2, a + Ls, d / 2, fill=None, stroke=DARK, lw=0.35)
         R(a, -d / 2, a + J, d / 2, fill=ALU, stroke=None); R(a + Ls - J, -d / 2, a + Ls, d / 2, fill=ALU, stroke=None)
         if k == "F":
-            Ln(a + J, 0, a + Ls - J, 0, color=GLASS, lw=0.7)
+            Ln(a + J, 0, a + Ls - J, 0, color=BLUE, lw=0.7)
         elif k == "C1":
             R(a + J, -d / 2 + 0.015, a + Ls - J, d / 2 - 0.015, fill=LEAF, stroke=DARK, lw=0.3)
             R(a + J, -d / 2 + 0.015, a + J + 0.04, d / 2 - 0.015, fill=ALU, stroke=None)
             R(a + Ls - J - 0.04, -d / 2 + 0.015, a + Ls - J, d / 2 - 0.015, fill=ALU, stroke=None)
-            Ln(a + J + 0.04, 0, a + Ls - J - 0.04, 0, color=GLASS, lw=0.7)
+            Ln(a + J + 0.04, 0, a + Ls - J - 0.04, 0, color=BLUE, lw=0.7)
         elif k == "S2":
             m = a + Ls / 2; h = d / 2 - 0.012
             for (s0, s1, b0, b1) in ((a + J, m + 0.03, -h, -0.004), (m - 0.03, a + Ls - J, 0.004, h)):
                 R(s0, b0, s1, b1, fill=LEAF, stroke=DARK, lw=0.3)
                 R(s0, b0, s0 + 0.04, b1, fill=ALU, stroke=None); R(s1 - 0.04, b0, s1, b1, fill=ALU, stroke=None)
-                Ln(s0 + 0.04, (b0 + b1) / 2, s1 - 0.04, (b0 + b1) / 2, color=GLASS, lw=0.7)
+                Ln(s0 + 0.04, (b0 + b1) / 2, s1 - 0.04, (b0 + b1) / 2, color=BLUE, lw=0.7)
         # "D": μόνο κάσα – το φύλλο και το τόξο από τα DOORS
         a += Ls
 
@@ -428,26 +422,26 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
     # δάπεδα εξωστών / βεραντών (μπεζ, όπως R14) – κάτω από τη γεωμετρία του περιβάλλοντος χώρου
     if with_furniture:
         for poly in M.FLOORS:
-            v.poly(poly, fill=(0.965, 0.965, 0.97))   # R35: ουδέτερο ανοιχτό γκρι (ήταν μπεζ)
+            v.poly(poly, fill=(0.975, 0.97, 0.95))
     if with_furniture and not highlight:
         draw_site(v)
     # θερμοπρόσοψη: 10 cm διαμερίσματα · 5 cm πυρήνας
-    # R35: η θερμοπρόσοψη ΧΩΡΙΣ χρώμα – ανοιχτό γκρι με αραιή διαγράμμιση 45° και λεπτό περίγραμμα (δεν είναι «κομμένο» στοιχείο)
-    for poly in list(M.ETICS) + list(M.ETICS5):
+    for poly in M.ETICS:
         v.poly(poly, fill=M.ETICS_FILL if not highlight else (0.96, 0.96, 0.96),
-               stroke=(0.55, 0.55, 0.58) if not highlight else LIGHT, lw=0.3)
-        if not highlight:
-            v.hatch(poly, 0.16, 45, (0.70, 0.70, 0.73), 0.25)
+               stroke=(0.60, 0.50, 0.25) if not highlight else LIGHT, lw=0.3)      # R32: λεπτότερο περίγραμμα – η θερμοπρόσοψη δεν είναι «κομμένο» στοιχείο
+    for poly in M.ETICS5:
+        v.poly(poly, fill=M.ETICS5_FILL if not highlight else (0.96, 0.96, 0.96),
+               stroke=(0.60, 0.50, 0.25) if not highlight else LIGHT, lw=0.3)
     if with_text and not highlight:
         for lx, ly, lrot in getattr(M, "ETICS5_LABELS", [(12.45, 2.82, 0), (13.52, 6.70, 90)]):
-            v.text(lx, ly, "ETICS 5 cm", size=3.8, color=GREY, font="Inter-Medium", rot=lrot)
+            v.text(lx, ly, "ETICS 5 cm", size=3.8, color=(0.55, 0.45, 0.20), font="Inter-Medium", rot=lrot)
     # εξώστες, κάγκελα, ζαρντινιέρες, σκίαστρο (από R14)
     if with_furniture:
         draw_strokes(v, "(0.3, 0.3, 0.34)|0.60", (0.30, 0.30, 0.34), 0.6)
         draw_strokes(v, "(0.4, 0.4, 0.44)|0.70", (0.40, 0.40, 0.44), 0.7)
         draw_strokes(v, "(0.55, 0.55, 0.58)|0.50", (0.55, 0.55, 0.58), 0.5)
         draw_strokes(v, "(0.1, 0.11, 0.13)|1.10", DARK, 1.1)
-        draw_strokes(v, "(0.5, 0.62, 0.5)|0.40", (0.58, 0.58, 0.60), 0.4)   # R35: ζαρντινιέρες / φυτεύσεις σε γκρι
+        draw_strokes(v, "(0.5, 0.62, 0.5)|0.40", (0.50, 0.62, 0.50), 0.4)
         # έπιπλα αχνά (εκτός μασκών) + εξοπλισμός EPIPLA
         draw_strokes(v, "(0.8, 0.8, 0.82)|0.30", LIGHT, 0.3, masks=M.FURN_MASKS)
         draw_strokes(v, "(0.72, 0.72, 0.75)|0.35", (0.72, 0.72, 0.75), 0.35, masks=M.FURN_MASKS)
@@ -480,19 +474,19 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
                 continue
             sx0, sy0, sx1, sy1 = b["shower"]
             for (ax, ay, bx, by) in [(sx0, sy0, sx1, sy0), (sx1, sy0, sx1, sy1), (sx1, sy1, sx0, sy1), (sx0, sy1, sx0, sy0)]:
-                v.line(ax, ay, bx, by, color=(0.62, 0.62, 0.66), lw=0.4, dash=[2, 1.5])
+                v.line(ax, ay, bx, by, color=(0.60, 0.65, 0.75), lw=0.4, dash=[2, 1.5])
             (x0, y0), (x1, y1) = b["screen"]
-            v.line(x0, y0, x1, y1, color=(0.30, 0.30, 0.34), lw=1.2)
+            v.line(x0, y0, x1, y1, color=(0.30, 0.40, 0.60), lw=1.2)
             if with_text:
                 gl = b["glass_label"]
-                v.text(gl[0], gl[1], "γυαλί 0,70", size=4.2, color=GREY, rot=0 if y0 == y1 else 90)
+                v.text(gl[0], gl[1], "γυαλί 0,70", size=4.2, color=(0.30, 0.40, 0.60), rot=0 if y0 == y1 else 90)
                 v.text(b["shower_label"][0], b["shower_label"][1], "ΝΤΟΥΣ", size=4.6, color=GREY, font="Inter-Medium")
                 v.text(b["shower_label"][0], b["shower_label"][1] + 0.16, b["shower_dim"], size=4.0, color=GREY)
     # κολόνες / τοιχεία
     for poly in M.COLS:
         v.poly(poly, fill=M.COL_FILL if not highlight else (0.80, 0.80, 0.82), stroke=DARK, lw=0.85 if not highlight else 0.6)   # R32: ιεραρχία γραμμών – σκυρόδεμα η πιο έντονη
         if not highlight:
-            v.hatch(poly, 0.075, 45, (0.70, 0.70, 0.73), 0.3)
+            v.hatch(poly, 0.075, 45, (0.75, 0.75, 0.78), 0.3)
     for poly in M.COLS2:   # στηθαία εξωστών: λεπτή σκούρα λωρίδα 5 cm στην εξωτερική ακμή (γυάλινο στηθαίο)
         if highlight:
             continue
@@ -514,7 +508,7 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
         v.poly(w["pts"], fill=t["fill"], stroke=DARK, lw=(0.75 if t["thick"] >= 0.09 else 0.55) if not highlight else 0.4)   # R32: κομμένοι τοίχοι έντονοι, λεπτές επενδύσεις πιο ανάλαφρες
         if not highlight and w["type"] in ("T1", "T4", "T4A", "T5"):
             v.brick(w["pts"], course=0.062 if w["type"] not in ("T4", "T4A") else 0.05,
-                    brick_len=0.13 if w["type"] not in ("T4", "T4A") else 0.10, color=getattr(M, "BRICK_JOINT", (0.42, 0.42, 0.45)))
+                    brick_len=0.13 if w["type"] not in ("T4", "T4A") else 0.10)
     # κουφώματα αλουμινίου (R13/R24/R03, Γιάννης 07/11: «να δείχνεις με καλύτερο τρόπο τα αλουμίνια, τώρα είναι σαν τζάμια»)
     kinds = getattr(M, "WIN_KINDS", {})
     for i, poly in enumerate(M.WINS, 1):
@@ -527,37 +521,32 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
     # πόρτες
     for h, l, j in M.DOORS:
         v.door(h, l, j, arc=(h != j))
-    # ετικέτες τοίχων
+    # ετικέτες τοίχων – R35 (Γιάννης 27/11 «πιο επαγγελματικό και ευανάγνωστο με τις ετικέτες του»): ΟΛΕΣ οι ετικέτες ίδιες –
+    # κωδικός σε λευκό κουτί με περίγραμμα, ίδιο μέγεθος, κατά μήκος του τοίχου· οι λεπτές επενδύσεις (Τ3 / Τ3Μ / Τ9) και οι μικροί
+    # τοίχοι παίρνουν το κουτί ΔΙΠΛΑ τους (δεν τους κρύβει), στη θέση του LABEL_POS αν υπάρχει
     if with_labels:
+        LS = 4.6
         for w in M.WALLS:
             cx, cy, rot, L = wall_label_pose(w)
             if w["id"] in M.LABEL_POS:
                 x, y, r, plain = M.LABEL_POS[w["id"]]
-                col = CLAD_LAB if w["type"] in ("T3", "T3M", "T9") else DARK   # R35: χωρίς μπλε / μωβ
-                if plain or w["type"] in ("T3", "T3M", "T9"):
-                    v.text(x, y, w["id"], size=4.2, rot=r, color=col, font="Inter-Medium")
-                else:
-                    v.label(x, y, w["id"], rot=r)
+                v.label(x, y, w["id"], size=LS, rot=r)
                 continue
             if w["type"] in ("T3", "T3M", "T9"):
-                # επενδύσεις: λεπτές – ετικέτα μπλε χωρίς κουτί, δίπλα στον τοίχο
                 x0, y0, x1, y1 = M.bbox(w["pts"])
                 if (y1 - y0) > (x1 - x0):
-                    v.text(x0 - 0.12 if w["type"] != "T9" else x1 + 0.12, cy, w["id"], size=4.6, rot=90,
-                           color=CLAD_LAB, font="Inter-Medium")
+                    v.label(x0 - 0.13 if w["type"] != "T9" else x1 + 0.13, cy, w["id"], size=LS, rot=90)
                 else:
-                    v.text(cx, y0 - 0.12 if cy < 5 else y1 + 0.12, w["id"], size=4.6,
-                           color=CLAD_LAB, font="Inter-Medium")
+                    v.label(cx, y0 - 0.13 if cy < 5 else y1 + 0.13, w["id"], size=LS)
                 continue
             if L < 0.55 and M.is_rect(w["pts"]):
-                # μικρός τοίχος: η ετικέτα δίπλα του (δυτικά / βόρεια), χωρίς κουτί, για να μην τον κρύβει
                 x0, y0, x1, y1 = M.bbox(w["pts"])
                 if rot == 90:
-                    v.text(x0 - 0.10, cy, w["id"], size=3.8, rot=90, font="Inter-Medium")
+                    v.label(x0 - 0.13, cy, w["id"], size=LS, rot=90)
                 else:
-                    v.text(cx, y0 - 0.10, w["id"], size=3.8, font="Inter-Medium")
+                    v.label(cx, y0 - 0.13, w["id"], size=LS)
             else:
-                v.label(cx, cy, w["id"], rot=rot)
+                v.label(cx, cy, w["id"], size=LS, rot=rot)
     # διαστάσεις – R33: σχεδιάζονται ΠΡΙΝ από τα κείμενα των χώρων, ώστε τα ονόματα / εμβαδά (σε λευκό φόντο) να μένουν καθαρά
     if with_dims:
         for orient, pos, pts in M.DIMS_IN:
@@ -580,10 +569,10 @@ def draw_plan(v, with_labels=True, with_dims=True, with_furniture=True, with_tex
                 v.text(x, y + 0.22, area, size=5.6, color=(0.40, 0.40, 0.45), bg=True)
         for lab, dim, (x, y) in M.WINDOWS:
             v.text(x, y, "%s  %s" % (lab, dim), size=5.2 if lab != "W2.07" else 4.4, font="Inter-Medium",
-                   color=DARK, anchor="l", bg=True)
+                   color=(0.30, 0.45, 0.75), anchor="l", bg=True)
         for ex, ey, es, er in getattr(M, "EXTRA_TEXTS", [(-1.47, 1.40, "αρχιτεκτονικό στοιχείο – σταθερό σύστημα σκίασης", 90),
                                                         (-1.52, 7.35, "ζαρντινιέρα", 90), (7.55, 11.90, "ζαρντινιέρα", 0)]):
-            v.text(ex, ey, es, size=5.6, font="Inter-Medium", color=GREY, rot=er, bg=True)
+            v.text(ex, ey, es, size=5.6, font="Inter-Medium", color=(0.40, 0.55, 0.40) if "ζαρντ" in es else GREY, rot=er, bg=True)
 
 
 def wall_key(c, x, y, w=214):
@@ -594,8 +583,10 @@ def wall_key(c, x, y, w=214):
     rows = [(M.TYPES[t]["fill"], "brick" if t in ("T1", "T4", "T4A", "T5", "T10") else "flat", t,
              M.TYPES[t]["name"], ("%g" % round(M.TYPES[t]["thick"] * 100, 2)).replace(".", ",") + " cm") for t in used]
     rows.append((M.COL_FILL, "conc", "", "Σκυρόδεμα (υποστυλώματα · τοιχεία) – δεν αγγίζεται", ""))
-    if M.ETICS or getattr(M, "ETICS5", None):   # R35: μία γραμμή – ίδιο υλικό, ξεχωρίζει από το πάχος στο σχέδιο
-        rows.append((M.ETICS_FILL, "etics", "", "Θερμοπρόσοψη ETICS (10 διαμερίσματα · 5 πυρήνας)", "10 / 5 cm"))
+    if M.ETICS:
+        rows.append((M.ETICS_FILL, "flat", "", "Θερμοπρόσοψη ETICS 10 cm (διαμερίσματα)", "10 cm"))
+    if getattr(M, "ETICS5", None):
+        rows.append((M.ETICS5_FILL, "flat", "", "Θερμοπρόσοψη ETICS 5 cm (κλιμακοστάσιο / πυρήνας)", "5 cm"))
     rh, pad = 8.6, 6
     h = 14 + rh * len(rows) + pad + 8
     c.saveState()
@@ -608,7 +599,7 @@ def wall_key(c, x, y, w=214):
         sx, sy, sw, sh = x + pad, yy + 1.2, 13, rh - 2.4
         c.setFillColorRGB(*fill); c.setStrokeColorRGB(*DARK); c.setLineWidth(0.35); c.rect(sx, sy, sw, sh, stroke=1, fill=1)
         if kind == "brick":           # αρμοί τούβλων
-            c.setStrokeColorRGB(*getattr(M, "BRICK_JOINT", (0.42, 0.42, 0.45))); c.setLineWidth(0.2)
+            c.setStrokeColorRGB(0.55, 0.30, 0.20); c.setLineWidth(0.2)
             for k in range(1, 3):
                 c.line(sx, sy + sh * k / 3, sx + sw, sy + sh * k / 3)
             for k in range(1, 4):
@@ -616,12 +607,11 @@ def wall_key(c, x, y, w=214):
             c.line(sx + sw / 8, sy + sh / 3, sx + sw / 8, sy + 2 * sh / 3)
             for k in range(1, 4):
                 c.line(sx + sw * (2 * k + 1) / 8, sy + sh / 3, sx + sw * (2 * k + 1) / 8, sy + 2 * sh / 3)
-        elif kind in ("conc", "etics"):   # διαγράμμιση σκυροδέματος (πυκνή) / θερμοπρόσοψης (αραιή, R35)
+        elif kind == "conc":          # διαγράμμιση σκυροδέματος
             c.saveState(); p_ = c.beginPath(); p_.rect(sx, sy, sw, sh); c.clipPath(p_, stroke=0, fill=0)
-            c.setStrokeColorRGB(*((0.70, 0.70, 0.73))); c.setLineWidth(0.3 if kind == "conc" else 0.25)
-            st = 3.5 if kind == "conc" else 6.0
+            c.setStrokeColorRGB(0.75, 0.75, 0.78); c.setLineWidth(0.3)
             for k in range(-3, 8):
-                c.line(sx + k * st, sy, sx + k * st + sh, sy + sh)
+                c.line(sx + k * 3.5, sy, sx + k * 3.5 + sh, sy + sh)
             c.restoreState()
         c.setFillColorRGB(*DARK)
         if tid:
