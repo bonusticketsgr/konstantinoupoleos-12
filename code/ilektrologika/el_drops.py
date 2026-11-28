@@ -250,6 +250,8 @@ def draw(d, x, ytop, w, h):
             SH._path(sc, [(xo + s2 * 0.20, ZS - 0.045), (xo, ZS - 0.045), (xo, M.ZO), (hc, M.ZO), (hc, Z0 + 0.03)], lw=1.5)
             sc.text(xo + s2 * 0.03, M.ZO - 0.015, "+" + G.fmt(M.ZO), size=4.8, font="Inter-Bold", color=SH.CABLE, anchor="l" if s2 > 0 else "r")
     yy = ytop - 22 - sh - 9
+    if not M.SHOW_NOTES:                                        # R20: μόνο η τομή – χωρίς το κείμενο «από πού μπαίνει»
+        return yy
     vcol = NO if dec else (GO if m in ("top", "side") else (0.75, 0.42, 0.05))
     yv = D.para(x, yy, ("ΟΧΙ ΑΠΟ ΠΑΝΩ → " if m not in ("top", "side") else "") + vd, w - 10, size=5.5, font="Inter-Bold", color=vcol if ok else NO)
     yb = D.para(x, yv + 1.0, d["txt"], w - 8, size=5.3)

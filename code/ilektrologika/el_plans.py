@@ -108,6 +108,8 @@ SW_LAB = {"Δ1": (-0.62, -0.02), "Δ3": (-0.72, 0.04), "Δ2": (0.10, 0.50), "Δ4
 def sockets(v, labels=False, faint=False, circ=False):
     col = (0.90, 0.60, 0.60) if faint else PWR
     for s in M.SOCKETS:
+        if not M.drawn(s[0]):
+            continue
         opt = _opt(s, 10)
         lab = None
         if labels:
@@ -116,6 +118,8 @@ def sockets(v, labels=False, faint=False, circ=False):
             D.fixed_out(v, s[1], s[2], s[3], col=col, lab=lab, lab_off=SOCK_LAB.get(s[0], opt.get("lab_off")))
         else:
             D.socket(v, s[1], s[2], s[3], n=s[4], col=col, kind=s[5], lab=lab, lab_off=SOCK_LAB.get(s[0], opt.get("lab_off")))
+    if not M.SHOW_HVAC:                                         # R20: παροχές μηχανημάτων στο φύλλο κλιματισμού
+        return
     for f in M.FIXED:
         D.fixed_out(v, f[1], f[2], f[3], col=HVC if not faint else (0.78, 0.68, 0.88), lab=f[0] if labels else None, lab_off=FIX_LAB.get(f[0]))
     for f in M.FIXED_FREE:
@@ -166,6 +170,8 @@ def detectors(v, labels=False, ring=False, faint=False):
 
 
 def thermostats(v, labels=False, faint=False):
+    if not M.SHOW_HVAC:                                         # R20: θερμοστάτες, χειριστήριο, συλλέκτης στο φύλλο ενδοδαπέδιας / κλιματισμού
+        return
     col = (0.50, 0.74, 0.82) if faint else AUT
     for t in M.THERMOSTATS:
         D.wall_dev(v, t[1], t[2], t[3], "Θ", col=col, lab=t[0] if labels else None, lab_off=TH_LAB.get(t[0]), off=_opt(t, 7).get("off", 0.0))
@@ -178,6 +184,8 @@ TH_LAB = {"Θ1": (-0.10, 0.44), "Θ2": (0.02, -0.44), "Θ3": (0.0, -0.44), "Θ4"
 
 
 def ac_units(v, labels=False, faint=False):
+    if not M.SHOW_HVAC:
+        return
     col = (0.78, 0.68, 0.88) if faint else HVC
     for u in A.UNITS:
         D.unit_rect(v, u["rect"], col=col, lab=u["id"] if labels else None, dashed=True)
@@ -203,7 +211,7 @@ def _leg():
     L["e_usb"] = ("Διπλός ρευματοδότης με φόρτιση USB-C", lambda v: D.socket(v, 0.21, 0.06, "N", n=2, kind="usb"))
     L["e_sockip"] = ("Ρευματοδότης στεγανός IP44 (λουτρό) / IP55 (εξώστης)", lambda v: D.socket(v, 0.21, 0.06, "N", kind="ip"))
     L["e_ded"] = ("Ρευματοδότης αποκλειστικής γραμμής (συσκευή)", lambda v: D.socket(v, 0.21, 0.06, "N", kind="ded"))
-    L["e_fix"] = ("Μόνιμη παροχή – έξοδος καλωδίου (εστίες, πετσετοκρεμάστρα, κέντρο ζωνών)", lambda v: D.fixed_out(v, 0.21, 0.07, "N"))
+    L["e_fix"] = ("Μόνιμη παροχή – έξοδος καλωδίου (εστίες, πετσετοκρεμάστρα)", lambda v: D.fixed_out(v, 0.21, 0.07, "N"))
     L["e_fixm"] = ("Παροχή μηχανήματος κλιματισμού / διακόπτης απομόνωσης", lambda v: D.fixed_out(v, 0.21, 0.07, "N", col=HVC))
     L["e_sw"] = ("Διακόπτης απλός – ένα στέλεχος ανά πλήκτρο, ύψος 1,10", lambda v: D.switch(v, 0.16, 0.09, "N", ("1",)))
     L["e_sw2"] = ("Αλέ-ρετούρ (σημαία και στα δύο άκρα)", lambda v: D.switch(v, 0.16, 0.09, "N", ("2",)))

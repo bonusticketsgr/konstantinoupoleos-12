@@ -39,7 +39,7 @@ def _hit(a, b):
 
 
 def _points():
-    pts = [(s[0], s[1], s[2], s[3], PWR) for s in M.SOCKETS] + [(s[0], s[1], s[2], s[3], SWC) for s in M.SWITCHES]
+    pts = [(s[0], s[1], s[2], s[3], PWR) for s in M.SOCKETS if M.drawn(s[0])] + [(s[0], s[1], s[2], s[3], SWC) for s in M.SWITCHES]
     return pts
 
 
@@ -93,6 +93,8 @@ def sheet(no="ΠΔ-01"):
             c.saveState(); c.setStrokeColorRGB(1, 1, 1); c.setLineWidth(1.8); c.line(X0, Y0, X1, Y1)
             c.setStrokeColorRGB(*col); c.setLineWidth(0.55); c.line(X0, Y0, X1, Y1); c.restoreState()
         for s in M.SOCKETS:                              # σύμβολα
+            if not M.drawn(s[0]):
+                continue
             if s[5] == "fix":
                 D.fixed_out(v, s[1], s[2], s[3], col=PWR)
             else:
@@ -109,12 +111,15 @@ def sheet(no="ΠΔ-01"):
 
     # ------------------------------------------------ δεξιά στήλη: λίστα ανά χώρο
     y = 800.0
-    y = P._head(y, "ΠΩΣ ΜΟΥ ΑΠΑΝΤΑΣ") or y
-    y = _para(y, "Γράψε μου τον αριθμό και τι θες, π.χ.:  Π05 οκ · Π23 όχι · Π41 πιο αριστερά · Δ3 να πάει δίπλα στην πόρτα · «θέλω και μία πρίζα στο …».", 5.9)
-    y = _para(y - 2, "Κόκκινο Π = πρίζα · μπλε Δ = διακόπτης. Ίδιοι αριθμοί με το τεύχος %s. Ύψος = από το τελικό δάπεδο ως τη μέση του κουτιού." % M.REV, 5.4, MUTE)
+    if M.SHOW_NOTES:
+        y = P._head(y, "ΠΩΣ ΜΟΥ ΑΠΑΝΤΑΣ") or y
+        y = _para(y, "Γράψε μου τον αριθμό και τι θες, π.χ.:  Π05 οκ · Π23 όχι · Π41 πιο αριστερά · Δ3 να πάει δίπλα στην πόρτα · «θέλω και μία πρίζα στο …».", 5.9)
+        y = _para(y - 2, "Κόκκινο Π = πρίζα · μπλε Δ = διακόπτης. Ίδιοι αριθμοί με το τεύχος %s. Ύψος = από το τελικό δάπεδο ως τη μέση του κουτιού." % M.REV, 5.4, MUTE)
+    else:
+        y -= 12
     rows, colors = [], {}
     for code, name in ROOMS:
-        ss = [s for s in M.SOCKETS if s[8] == code]
+        ss = [s for s in M.SOCKETS if s[8] == code and M.drawn(s[0])]
         if not ss:
             continue
         colors[len(rows)] = (0.90, 0.90, 0.92)
@@ -141,10 +146,12 @@ def sheet(no="ΠΔ-01"):
             keys.append(G_TXT[g] + (" (%s)" % " · ".join(ex) if ex else ""))
         rows.append([(s[0], dict(color=SWC, font="Inter-Bold")), _short(s[6]) + ":  " + "  |  ".join(keys), SH.fz(h)])
     y = D.table(P.PX - 4, y - 7, [26, P.PW - 26 - 26 + 8, 26], rows, head=["ΔΙΑΚ.", "ΠΟΥ ΕΙΝΑΙ:  ΤΙ ΑΝΑΒΕΙ ΚΑΘΕ ΠΛΗΚΤΡΟ", "ΥΨΟΣ"], size=5.7, lead=6.7, pad=1.4, aligns={2: "r"})
-    y = _para(y - 8, "Δεν φαίνονται εδώ (είναι στο τεύχος): φώτα, θερμοστάτες, θυροτηλεόραση, πρίζες internet / TV, παροχές κλιματιστικών και αντλίας "
-                     "θερμότητας. Πορτοκαλί κύκλοι στους εξώστες = φώτα οροφής εξωστών · Μ = παροχή μοτέρ ρολού (ψηλά στην παραστάδα).", 5.4, MUTE)
+    if M.SHOW_NOTES:
+        y = _para(y - 8, "Δεν φαίνονται εδώ (είναι στο τεύχος): φώτα, θερμοστάτες, θυροτηλεόραση, πρίζες internet / TV, παροχές κλιματιστικών και αντλίας "
+                         "θερμότητας. Πορτοκαλί κύκλοι στους εξώστες = φώτα οροφής εξωστών · Μ = παροχή μοτέρ ρολού (ψηλά στην παραστάδα).", 5.4, MUTE)
     assert y > P.BOT + 6, "ΠΔ: η δεξιά στήλη ξεχειλίζει κατά %.0f pt" % (P.BOT + 6 - y)
-    ns = sum(1 for s in M.SOCKETS if s[5] != "fix"); nf = len(M.SOCKETS) - ns
+    shown = [s for s in M.SOCKETS if M.drawn(s[0])]
+    ns = sum(1 for s in shown if s[5] != "fix"); nf = len(shown) - ns
     PL._finish(no, "ΠΡΙΖΕΣ ΚΑΙ ΔΙΑΚΟΠΤΕΣ – ΜΕ ΑΡΙΘΜΟΥΣ", "φύλλο εργασίας · %d πρίζες · %d παροχές · %d διακόπτες" % (ns, nf, len(M.SWITCHES)))
 
 

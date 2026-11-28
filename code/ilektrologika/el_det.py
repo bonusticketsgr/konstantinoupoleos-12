@@ -183,8 +183,9 @@ def sheet_10(no="ΗΛ-10"):
             xx += w_
     pb = py - 5 * rh - 4 * rg - 8
     used = M.modules_used(); tot = M.PANEL["rows"] * M.PANEL["per_row"]
-    txt(X0, pb - 10, "Σε χρήση %d στοιχεία (με τη φόρτιση οχήματος) · ελεύθερα %d · σύνολο %d" % (used, tot - used, tot), size=5.9, font="Inter-SemiBold")
-    txt(X0, pb - 18, "Άνοιγμα ≈ 52 × 93 cm · βάθος εντοιχισμού 7–9 cm · +1,02 … +1,95 · δυτικό άκρο του χωλ, τοίχος λουτρού γονέων.", size=5.7, color=MUTE)
+    if M.SHOW_NOTES:
+        txt(X0, pb - 10, "Σε χρήση %d στοιχεία (με τη φόρτιση οχήματος) · ελεύθερα %d · σύνολο %d" % (used, tot - used, tot), size=5.9, font="Inter-SemiBold")
+        txt(X0, pb - 18, "Άνοιγμα ≈ 52 × 93 cm · βάθος εντοιχισμού 7–9 cm · +1,02 … +1,95 · δυτικό άκρο του χωλ, τοίχος λουτρού γονέων.", size=5.7, color=MUTE)
     assert pb - 20 > YB, "ΗΛ-10: η όψη του πίνακα δεν χωρά"
     # λογική
     xm = X0 + 300; wm = 420

@@ -29,7 +29,7 @@ def fz(v, n=1):
 def title(s, sub=None):
     c = C(); c.setFont("Inter-Bold", 13); c.setFillColorRGB(*INK); c.drawString(X0, YT - 6, s)
     w = SW(s, "Inter-Bold", 13); c.setStrokeColorRGB(*INK); c.setLineWidth(1.2); c.line(X0, YT - 11, X0 + w, YT - 11)
-    if sub:
+    if sub and M.SHOW_NOTES:                                   # R20: ο υπότιτλος-επεξήγηση είναι σημείωση
         c.setFont("Inter", 8); c.setFillColorRGB(*MUTE); c.drawString(X0 + w + 14, YT - 6, sub)
     return YT - 30
 
@@ -50,10 +50,14 @@ class Flow:
         assert self.y >= YB - 2, "στήλη «%s»: το κείμενο ξεχειλίζει %.0f pt κάτω από το όριο" % (self.name, YB - self.y)
 
     def h(self, s, fill=INK, size=7.4):
+        if not M.SHOW_NOTES:                                   # R20: επικεφαλίδες κειμένου δεν τυπώνονται (οι πίνακες έχουν δική τους κεφαλίδα)
+            return
         self.y = D.heading(self.x, self.y - 5, s, w=self.w, size=size, fill=fill) - 4
         self._chk()
 
     def p(self, s, bold=None, bullet=None, size=None, color=INK, gap=1.2):
+        if not M.SHOW_NOTES:                                   # R20: καμία παράγραφος πάνω στα φύλλα
+            return
         self.y = D.para(self.x + 1, self.y, s, self.w - 2, size=size or self.size, bold=bold, bullet=bullet, color=color) - gap
         self._chk()
 

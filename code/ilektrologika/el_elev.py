@@ -144,6 +144,8 @@ def elevation(x0, ybase, spec):
     lab_off = spec.get("lab", {})
     for dev in RT.devices():
         pid, x, y, f, h, kind, opt = dev
+        if not M.drawn(pid):
+            continue                                            # R20: θερμοστάτες / χειριστήριο / παροχές μηχανημάτων στα δικά τους φύλλα
         wid = G.face_of(W, x, y, f)[1]
         if (wid not in spec["walls"] or wid in spec.get("nodev", ())) and pid not in spec.get("also", ()):
             continue
@@ -161,20 +163,21 @@ def elevation(x0, ybase, spec):
     for a, z, s, dx, dy, an in spec.get("marks", []):
         X, Y = sc.p(a, z)
         cv.saveState(); cv.setStrokeColorRGB(*CAB); cv.setFillColorRGB(1, 1, 1); cv.setLineWidth(1.1); cv.circle(X, Y, 3.6, stroke=1, fill=1); cv.setFillColorRGB(*CAB); cv.circle(X, Y, 1.3, stroke=0, fill=1); cv.restoreState()
-        for i, l_ in enumerate(s.split("\n") if s else []):
+        for i, l_ in enumerate(s.split("\n") if (s and M.SHOW_NOTES) else []):
             SH.ptext(X + dx, Y + dy - i * 6.0, l_, 4.8, "Inter-Bold", CAB, an, 0, True, pad=0.6)
     # στάθμες αριστερά
     for z, s in spec.get("levels", [(0.0, "±0,00 δάπεδο"), (M.ZR, "+2,30 καλώδια"), (2.48, "+2,48"), (2.98, "+2,98")]):
         X, Y = sc.p(a0, z); ln(X - 14, Y, X, Y, col=SH.MUTE, lw=0.4); txt(X - 15, Y - 1.8, s, size=4.6, color=SH.MUTE, anchor="r")
     for u0, u1, z, s in spec.get("dims", []):
         sc.dimh(u0, u1, z, s)
-    for a, z, s in spec.get("notes", []):
+    for a, z, s in (spec.get("notes", []) if M.SHOW_NOTES else []):
         for i, l_ in enumerate(s.split("\n")):
             X, Y = sc.p(a, z); SH.ptext(X, Y - i * 6.0, l_, 4.8, "Inter-Bold", CAB, "l", 0, True, pad=0.6)
     # τίτλος
     Xt, Yt = sc.p(a0, ZB)
     txt(Xt, Yt + 27, spec["title"], size=7.4, font="Inter-Bold")
-    txt(Xt, Yt + 18.5, spec["sub"], size=5.4, color=SH.MUTE)
+    if M.SHOW_NOTES:
+        txt(Xt, Yt + 18.5, spec["sub"], size=5.4, color=SH.MUTE)
     return sc
 
 

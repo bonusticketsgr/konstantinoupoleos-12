@@ -180,7 +180,7 @@ Python (PyMuPDF + Shapely) για τα γεωμετρικά σχέδια ξυλ�
 
 Νέα έκδοση: `REV` / `DATE` στο `px_model.py` → `python3 build_perivallon.py && python3 px_notes.py` → `python3 ../qa/qa_pdf.py <pdf>` (0 επικαλύψεις). Τρέχουσα έκδοση **R00** (18/11/2026).
 
-## Ηλεκτρολογικά Β1 – `ilektrologika/` (18–20/11/2026 στο branch `claude/electrical-study-apartment-x58pz2` · 28/11/2026 πάνω στα νέα σχέδια, R19)
+## Ηλεκτρολογικά Β1 – `ilektrologika/` (18–20/11/2026 στο branch `claude/electrical-study-apartment-x58pz2` · 28/11/2026 πάνω στα νέα σχέδια, R19 · R20: μόνο σχέδια, χωρίς κλιματισμό / ενδοδαπέδια – σημαίες `SHOW_NOTES` / `SHOW_HVAC` στο `b1_el.py`, 15 φύλλα)
 
 - `b1_el.py` = το μοντέλο (πίνακας, κυκλώματα, ρευματοδότες, διακόπτες, ασθενή, θερμοστάτες, περάσματα, διαδρομές 3D, κατεβάσματα). Διαβάζει ΤΟΙΧΟΥΣ / έπιπλα από το `toixopoiies/b1_model.py`
   και στάθμες, δοκούς, ανιχνευτές, μονάδες A/C ΚΑΙ (από το R19) **τα φωτιστικά οροφής** από το `anopseis/b1_anopsi.py` (`SPOTS` = `A.SPOTS` χωρίς τα ΚΧ του κλιμακοστασίου + ρόλος).
