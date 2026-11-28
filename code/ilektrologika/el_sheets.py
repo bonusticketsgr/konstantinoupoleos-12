@@ -364,19 +364,12 @@ def sheet_04(no="ΗΛ-04"):
                 D.route(v, [(x_, ys[0] - 0.22), (x_, ys[-1] + 0.22)], col=LGT, lw=0.35, halo=False, dash=[1.2, 1.6])
             for y_ in ys:
                 D.route(v, [(xs[0] - 0.22, y_), (xs[-1] + 0.22, y_)], col=LGT, lw=0.35, halo=False, dash=[1.2, 1.6])
-        def chain(vals, at, horiz):
-            for a_, b_ in zip(vals, vals[1:]):
-                pa, pb = ((a_, at), (b_, at)) if horiz else ((at, a_), (at, b_))
-                D.dim_chain(v, pa, pb, fz(b_ - a_))
         D.route(v, [(M.LIV_SYM, M.LIV_Y[0] - 0.45), (M.LIV_SYM, M.LIV_Y[-1] + 0.45)], col=LGT, lw=0.5, halo=False, dash=[3, 1.5])
-        chain([1.705] + list(M.LIV_X) + [M.A.STRIP_X], 8.80, True)
-        chain([5.15] + list(M.LIV_Y) + [M.SF], 2.20, False)
-        chain([6.50] + list(M.B2_X) + [9.365], 3.25, True)
-        chain([1.35] + list(M.B2_Y) + [4.85], 9.10, False)
+        spot_dims(v)                                       # R21: αλυσίδες από τους τοίχους σε κάθε σειρά / στήλη φωτιστικών (και στους εξώστες)
         PL.lights(v, labels=True, groups=True)
         PL.panel(v, lab=False)
-    PL._plan(fn, "ΦΩΤΙΣΜΟΣ – ΚΑΤΟΨΗ (ΟΠΩΣ ΟΙ ΑΝΟΨΕΙΣ %s · ΜΕΛΕΤΗ ΦΩΤΙΣΜΟΥ R04)" % A.REV)
-    y = P.legend(["e_spot", "e_spot44", "e_spot65", "e_extc", "e_led", "e_mir", "e_grp", "e_det"])
+    PL._plan(fn, "ΦΩΤΙΣΜΟΣ – ΚΑΤΟΨΗ ΜΕ ΔΙΑΣΤΑΣΕΙΣ (ΟΠΩΣ ΟΙ ΑΝΟΨΕΙΣ %s · ΜΕΛΕΤΗ ΦΩΤΙΣΜΟΥ R04)" % A.REV)
+    y = P.legend(["e_spot", "e_spot44", "e_spot65", "e_extc", "e_ext", "e_led", "e_mir", "e_grp", "e_det", "e_dimspot"])
     rows = []
     for q in M.SPOTS:
         a, b = _ceil_dist(q[2], q[3])
@@ -384,7 +377,166 @@ def sheet_04(no="ΗΛ-04"):
     y = D.table(P.PX - 4, y - 2, [24, 40, 28, 28, P.PW - 120 + 8], rows, head=["", "ΕΙΔΟΣ", "ΑΠΟ", "ΑΠΟ", "ΤΙ ΦΩΤΙΖΕΙ"], size=4.9, lead=5.9, pad=1.35, bold_first=True)
     if M.SHOW_NOTES:
         txt(P.PX - 2, y - 8, "ΑΠΟ: m από τον κοντινότερο τοίχο / ντουλάπα (Β βόρεια · Ν νότια · Δ δυτικά · Α ανατολικά).", size=5.2, color=MUTE)
-    PL._finish(no, "ΦΩΤΙΣΜΟΣ – ΚΑΤΟΨΗ", "Χωνευτά spots μονά / διπλά · ομάδες · θέσεις από τοίχους")
+    PL._finish(no, "ΦΩΤΙΣΜΟΣ – ΚΑΤΟΨΗ ΜΕ ΔΙΑΣΤΑΣΕΙΣ", "Spots μονά / διπλά · φώτα εξωστών · ομάδες · αποστάσεις από τοίχους")
+
+
+# ================================================================ R21: διαστάσεις φωτιστικών από τους τοίχους (ΗΛ-04)
+def _hit(x, y, dx, dy, obs, maxd=4.5, skip=0.08, step=0.01):
+    """Απόσταση ως το πρώτο εμπόδιο (ορθογώνιο) κατά τη φορά (dx, dy) ή None – ακριβής ως την παρειά του."""
+    s_ = skip
+    while s_ <= maxd:
+        qx, qy = x + dx * s_, y + dy * s_
+        for r in obs:
+            if r[0] <= qx <= r[2] and r[1] <= qy <= r[3]:
+                if dx > 0:
+                    return round(r[0] - x, 4)
+                if dx < 0:
+                    return round(x - r[2], 4)
+                if dy > 0:
+                    return round(r[1] - y, 4)
+                return round(y - r[3], 4)
+        s_ += step
+    return None
+
+
+def _dim_obs():
+    """Εμπόδια για τις διαστάσεις των φωτιστικών: τοίχοι, κολόνες, στηθαία + τα ανοίγματα πορτών (η γραμμή του τοίχου συνεχίζει)
+    + τα κουφώματα, μεγαλωμένα ως την εσωτερική παρειά της επένδυσης (10,5 cm) προς τη μεριά του σπιτιού."""
+    if "dobs" in _CACHE:
+        return _CACHE["dobs"], _CACHE["dwins"]
+    from shapely.geometry import Polygon, Point
+    fl = [Polygon(f) for f in W.FLOORS]
+    obs = _obs()
+    for d in W.DOORS:
+        (hx, hy), _, (jx, jy) = d
+        obs.append((min(hx, jx) - 0.05, min(hy, jy) - 0.05, max(hx, jx) + 0.05, max(hy, jy) + 0.05))
+    if getattr(M, "LINTEL", None):
+        obs.append(tuple(M.LINTEL))                          # το άνοιγμα χωλ – καθιστικού (χωρίς πόρτα): η γραμμή του τοίχου συνεχίζει
+    wb = [G.bbox(w["pts"]) for w in W.WALLS]
+
+    def lining(lo, hi, a0, a1, horiz, inward):
+        """Παρειά της επένδυσης δίπλα στο κούφωμα προς τη μεριά του σπιτιού: ο πιο μέσα τοίχος που ακουμπά στη γραμμή του τούβλου."""
+        best = 0.055
+        for b in wb:
+            if horiz:
+                adj = b[2] >= a0 - 0.30 and b[0] <= a1 + 0.30
+                if inward > 0 and adj and abs(b[1] - hi) < 0.02 and b[3] - hi <= 0.16:
+                    best = max(best, b[3] - hi)
+                if inward < 0 and adj and abs(b[3] - lo) < 0.02 and lo - b[1] <= 0.16:
+                    best = max(best, lo - b[1])
+            else:
+                adj = b[3] >= a0 - 0.30 and b[1] <= a1 + 0.30
+                if inward > 0 and adj and abs(b[0] - hi) < 0.02 and b[2] - hi <= 0.16:
+                    best = max(best, b[2] - hi)
+                if inward < 0 and adj and abs(b[2] - lo) < 0.02 and lo - b[0] <= 0.16:
+                    best = max(best, lo - b[0])
+        return best
+    wins = []
+    for w in W.WINS:
+        x0, y0, x1, y1 = G.bbox(w)
+        if (x1 - x0) >= (y1 - y0):                           # οριζόντιο κούφωμα: ποια πλευρά είναι έξω (δάπεδο εξώστη);
+            cx = (x0 + x1) / 2
+            out_s = any(f.contains(Point(cx, y1 + 0.25)) for f in fl)
+            e = lining(y0, y1, x0, x1, True, -1 if out_s else 1)
+            r = (x0, y0 - (e if out_s else 0), x1, y1 + (0 if out_s else e))
+        else:
+            cy = (y0 + y1) / 2
+            out_e = any(f.contains(Point(x1 + 0.25, cy)) for f in fl)
+            e = lining(x0, x1, y0, y1, False, -1 if out_e else 1)
+            r = (x0 - (e if out_e else 0), y0, x1 + (0 if out_e else e), y1)
+        wins.append(r)
+    _CACHE["dobs"] = obs + wins; _CACHE["dwins"] = [G.bbox(w) for w in W.WINS]; _CACHE["dbase"] = obs
+    return _CACHE["dobs"], _CACHE["dwins"]
+
+
+def _ends(x, y, dx, dy):
+    """Παρειά τοίχου / κολόνας / στηθαίου / κουφώματος κατά τη φορά· στους εξώστες, αν δεν υπάρχει, η λαμπά του κουφώματος
+    μπροστά στο οποίο είναι το φωτιστικό (η ακτίνα ρίχνεται στο ύψος του κουφώματος)."""
+    obs, wins = _dim_obs()
+    base = _CACHE["dbase"]
+    h = _hit(x, y, dx, dy, obs)
+    if h is None and dy == 0:
+        for (x0, y0, x1, y1) in wins:
+            if x0 <= x <= x1 and (x1 - x0) > (y1 - y0):
+                h = _hit(x, (y0 + y1) / 2, dx, 0, base, skip=0.02)
+                break
+    elif h is None and dx == 0:
+        for (x0, y0, x1, y1) in wins:
+            if y0 <= y <= y1 and (y1 - y0) > (x1 - x0):
+                h = _hit((x0 + x1) / 2, y, 0, dy, base, skip=0.02)
+                break
+    return h
+
+
+def _clear(a, b, y=None, x=None):
+    """Καμία παρειά ανάμεσα στα δύο φωτιστικά της ίδιας σειράς (y) / στήλης (x)."""
+    obs, _ = _dim_obs()
+    if y is not None:
+        h = _hit(a, y, 1, 0, obs, maxd=b - a)
+    else:
+        h = _hit(x, a, 0, 1, obs, maxd=b - a)
+    return h is None
+
+
+DIM_FLIP = {"Λ1"}          # στήλες φωτιστικών που η αλυσίδα τους μπαίνει δυτικά (δεξιά πέφτει πάνω στο όνομα του χώρου)
+
+
+def spot_dims(v, off=0.30):
+    """Αλυσίδες διαστάσεων για κάθε σειρά (ίδιο y) και κάθε στήλη (ίδιο x) φωτιστικών: από την παρειά του τοίχου ως τον άξονα κάθε φωτιστικού
+    και ως την απέναντι παρειά. Ένα φωτιστικό μόνο του σε σειρά μετριέται μόνο αν είναι το πρώτο της στήλης του (και αντίστροφα)."""
+    pts = [(q[0], q[2], q[3]) for q in M.SPOTS] + [(e[0], e[1], e[2]) for e in M.EXT_SPOTS]
+    ext = {e[0] for e in M.EXT_SPOTS}
+    rows, cols = {}, {}
+    for n, x, y in pts:
+        rows.setdefault(round(y, 2), []).append((x, n)); cols.setdefault(round(x, 2), []).append((y, n))
+
+    def runs(items, fixed, horiz):
+        items = sorted(items); out = [[items[0]]]
+        for a, b in zip(items, items[1:]):
+            ok_ = _clear(a[0], b[0], y=fixed) if horiz else _clear(a[0], b[0], x=fixed)
+            if ok_ and b[0] - a[0] < 4.0:
+                out[-1].append(b)
+            else:
+                out.append([b])
+        return out
+    rrun, crun = {}, {}                                      # φωτιστικό → (θέση στο run, μήκος run)
+    rruns = [(y, r) for y, items in rows.items() for r in runs(items, y, True)]
+    cruns = [(x, r) for x, items in cols.items() for r in runs(items, x, False)]
+    for _, r in rruns:
+        for i, q in enumerate(r):
+            rrun[q[1]] = (i, len(r))
+    for _, r in cruns:
+        for i, q in enumerate(r):
+            crun[q[1]] = (i, len(r))
+
+    def chain(vals, at, horiz, side=1):
+        for a_, b_ in zip(vals, vals[1:]):
+            if b_ - a_ < 0.03:
+                continue
+            pa, pb = ((a_, at), (b_, at)) if horiz else ((at, a_), (at, b_))
+            D.dim_chain(v, pa, pb, fz(b_ - a_), side=side)
+    done = []
+    for y, run in rruns:
+        if len(run) == 1 and crun[run[0][1]][1] >= 2 and crun[run[0][1]][0] != 0:
+            continue
+        xs = [q[0] for q in run]
+        w_ = _ends(xs[0], y, -1, 0); e_ = _ends(xs[-1], y, 1, 0)
+        vals = ([round(xs[0] - w_, 3)] if w_ else []) + xs + ([round(xs[-1] + e_, 3)] if e_ else [])
+        key = tuple(round(q, 2) for q in vals)
+        if len(vals) >= 2 and not any(k == key and abs(yy - y) < 0.6 for k, yy in done):
+            o = -off if all(q[1] in ext for q in run) else off           # εξώστες: η αλυσίδα προς την όψη, όχι πάνω στο «ΕΞΩΣΤΗΣ»
+            chain(vals, y + o, True, side=1 if o > 0 else -1); done.append((key, y))
+    done = []
+    for x, run in cruns:
+        if len(run) == 1 and rrun[run[0][1]][1] >= 2 and rrun[run[0][1]][0] != 0:
+            continue
+        ys = [q[0] for q in run]
+        n_ = _ends(x, ys[0], 0, -1); s_ = _ends(x, ys[-1], 0, 1)
+        vals = ([round(ys[0] - n_, 3)] if n_ else []) + ys + ([round(ys[-1] + s_, 3)] if s_ else [])
+        key = tuple(round(q, 2) for q in vals)
+        if len(vals) >= 2 and not any(k == key and abs(xx - x) < 0.6 for k, xx in done):
+            o = -off if any(q[1] in DIM_FLIP for q in run) else off
+            chain(vals, x + o, False, side=-1 if o > 0 else 1); done.append((key, x))
 
 
 # ================================================================ ΗΛ-06 ΠΕΡΑΣΜΑΤΑ ΚΑΛΩΔΙΩΝ – ΚΑΤΟΨΗ
@@ -412,7 +564,7 @@ FURNC = (0.55, 0.25, 0.62)
 EXTC = (0.30, 0.42, 0.52)                               # έξω: στο ταβάνι του εξώστη, μέσα στο φινίρισμα
 MODEC = {"top": (0.10, 0.55, 0.30), "side": (0.05, 0.50, 0.60), "via": (0.85, 0.50, 0.02), "back": (0.50, 0.28, 0.75), "furn": (0.66, 0.28, 0.58), "floor": (0.55, 0.33, 0.08), "out": (0.30, 0.42, 0.52)}
 MODET = {"top": "από το ταβάνι, ίσια", "side": "κάτω από το δοκάρι (κενό ≥ 6 cm)", "via": "οριζόντια ΜΕΣΑ στον τοίχο", "back": "από πίσω, μέσα από ντουλάπα", "furn": "μέσα / πίσω από ντουλάπα", "floor": "ΑΠΟ ΤΟ ΠΑΤΩΜΑ", "out": "ΑΠΟ ΕΞΩ, από το ταβάνι του εξώστη"}
-NUM_AT = {"1": (3.52, 4.22), "4": (6.17, 4.55), "8": (2.44, 5.36), "9": (4.55, 5.40), "10": (7.90, 5.36), "12": (9.12, 6.95), "15": (2.02, 5.50), "16": (10.02, 9.72), "7": (1.42, 2.90), "13": (2.75, 0.42),
+NUM_AT = {"1": (3.52, 4.22), "4": (6.17, 4.55), "8": (2.44, 5.36), "9": (4.55, 5.40), "10": (7.90, 5.36), "12": (9.12, 6.95), "15": (2.02, 5.50), "16": (10.02, 9.72), "7": (1.42, 2.90), "13": (1.55, 0.40),
           "14": (3.75, 8.50), "2": (5.05, 3.56), "3": (6.72, 2.15), "5": (5.28, 2.60), "6": (2.55, 3.02), "11": (11.95, 8.02), "17": (9.20, 1.52), "18": (9.05, 2.62)}
 NUM_MORE = {"18": [(8.62, 8.72)]}             # η ίδια τομή ισχύει και για το τοιχάκι του Δ18
 
@@ -444,8 +596,9 @@ def _draw3(v, pts, col=PWR, lw=1.0):
             D.route(v, p2, col=FLOORC, lw=2.4, dash=[5, 1.6, 1, 1.6])
 
 
-def _routes(v, tags=True):
-    """Κάτοψη όλων των διαδρομών – προβολή των ΙΔΙΩΝ 3D διαδρομών που ελέγχει το el_route (κορμοί, τροφοδοσία κάθε τοίχου, γραμμές διανομής μέσα στους τοίχους)."""
+def _routes(v, tags=True, zoom=False):
+    """Κάτοψη όλων των διαδρομών – προβολή των ΙΔΙΩΝ 3D διαδρομών που ελέγχει το el_route (κορμοί, τροφοδοσία κάθε τοίχου, γραμμές διανομής μέσα στους τοίχους).
+    zoom (R21, μεγεθύνσεις ΗΛ-07 … ΗΛ-09): και η διαδρομή ως ΚΑΘΕ κουτί (κατέβασμα + κοντό τμήμα), με τα σύμβολα και τους αριθμούς των σημείων."""
     PL.beams(v, names=True)
     if M.SHOW_HVAC:
         v.rect(*M.KOUT["rect"], fill=(0.93, 0.86, 0.97), stroke=HVC, lw=0.6)               # R15: κούτελο δίπλα στη Δ3.1 (Υπν.2)
@@ -454,10 +607,19 @@ def _routes(v, tags=True):
         D.halo_text(v, 5.92, 4.14, "ΧΩΛ: οροφή +2,48", size=4.6, color=HVC)
     v.rect(9.925, 2.85, 10.825, 3.00, fill=(0.75, 0.90, 0.86), stroke=DAT, lw=0.7)
     D.halo_text(v, 10.375, 2.64, "shaft Η/Μ", size=4.8, color=DAT)
-    PL.sockets(v, faint=True); PL.switches(v, faint=True)
+    if zoom:
+        PL.lights(v, faint=True)
+        PL.sockets(v, labels=True); PL.switches(v, labels=True); PL.shutters(v)
+        for l in M.WALL_LIGHTS:
+            D.wall_light(v, l[1], l[2], l[3], col=LGT, kind=l[4], lab=l[0], lab_off=PL.WL_LAB.get(l[0]))
+    else:
+        PL.sockets(v, faint=True); PL.switches(v, faint=True)
     B = RT.build()
     for e in B["extra"]:
         _draw3(v, e["pts"], col=PWR, lw=0.8)
+    if zoom:
+        for d in B["devs"]:
+            _draw3(v, d["pts"][d["nfeed"] - 1:], col=PL.WALLC, lw=0.7)
     for f in M.FEEDS:
         ds = [d for d in B["devs"] if d["feed"] == f["id"]]
         _draw3(v, f["feed"], col=PWR, lw=1.0)
@@ -487,14 +649,18 @@ def _routes(v, tags=True):
                 X, Y = v.p(x, y); P.pill(X, Y, d["id"], None, MODEC[d["mode"]], "c", 6.0)
 
 
-def sheet_06(no="ΗΛ-06"):
+def _leg_routes():
     L = P.LEG
-    L["e_num"] = ("Αριθμός τοίχου = τομή στο ΗΛ-14 · χρώμα = από πού μπαίνει το καλώδιο (πίνακας δεξιά)", lambda v: P.pill(v.p(0.21, 0)[0], v.p(0.21, 0)[1], "8", None, MODEC["via"], "c", 5.6))
+    L["e_num"] = ("Αριθμός τοίχου · χρώμα = από πού μπαίνει το καλώδιο (πίνακας δεξιά)", lambda v: P.pill(v.p(0.21, 0)[0], v.p(0.21, 0)[1], "8", None, MODEC["via"], "c", 5.6))
     L["e_wallrun"] = ("ΜΕΣΑ σε τοίχο / τούβλο – πάντα ΚΑΤΩ από το δοκάρι (οριζόντια στο +2,30 ή χαμηλά)", lambda v: D.route(v, [(0.03, 0), (0.40, 0)], col=PL.WALLC, lw=1.7, dash=[2.6, 1.6], halo=False))
     L["e_furnrun"] = ("Μέσα / πίσω από ντουλάπα έως οροφή", lambda v: D.route(v, [(0.03, 0), (0.40, 0)], col=FURNC, lw=1.7, dash=[2.6, 1.6], halo=False))
     L["e_floor"] = ("ΠΑΤΩΜΑ: σπιράλ πάνω στην πλάκα, πριν από το γέμισμα", lambda v: D.route(v, [(0.03, 0), (0.40, 0)], col=FLOORC, lw=2.2, dash=[5, 1.6, 1, 1.6], halo=False))
     L["e_drop"] = ("Κατέβασμα μέσα σε τοίχο / ντουλάπα (τελεία) · άνοδος από το πάτωμα (σταυρός)", lambda v: D.drop(v, 0.21, 0, col=PL.WALLC, r=0.05))
     L["e_ext"] = ("Έξω: στο ταβάνι του εξώστη, μέσα στο φινίρισμα → φωτιστικά οροφής εξωστών", lambda v: D.route(v, [(0.03, 0), (0.40, 0)], col=EXTC, lw=1.0, dash=[1.2, 1.4], halo=False))
+
+
+def sheet_06(no="ΗΛ-06"):
+    _leg_routes()
     nh = len([h for h in CK.holes() if M.SHOW_HVAC or h["kind"] != "hvac"])
     PL._plan(_routes, "ΠΕΡΑΣΜΑΤΑ ΚΑΛΩΔΙΩΝ – ΚΑΤΟΨΗ: ΚΑΝΕΝΑ ΚΑΛΩΔΙΟ ΜΕΣΑ ΑΠΟ ΔΟΚΑΡΙ (ΜΟΝΟ ΑΠΟ ΤΙΣ %d ΟΠΕΣ)" % nh)
     y = P.legend(["e_feed", "e_trunk", "e_weakr"] + (["e_hvacr"] if M.SHOW_HVAC else []) + ["e_hole", "e_wallrun", "e_furnrun", "e_floor", "e_ext", "e_drop", "e_num"])
@@ -507,7 +673,48 @@ def sheet_06(no="ΗΛ-06"):
                 "Στο πάτωμα μόνο δύο κομμάτια: τοίχος TV (14) και ΒΔ γωνία (15). Τομές: ΗΛ-14 · όψεις τοίχων: ΗΛ-15 · οπές: ΗΛ-07, ΗΛ-12.") if M.SHOW_NOTES else ()):
         y = D.para(P.PX - 2, y - 7, s_, P.PW + 4, size=5.2, color=MUTE) + 2
     assert y > 150, "ΗΛ-06: η δεξιά στήλη ξεχειλίζει (%.0f)" % y
-    PL._finish(no, "ΠΕΡΑΣΜΑΤΑ ΚΑΛΩΔΙΩΝ – ΚΑΤΟΨΗ", ("5 οπές Ø75 (ΟΠ2 Ø90)" if M.SHOW_HVAC else "%d οπές Ø75 στα δοκάρια" % nh) + " · από πού μπαίνει το καλώδιο σε κάθε τοίχο")
+    PL._finish(no, "ΠΕΡΑΣΜΑΤΑ ΚΑΛΩΔΙΩΝ – ΓΕΝΙΚΗ ΚΑΤΟΨΗ", ("5 οπές Ø75 (ΟΠ2 Ø90)" if M.SHOW_HVAC else "%d οπές Ø75" % nh) + " · από πού μπαίνει το καλώδιο σε κάθε τοίχο · μεγέθ. ΗΛ-07/08/09")
+
+
+# ================================================================ R21: ΜΕΓΕΘΥΝΣΕΙΣ ΠΕΡΑΣΜΑΤΩΝ (ΗΛ-07 · ΗΛ-08 · ΗΛ-09)
+ZOOMS = {
+    "n": dict(box=(-0.30, -0.25, 10.20, 5.55), den=35, title="ΠΕΡΑΣΜΑΤΑ – ΒΟΡΕΙΑ ΖΩΝΗ: ΥΠΝΟΔΩΜΑΤΙΑ · ΛΟΥΤΡΑ · ΧΩΛ · ΠΙΝΑΚΑΣ", theme="ΠΕΡΑΣΜΑΤΑ – ΒΟΡΕΙΑ ΖΩΝΗ",
+              sub="Υπν.1 · λουτρά · Υπν.2 · χωλ · πίνακας – κάθε διαδρομή ως το κουτί"),
+    "liv": dict(box=(-0.85, 4.60, 9.75, 11.30), den=35, title="ΠΕΡΑΣΜΑΤΑ – ΣΑΛΟΝΙ · ΤΡΑΠΕΖΑΡΙΑ · ΕΞΩΣΤΕΣ", theme="ΠΕΡΑΣΜΑΤΑ – ΣΑΛΟΝΙ – ΕΞΩΣΤΕΣ",
+                sub="Καθιστικό · δυτικός / νότιος εξώστης · ΟΠ1 / ΟΠ5 – κάθε διαδρομή ως κουτί"),
+    "kit": dict(box=(7.95, 2.20, 14.10, 10.40), den=32, title="ΠΕΡΑΣΜΑΤΑ – ΚΟΥΖΙΝΑ · ΕΙΣΟΔΟΣ · ΛΩΡΙΔΑ ΚΜ1 · SHAFT", theme="ΠΕΡΑΣΜΑΤΑ – ΚΟΥΖΙΝΑ – ΕΙΣΟΔΟΣ",
+                sub="Κουζίνα · τοίχος εισόδου · ΟΠ3 / ΟΠ4 · παροχή από το shaft"),
+}
+
+
+def _sheet_zoom(no, key):
+    z = ZOOMS[key]
+    _leg_routes()
+    PL._plan_zoom(lambda v: _routes(v, zoom=True), z["title"], z["box"], z["den"])
+    y = P.legend(["e_feed", "e_trunk", "e_hole", "e_wallrun", "e_furnrun", "e_floor", "e_ext", "e_devpath", "e_drop", "e_num"])
+    x0, y0, x1, y1 = z["box"]
+    inside = [d for d in M.DROPS if any(x0 <= px <= x1 and y0 <= py <= y1 for px, py in [NUM_AT[d["id"]]] + NUM_MORE.get(d["id"], []))]
+    rows = [[d["id"], d["title"].replace("ΣΑΛΟΝΙ – ", "ΣΑΛΟΝΙ: ").replace("ΥΠΝ.1 – ", "ΥΠΝ.1: ").replace("ΚΟΥΖΙΝΑ – ", "ΚΟΥΖ.: "), MODET[d["mode"]]] for d in inside]
+    colors = {i: tint(MODEC[d["mode"]], 0.80) for i, d in enumerate(inside) if d["mode"] != "top"}
+    y = D.table(P.PX - 4, y - 2, [14, 74, P.PW - 88 + 8], rows, head=["", "ΤΟΙΧΟΣ", "ΑΠΟ ΠΟΥ ΜΠΑΙΝΕΙ ΤΟ ΚΑΛΩΔΙΟ"], size=5.0, lead=6.0, pad=1.7, bold_first=True, colors=colors, zebra=False)
+    fr = [f for f in M.FLOOR_RUNS if x0 <= f["pts"][-1][0] <= x1 and y0 <= f["pts"][-1][1] <= y1]
+    if fr:
+        rows = [[f["id"], "%d σπιράλ: " % len(f["tubes"]) + " · ".join("Ø%d %s" % (d_, t_) for t_, d_ in f["tubes"])] for f in fr]
+        y = D.table(P.PX - 4, y - 5, [22, P.PW - 22 + 8], rows, head=["", "ΣΤΟ ΠΑΤΩΜΑ (μόνο εδώ) – πάνω στην πλάκα, πριν από το γέμισμα"], size=5.0, lead=6.0, pad=1.7, bold_first=True, zebra=False)
+    assert y > 120, "%s: η δεξιά στήλη ξεχειλίζει (%.0f)" % (no, y)
+    PL._finish(no, z["theme"], z["sub"], "Κλίμακα 1:%d · A3" % z["den"])
+
+
+def sheet_zoom_n(no="ΗΛ-07"):
+    _sheet_zoom(no, "n")
+
+
+def sheet_zoom_liv(no="ΗΛ-08"):
+    _sheet_zoom(no, "liv")
+
+
+def sheet_zoom_kit(no="ΗΛ-09"):
+    _sheet_zoom(no, "kit")
 
 
 # ================================================================ ΗΛ-07 ΠΕΡΑΣΜΑΤΑ – ΤΟΜΕΣ

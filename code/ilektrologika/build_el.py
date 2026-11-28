@@ -2,8 +2,9 @@
 
     python3 build_el.py [out.pdf]
 
-Τρέχει πρώτα τους ελέγχους (el_checks.py) – σταματά αν υπάρχει ΛΑΘΟΣ – και μετά τυπώνει τα φύλλα ΗΛ-01 … ΗΛ-15 (el_sheets.py, el_drops.py, el_elev.py).
-R20: με SHOW_HVAC = False το ΗΛ-16 (κούτελο / αποχέτευση ΚΜ1, el_kout.py) δεν τυπώνεται – ο κλιματισμός και η ενδοδαπέδια πάνε σε δικά τους φύλλα.
+Τρέχει πρώτα τους ελέγχους (el_checks.py) – σταματά αν υπάρχει ΛΑΘΟΣ – και μετά τυπώνει τα φύλλα ΗΛ-01 … ΗΛ-14 (el_sheets.py, el_det.py, el_docs.py).
+R21: ΜΟΝΟ ΚΑΤΟΨΕΙΣ – με SHOW_SECTIONS = False δεν τυπώνονται οι τομές περασμάτων, το κατακόρυφο διάγραμμα, τα κατεβάσματα (el_drops.py) και οι όψεις τοίχων (el_elev.py)·
+με SHOW_HVAC = False ούτε το κούτελο (el_kout.py). ΗΛ-06 γενική κάτοψη περασμάτων 1:50 + ΗΛ-07 / 08 / 09 μεγεθύνσεις (βόρεια ζώνη · σαλόνι – εξώστες · κουζίνα – είσοδος).
     --NN = μόνο το φύλλο NN (π.χ. --02 --03)."""
 import os, sys
 import b1_el as M
@@ -36,9 +37,13 @@ def main():
     import el_kout as KO
     SH.bind(M); DR.bind(M); EV.bind(M); KO.bind(M)
     only = [a[2:] for a in sys.argv if a.startswith("--")]
-    sheets = [(k, f) for k, f in (("01", SH.sheet_01), ("02", SH.sheet_02), ("03", SH.sheet_03), ("04", SH.sheet_04),
-                                  ("05", getattr(SH, "sheet_05", None)), ("06", getattr(SH, "sheet_06", None)), ("07", getattr(SH, "sheet_07", None)),
-                                  ("08", getattr(SH, "sheet_08", None)), ("09", DT.sheet_10), ("10", DC.sheet_11), ("11", SH.sheet_11), ("12", SH.sheet_12), ("13", SH.sheet_13), ("14", DR.sheet), ("15", EV.sheet), ("16", KO.sheet if M.SHOW_HVAC else None)) if f]
+    # R21: μόνο κατόψεις – οι τομές (ΗΛ-07 παλιό), το κατακόρυφο (ΗΛ-13), τα κατεβάσματα (ΗΛ-14), οι όψεις (ΗΛ-15) και το κούτελο (ΗΛ-16) τυπώνονται μόνο με SHOW_SECTIONS / SHOW_HVAC
+    sec = M.SHOW_SECTIONS
+    sheets = [(k, f) for k, f in (("01", SH.sheet_01), ("02", SH.sheet_02), ("03", SH.sheet_03), ("04", SH.sheet_04), ("05", SH.sheet_05),
+                                  ("06", SH.sheet_06), ("07", SH.sheet_zoom_n), ("08", SH.sheet_zoom_liv), ("09", SH.sheet_zoom_kit),
+                                  ("10", SH.sheet_08), ("11", DT.sheet_10), ("12", DC.sheet_11), ("13", SH.sheet_11), ("14", SH.sheet_12),
+                                  ("15", SH.sheet_07 if sec else None), ("16", SH.sheet_13 if sec else None), ("17", DR.sheet if sec else None), ("18", EV.sheet if sec else None),
+                                  ("19", KO.sheet if M.SHOW_HVAC else None)) if f]
     for no, fn in sheets:
         if only and no not in only:
             continue

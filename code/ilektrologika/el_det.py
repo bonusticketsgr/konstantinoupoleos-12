@@ -82,7 +82,7 @@ def sheet_10(no="ΗΛ-10"):
     # ---- είσοδος: παροχή → Γ.Δ. → ασφάλειες → ζυγός
     ln(xin, ytop, xin, yb, lw=1.8)
     c.setFillColorRGB(*INK); p = c.beginPath(); p.moveTo(xin - 3.5, ytop - 6); p.lineTo(xin + 3.5, ytop - 6); p.lineTo(xin, ytop - 13); p.close(); c.drawPath(p, stroke=0, fill=1)
-    txt(xin + 12, ytop - 7, "ΑΠΟ ΤΟΝ ΠΙΝΑΚΑ ΤΗΣ ΑΠΟΘΗΚΗΣ (ΗΛ-11)", size=6.2, font="Inter-Bold")
+    txt(xin + 12, ytop - 7, "ΑΠΟ ΤΟΝ ΠΙΝΑΚΑ ΤΗΣ ΑΠΟΘΗΚΗΣ (ΗΛ-13)", size=6.2, font="Inter-Bold")
     txt(xin + 12, ytop - 15, "%s · 3Φ + N + PE · ασφάλειες 3 × 35 A στην αποθήκη" % M.FEEDER["cable"], size=5.7)
     box(xin - 13, ytop - 42, 26, 16, fill=(1, 1, 1), lw=1.1); txt(xin, ytop - 36.5, "Γ.Δ.", size=5.8, font="Inter-Bold", anchor="c")
     txt(xin + 18, ytop - 33, "Γενικός διακόπτης φορτίου", size=5.7); txt(xin + 18, ytop - 40, "4P 40 A", size=5.7, font="Inter-SemiBold")
