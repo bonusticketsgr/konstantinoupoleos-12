@@ -456,7 +456,7 @@ def run():
             void_txt = "κενό %d mm · άκρη %.2f" % (round((slab_at(z, x, y) - z["level"] - C["board"]) * 1000), edge_dist(z, x, y))
         else:
             void_txt = "—"
-        add("SP-%s" % sid, "Φωτισμός", "%s %s (%.3f · %.3f) – %s" % (sid, {"s": "spot", "s44": "spot IP44", "s65": "spot IP65"}[kind], x, y,
+        add("SP-%s" % sid, "Φωτισμός", "%s %s (%.3f · %.3f) – %s" % (sid, {"s": "spot", "s44": "spot IP44", "s65": "spot IP65", "t": "ΔΙΠΛΟ spot 2 × 36°"}[kind], x, y,
                                                                     z["room"] if z else "?"),
             "κενό ≥ 85 · άκρη ≥ 0,12 · θυρίδα/στόμιο ≥ 0,15 · όχι κάτω από μονάδα/αεραγωγό",
             "; ".join(probs) if probs else void_txt, "ΑΠΟΚΛΙΣΗ" if probs else "OK")

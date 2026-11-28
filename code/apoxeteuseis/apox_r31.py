@@ -56,7 +56,7 @@ import b1_anopsi as AB, gf_anopsi as AG, f4_anopsi as AF, s_anopsi as AS      # 
 CHAN_T = AB.CHAN_T          # R29: None – ο τοίχος της πόρτας εισόδου είναι πάλι Τ6Α 15 cm χωρίς κανάλι (R28: Τ6Β)
 BEAM_HOLES = AB.BEAM_HOLES  # R29 / R30: χιτώνιο ΟΠ2 Ø90 (R29 Ø75) στη Δ3.1 – από εκεί περνά η αποχέτευση της ΚΜ1 (ηλεκτρολογικά R15)
 from apox_pro import COND, acunit, cdrop, clin, bhole
-REV, DATE = "R30", "26/11/2026"   # R30: το χιτώνιο ΟΠ2 Ø90 (Γιάννης 26/11 «Φ90 τις τρύπες») – ίδια δίκτυα με το R29
+REV, DATE = "R31", "28/11/2026"   # R31 (28/11): ΙΔΙΑ ΔΙΚΤΥΑ – μόνο υπόβαθρα (τοιχοποιίες Β1 R37 / Δ΄ R16: τραπεζαρία 6,40–8,20 · ανόψεις R28 / R17) · R30: το χιτώνιο ΟΠ2 Ø90 (Γιάννης 26/11 «Φ90 τις τρύπες») – ίδια δίκτυα με το R29
 P.REV, P.DATE = REV, DATE
 P.SUB1 = "%s · λύματα · ακάθαρτα · αερισμοί · όμβρια · συμπυκνώματα A/C" % REV
 OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..",

@@ -702,8 +702,17 @@ def sheet_an02(c, no="ΑΝ-02"):
 
 
 # ======================================================================== ΑΝ-03 φωτισμός / πυρανίχνευση
+TWIN_HALF = 0.11      # R28: διπλό χωνευτό spot (2 κεφαλές 36° ρυθμιζόμενες) – απόσταση κεφαλής από το κέντρο, άξονας Α–Δ
+
 def spot_sym(v, kind, x, y):
     r = 0.05
+    if kind == "t":       # διπλό: ορθογώνιο σώμα + 2 κεφαλές
+        X0, Y0 = v.p(x - TWIN_HALF - 0.06, y + 0.085); X1, Y1 = v.p(x + TWIN_HALF + 0.06, y - 0.085)
+        v.c.setFillColorRGB(1, 1, 1); v.c.setStrokeColorRGB(*ORANGE); v.c.setLineWidth(0.7)
+        v.c.roundRect(X0, Y0, X1 - X0, Y1 - Y0, 2.0, stroke=1, fill=1)
+        for hx in (x - TWIN_HALF, x + TWIN_HALF):
+            v.circle(hx, y, 0.045, stroke=ORANGE, lw=0.6); v.circle(hx, y, 0.025, stroke=ORANGE, lw=0.5); v.circle(hx, y, 0.011, fill=ORANGE)
+        return
     v.circle(x, y, r, fill=(1, 1, 1), stroke=ORANGE, lw=0.7)
     if kind == "s":
         v.circle(x, y, 0.017, fill=ORANGE)
@@ -739,7 +748,7 @@ def sheet_an03(c, no="ΑΝ-03"):
             v.rect(*d["rect"], fill=(0.55, 0.65, 0.80), stroke=(0.55, 0.65, 0.80), lw=0.4)
     for sid, kind, x, y, circ in A.SPOTS:
         spot_sym(v, kind, x, y)
-        v.text(x + 0.08, y - 0.10, sid, size=3.8, color=ORANGE, anchor="l")
+        v.text(x + (TWIN_HALF + 0.10 if kind == "t" else 0.08), y - 0.10, sid, size=3.8, color=ORANGE, anchor="l")
     for u in getattr(A, "SPLITS", []):
         split_sym(v, u, colored=False)
         x0, y0, x1, y1 = u["rect"]
@@ -800,6 +809,9 @@ def sheet_an03(c, no="ΑΝ-03"):
     items = []
     if "s" in sk:
         items.append((lambda c_, x, y: (c_.setStrokeColorRGB(*ORANGE), c_.circle(x, y, 2.8), c_.setFillColorRGB(*ORANGE), c_.circle(x, y, 1, fill=1)), A.LEG_SPOT))
+    if "t" in sk:
+        items.append((lambda c_, x, y: (c_.setStrokeColorRGB(*ORANGE), c_.roundRect(x - 7.5, y - 3.2, 15, 6.4, 1.5), c_.circle(x - 3.2, y, 2), c_.circle(x + 3.2, y, 2),
+                                        c_.setFillColorRGB(*ORANGE), c_.circle(x - 3.2, y, 0.7, fill=1), c_.circle(x + 3.2, y, 0.7, fill=1)), getattr(A, "LEG_TWIN", "διπλό χωνευτό spot 2 × 36° ρυθμιζόμενο")))
     if "s44" in sk:
         items.append((lambda c_, x, y: (c_.setStrokeColorRGB(*ORANGE), c_.circle(x, y, 2.8), c_.line(x - 2.8, y, x + 2.8, y)), "χωνευτό spot IP44 (λουτρά)"))
     if "s65" in sk:
