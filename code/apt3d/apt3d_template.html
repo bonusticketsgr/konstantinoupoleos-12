@@ -1,0 +1,313 @@
+<title>Διαμέρισμα Β1 – 3D περιήγηση</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Διάταξη: μία οθόνη – λεπτή λωρίδα πάνω (τίτλος + στάσεις), το 3D γεμίζει τη σελίδα, λωρίδα κάτω (στρώσεις + οδηγίες). */
+:root {
+  --bg: #e8e6e1; --panel: #f5f4f0; --fg: #1f2422; --muted: #5f6763; --line: #c8c6bf; --chip: #ffffff;
+  --accent: #9a6a1f; --accent-fg: #ffffff; --stage: #d9d7d1;
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #15181a; --panel: #1e2224; --fg: #e8eae6; --muted: #9aa29d; --line: #363c3e; --chip: #272c2e;
+  --accent: #e3a94a; --accent-fg: #1b1408; --stage: #101314; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #15181a; --panel: #1e2224; --fg: #e8eae6; --muted: #9aa29d; --line: #363c3e; --chip: #272c2e;
+  --accent: #e3a94a; --accent-fg: #1b1408; --stage: #101314; color-scheme: dark }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 14px; display: flex; flex-direction: column; overflow: hidden; }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding-block: 8px; background: var(--panel);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.bar.top { border-bottom: 1px solid var(--line); }
+.bar.bottom { border-top: 1px solid var(--line); padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+h1 { font-size: 15px; font-weight: 700; margin: 0; letter-spacing: 0.01em; text-wrap: balance; }
+.sub { color: var(--muted); font-size: 11.5px; margin: 0; }
+.grow { flex: 1 1 auto; min-width: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chips button, .tog { border: 1px solid var(--line); border-radius: 7px; background: var(--chip); color: var(--fg); font: 500 12.5px var(--font);
+  padding: 6px 10px; cursor: pointer; }
+.chips button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.tog[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#stage { position: relative; flex: 1 1 auto; min-height: 0; background: var(--stage); }
+#gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+#hud { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); background: rgba(20, 22, 24, 0.72); color: #f3f1ec; font: 500 12px var(--font);
+  padding: 6px 12px; border-radius: 999px; pointer-events: none; white-space: nowrap; max-width: calc(100% - 32px); overflow: hidden; text-overflow: ellipsis; }
+#room { position: absolute; left: 14px; top: 12px; background: rgba(20, 22, 24, 0.72); color: #f3f1ec; font: 600 12.5px var(--font); padding: 5px 10px; border-radius: 6px; pointer-events: none; }
+#pad { position: absolute; right: 14px; bottom: 14px; display: none; grid-template-columns: repeat(3, 46px); gap: 6px; }
+#pad button { width: 46px; height: 46px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.35); background: rgba(20,22,24,0.55); color: #fff; font: 600 16px var(--font); touch-action: none; }
+.touch #pad { display: grid; }
+#err { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; color: var(--fg); background: var(--stage); }
+.hint { color: var(--muted); font-size: 11.5px; margin: 0; }
+@media (max-width: 560px) { .chips button, .tog { padding: 6px 8px; font-size: 12px; } h1 { font-size: 14px; } .sub { display: none; } }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+
+<div class="bar top">
+  <div class="grow">
+    <h1>Διαμέρισμα Β1 – περιήγηση 3D</h1>
+    <p class="sub">Κωνσταντινουπόλεως 12 · τυπικός όροφος · __REV__ · τοιχοποιίες, αλουμίνια, ψευδοροφές με τα φώτα, διακόπτες, έπιπλα – χωρίς καλωδιώσεις</p>
+  </div>
+  <div class="chips" role="group" aria-label="Πήγαινε σε χώρο" id="stops"></div>
+</div>
+<div id="stage">
+  <canvas id="gl"></canvas>
+  <div id="room"></div>
+  <div id="hud">Κάνε κλικ στην εικόνα · W A S D ή βέλη για κίνηση · ποντίκι για να κοιτάς · Esc για να ελευθερώσεις το ποντίκι</div>
+  <div id="pad" aria-label="Κίνηση">
+    <span></span><button type="button" data-m="f">▲</button><span></span>
+    <button type="button" data-m="l">◀</button><button type="button" data-m="b">▼</button><button type="button" data-m="r">▶</button>
+  </div>
+  <div id="err" hidden>Το 3D δεν άνοιξε σε αυτή τη συσκευή (χρειάζεται WebGL). Δοκίμασε σε υπολογιστή ή σε άλλον φυλλομετρητή.</div>
+</div>
+<div class="bar bottom">
+  <button class="tog" id="t-ceil" type="button" aria-pressed="true">Οροφές</button>
+  <button class="tog" id="t-furn" type="button" aria-pressed="true">Έπιπλα</button>
+  <button class="tog" id="t-sw" type="button" aria-pressed="true">Διακόπτες</button>
+  <button class="tog" id="t-so" type="button" aria-pressed="false">Πρίζες</button>
+  <button class="tog" id="t-top" type="button" aria-pressed="false">Από ψηλά</button>
+  <button class="tog" id="t-hq" type="button" aria-pressed="true">Υψηλή ανάλυση</button>
+  <p class="hint grow" id="hint">Ύψος ματιών 1,60 m · Shift = γρήγορα · στις οθόνες αφής: σύρε για να κοιτάς, βέλη για κίνηση</p>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+               "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+<script>const DATA = /*__DATA__*/null;</script>
+<script type="module">
+import * as T from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+
+const $ = (id) => document.getElementById(id);
+const canvas = $("gl"), stage = $("stage");
+let renderer;
+try { renderer = new T.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" }); }
+catch (e) { $("err").hidden = false; throw e; }
+const TOUCH = matchMedia("(pointer: coarse)").matches;
+if (TOUCH) { document.body.classList.add("touch"); $("hud").textContent = "Σύρε στην εικόνα για να κοιτάς · βέλη κάτω δεξιά για να περπατάς"; }
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
+renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
+renderer.outputColorSpace = T.SRGBColorSpace;
+let HQ = true;
+function setPR() { renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, HQ ? 2.5 : 1)); }
+setPR();
+
+const scene = new T.Scene();
+scene.background = new T.Color(0xcfdce6);
+scene.fog = new T.Fog(0xcfdce6, 40, 90);
+const pm = new T.PMREMGenerator(renderer);
+scene.environment = pm.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+const ENV_I = 0.5;
+const cam = new T.PerspectiveCamera(68, 1, 0.03, 120);
+
+// ---- μοντέλο (x ανατολή, y νότος, z ύψος) → three (X, Y πάνω, Z): X = x, Z = y, Y = z
+const V = (x, y, z) => new T.Vector3(x, z, y);
+
+// ---- υφές (canvas) – ξύλο δαπέδου, πλακάκι
+function tex(w, h, draw, rep) {
+  const c = document.createElement("canvas"); c.width = w; c.height = h; draw(c.getContext("2d"));
+  const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.SRGBColorSpace; t.anisotropy = 8;
+  t.repeat.set(1 / rep, 1 / rep); return t;
+}
+const woodTex = tex(512, 512, (g) => {                                    // 1,2 × 1,2 m: σανίδες 0,15 × 1,2
+  for (let i = 0; i < 8; i++) {
+    const l = 62 + Math.round(Math.sin(i * 2.3) * 7 + (i % 3) * 4);
+    g.fillStyle = `hsl(31, 38%, ${l}%)`; g.fillRect(0, i * 64, 512, 64);
+    g.strokeStyle = "rgba(60,35,15,0.22)"; g.lineWidth = 1;
+    for (let k = 0; k < 14; k++) { g.beginPath(); const y = i * 64 + 4 + k * 4.3; g.moveTo(0, y); g.bezierCurveTo(170, y + 2, 340, y - 2, 512, y + 1); g.stroke(); }
+    g.fillStyle = "rgba(40,25,10,0.35)"; g.fillRect(0, i * 64, 512, 1.4);
+    const j = (i * 197) % 512; g.fillRect(j, i * 64, 1.4, 64);
+  }
+}, 1.2);
+const tileTex = (c1, c2, n) => tex(512, 512, (g) => {
+  g.fillStyle = c2; g.fillRect(0, 0, 512, 512); const s = 512 / n;
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { g.fillStyle = c1; g.fillRect(i * s + 1.5, j * s + 1.5, s - 3, s - 3); }
+}, 1.2);
+const tileIn = tileTex("#e4ddd0", "#bfb5a6", 2), tileOut = tileTex("#c9c4bb", "#9e9890", 2);
+
+const std = (c, r, m, extra) => new T.MeshStandardMaterial(Object.assign({ color: c, roughness: r, metalness: m || 0, envMapIntensity: ENV_I }, extra || {}));
+const MAT = {
+  wall: std(0xf2f0ea, 0.92), conc: std(0xeceae4, 0.9), etics: std(0xe3ded2, 0.85), ceil: std(0xf8f7f3, 0.95),
+  wood: std(0xffffff, 0.6, 0, { map: woodTex }), tile: std(0xffffff, 0.35, 0, { map: tileIn }), stone: std(0xcac7c0, 0.5),
+  tile_out: std(0xffffff, 0.7, 0, { map: tileOut }), ground: std(0xb4b2ab, 0.95),
+  alu: std(0x37332e, 0.42, 0.7), glass: new T.MeshPhysicalMaterial({ color: 0xdcecf2, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.22, depthWrite: false, side: T.DoubleSide }),
+  frame: std(0xe9e6df, 0.6), door: std(0xeeece6, 0.55), fabric: std(0xa39a8d, 0.95), linen: std(0xeae6de, 0.9), walnut: std(0x6e4d33, 0.55),
+  cab: std(0xd9d3c8, 0.5), counter: std(0xeae7e0, 0.35), white: std(0xf5f5f2, 0.25), dark: std(0x262626, 0.5), steel: std(0x9c9c98, 0.35, 0.85),
+  mirror: std(0xb7c3c9, 0.22, 0.9, { envMapIntensity: 0.9 }), plate: std(0xf6f5f1, 0.4),
+  spotRim: std(0xf4f3ef, 0.5), spotLed: new T.MeshBasicMaterial({ color: 0xffe1b0 }), led: new T.MeshBasicMaterial({ color: 0xffd48c }),
+  det: std(0xf7f7f4, 0.6)
+};
+
+// ---- πρίσματα → γεωμετρία ανά υλικό
+const groups = { base: new T.Group(), ceil: new T.Group(), furn: new T.Group(), sw: new T.Group(), so: new T.Group(), lights: new T.Group() };
+Object.values(groups).forEach((g) => scene.add(g));
+const FURN = new Set(["fabric", "linen", "walnut", "cab", "counter", "white", "dark", "steel", "mirror"]);
+function prismGeo(p) {
+  const sh = new T.Shape(p.p.map(([x, y]) => new T.Vector2(x, -y)));
+  const g = new T.ExtrudeGeometry(sh, { depth: p.z1 - p.z0, bevelEnabled: false });
+  g.rotateX(-Math.PI / 2); g.translate(0, p.z0, 0);
+  return g;
+}
+const bins = {};
+DATA.prisms.forEach((p) => { (bins[p.m] || (bins[p.m] = [])).push(prismGeo(p)); });
+Object.keys(bins).forEach((m) => {
+  const geo = mergeGeometries(bins[m], false);
+  const mesh = new T.Mesh(geo, MAT[m]);
+  mesh.castShadow = !(m === "glass" || m === "ground" || m === "ceil"); mesh.receiveShadow = m !== "glass";
+  (m === "ceil" ? groups.ceil : FURN.has(m) ? groups.furn : groups.base).add(mesh);
+});
+
+// ---- φωτιστικά (δίσκοι στις οροφές, κύλινδροι στους εξώστες, LED, ανιχνευτές)
+const ring = new T.CylinderGeometry(0.046, 0.046, 0.006, 24), led = new T.CylinderGeometry(0.03, 0.03, 0.004, 20);
+const extCyl = new T.CylinderGeometry(0.045, 0.045, 0.085, 24), extDisc = new T.CylinderGeometry(0.036, 0.036, 0.004, 20);
+DATA.lights.forEach((l) => {
+  if (l.k === "led") {
+    const dx = l.b[0] - l.a[0], dy = l.b[1] - l.a[1], L = Math.hypot(dx, dy);
+    const m = new T.Mesh(new T.BoxGeometry(L, 0.012, 0.02), MAT.led); m.position.copy(V((l.a[0] + l.b[0]) / 2, (l.a[1] + l.b[1]) / 2, l.z));
+    m.rotation.y = -Math.atan2(dy, dx); groups.lights.add(m); return;
+  }
+  if (l.k === "wall") {
+    const m = new T.Mesh(new T.BoxGeometry(0.10, 0.06, 0.07), MAT.white); const n = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] }[l.d];
+    m.position.copy(V(l.x + n[0] * 0.035, l.y + n[1] * 0.035, l.z)); groups.lights.add(m); return;
+  }
+  if (l.k === "ext") {
+    const c = new T.Mesh(extCyl, MAT.spotRim); c.position.copy(V(l.x, l.y, l.z - 0.0425)); groups.lights.add(c);
+    const d = new T.Mesh(extDisc, MAT.spotLed); d.position.copy(V(l.x, l.y, l.z - 0.087)); groups.lights.add(d); return;
+  }
+  const heads = l.k === "t" ? [-0.11, 0.11] : [0];
+  if (l.k === "t") { const b = new T.Mesh(new T.BoxGeometry(0.34, 0.006, 0.17), MAT.spotRim); b.position.copy(V(l.x, l.y, l.z - 0.003)); groups.lights.add(b); }
+  heads.forEach((dx) => {
+    const r = new T.Mesh(ring, MAT.spotRim); r.position.copy(V(l.x + dx, l.y, l.z - 0.003)); groups.lights.add(r);
+    const d = new T.Mesh(led, MAT.spotLed); d.position.copy(V(l.x + dx, l.y, l.z - 0.007)); groups.lights.add(d);
+  });
+});
+const detG = new T.CylinderGeometry(0.05, 0.055, 0.03, 20);
+DATA.dets.forEach((d) => { const m = new T.Mesh(detG, MAT.det); m.position.copy(V(d.x, d.y, d.z - 0.015)); groups.lights.add(m); });
+
+// ---- πλακέτες διακοπτών / ρευματοδοτών
+DATA.plates.forEach((p) => {
+  const n = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] }[p.d];
+  const w = p.k === "sw" && p.n >= 3 ? 0.152 : 0.082, along = Math.abs(n[0]) > 0;
+  const g = new T.BoxGeometry(along ? 0.012 : w, 0.082, along ? w : 0.012);
+  const m = new T.Mesh(g, MAT.plate); m.position.copy(V(p.x + n[0] * 0.006, p.y + n[1] * 0.006, p.z));
+  (p.k === "sw" ? groups.sw : groups.so).add(m);
+  if (p.k === "sw") {                                                        // πλήκτρο
+    const k = new T.Mesh(new T.BoxGeometry(along ? 0.006 : w - 0.03, 0.05, along ? w - 0.03 : 0.006), MAT.white);
+    k.position.copy(V(p.x + n[0] * 0.014, p.y + n[1] * 0.014, p.z)); groups.sw.add(k);
+  }
+});
+groups.so.visible = false;
+
+// ---- φώτα σκηνής
+scene.add(new T.HemisphereLight(0xe9f1ff, 0x8a7a66, 0.5));
+const sun = new T.DirectionalLight(0xfff1dc, 3.2); sun.position.set(2, 14, 20); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048); sun.shadow.camera.near = 1; sun.shadow.camera.far = 60; sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.02;
+Object.assign(sun.shadow.camera, { left: -14, right: 14, top: 14, bottom: -14 }); sun.target.position.set(7, 0, 5); scene.add(sun, sun.target);
+DATA.roomlights.forEach(([x, y, z]) => { const l = new T.PointLight(0xfff0dc, 9.0, 8.0, 2); l.position.copy(V(x, y, z - 0.25)); scene.add(l); });
+
+// ---- πού πατιέται
+const NAV = DATA.nav, navBits = Uint8Array.from(atob(NAV.bits), (c) => c.charCodeAt(0));
+function walkable(x, y) {
+  const i = Math.floor((x - NAV.x0) / NAV.c), j = Math.floor((y - NAV.y0) / NAV.c);
+  if (i < 0 || j < 0 || i >= NAV.nx || j >= NAV.ny) return false;
+  const k = j * NAV.nx + i; return (navBits[k >> 3] >> (k & 7)) & 1;
+}
+
+// ---- περπάτημα
+const EYE = 1.60, RAD = Math.PI / 180;
+const P = { x: DATA.stops[0][1], y: DATA.stops[0][2], yaw: DATA.stops[0][3] * RAD, pit: -0.02 };
+const keys = {}; let locked = false, topView = false, padDir = null;
+function look() {
+  cam.position.set(P.x, EYE, P.y);
+  cam.lookAt(P.x + Math.cos(P.yaw) * Math.cos(P.pit), EYE + Math.sin(P.pit), P.y + Math.sin(P.yaw) * Math.cos(P.pit));
+}
+function tryMove(dx, dy) {
+  if (walkable(P.x + dx, P.y + dy)) { P.x += dx; P.y += dy; return; }
+  if (walkable(P.x + dx, P.y)) { P.x += dx; return; }
+  if (walkable(P.x, P.y + dy)) { P.y += dy; }
+}
+let last = performance.now();
+function step(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (!topView) {
+    const fast = keys.ShiftLeft || keys.ShiftRight, sp = (fast ? 2.8 : 1.45) * dt;
+    let f = 0, s = 0;
+    if (keys.KeyW || keys.ArrowUp || padDir === "f") f += 1; if (keys.KeyS || keys.ArrowDown || padDir === "b") f -= 1;
+    if (keys.KeyD || keys.ArrowRight || padDir === "r") s += 1; if (keys.KeyA || keys.ArrowLeft || padDir === "l") s -= 1;
+    if (f || s) {
+      const L = Math.hypot(f, s); f /= L; s /= L;
+      const cx = Math.cos(P.yaw), cy = Math.sin(P.yaw);
+      tryMove((cx * f - cy * s) * sp, (cy * f + cx * s) * sp);
+    }
+    look(); roomName();
+  }
+  renderer.render(scene, cam);
+  requestAnimationFrame(step);
+}
+function roomName() {
+  let best = null, bd = 1e9;
+  DATA.stops.forEach((s) => { const d = Math.hypot(s[1] - P.x, s[2] - P.y); if (d < bd) { bd = d; best = s[0]; } });
+  $("room").textContent = best || "";
+}
+function resize() {
+  const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix();
+}
+addEventListener("resize", resize); resize(); look();
+requestAnimationFrame(step);
+
+// ---- είσοδοι
+addEventListener("keydown", (e) => { keys[e.code] = true; if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(e.code)) e.preventDefault(); });
+addEventListener("keyup", (e) => { keys[e.code] = false; });
+function turn(dx, dy) { P.yaw += dx * 0.0022; P.pit = Math.max(-1.3, Math.min(1.3, P.pit - dy * 0.0022)); }
+canvas.addEventListener("click", () => { if (!TOUCH && !topView && !locked) canvas.requestPointerLock?.(); });
+document.addEventListener("pointerlockchange", () => { locked = document.pointerLockElement === canvas; });
+document.addEventListener("mousemove", (e) => { if (locked && !topView) turn(e.movementX, e.movementY); });
+let drag = null;
+canvas.addEventListener("pointerdown", (e) => { if (locked) return; drag = { id: e.pointerId, x: e.clientX, y: e.clientY }; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener("pointermove", (e) => {
+  if (!drag || drag.id !== e.pointerId) return;
+  if (topView) { TV.cx -= (e.clientX - drag.x) * TV.h / 900; TV.cy -= (e.clientY - drag.y) * TV.h / 900; topCam(); }
+  else turn((e.clientX - drag.x) * 1.6, (e.clientY - drag.y) * 1.6);
+  drag.x = e.clientX; drag.y = e.clientY;
+});
+canvas.addEventListener("pointerup", () => { drag = null; }); canvas.addEventListener("pointercancel", () => { drag = null; });
+canvas.addEventListener("wheel", (e) => { if (topView) { e.preventDefault(); TV.h = Math.max(4, Math.min(40, TV.h * (e.deltaY > 0 ? 1.12 : 0.9))); topCam(); } }, { passive: false });
+$("pad").querySelectorAll("button").forEach((b) => {
+  const on = (e) => { e.preventDefault(); padDir = b.dataset.m; }, off = () => { padDir = null; };
+  b.addEventListener("pointerdown", on); b.addEventListener("pointerup", off); b.addEventListener("pointercancel", off); b.addEventListener("pointerleave", off);
+});
+
+// ---- στάσεις
+const stopsEl = $("stops");
+DATA.stops.forEach((s, i) => {
+  const b = document.createElement("button"); b.type = "button"; b.textContent = s[0]; b.setAttribute("aria-pressed", i === 0 ? "true" : "false");
+  b.addEventListener("click", () => {
+    if (topView) setTop(false);
+    P.x = s[1]; P.y = s[2]; P.yaw = s[3] * RAD; P.pit = -0.02; look();
+    stopsEl.querySelectorAll("button").forEach((q) => q.setAttribute("aria-pressed", "false")); b.setAttribute("aria-pressed", "true");
+  });
+  stopsEl.appendChild(b);
+});
+
+// ---- από ψηλά
+const TV = { cx: 6.6, cy: 5.3, h: 11 };
+function topCam() { cam.position.set(TV.cx, TV.h, TV.cy + 0.001); cam.lookAt(TV.cx, 0, TV.cy); }
+function setTop(on) {
+  topView = on; $("t-top").setAttribute("aria-pressed", String(on));
+  groups.ceil.visible = on ? false : $("t-ceil").getAttribute("aria-pressed") === "true";
+  groups.lights.visible = groups.ceil.visible || on ? !on : false;
+  if (on) { if (locked) document.exitPointerLock?.(); topCam(); $("hud").textContent = "Σύρε για μετακίνηση · ροδέλα / δύο δάχτυλα για ζουμ"; }
+  else { look(); $("hud").textContent = TOUCH ? "Σύρε στην εικόνα για να κοιτάς · βέλη κάτω δεξιά για να περπατάς" : "Κάνε κλικ στην εικόνα · W A S D ή βέλη για κίνηση · ποντίκι για να κοιτάς · Esc για να ελευθερώσεις το ποντίκι"; }
+  $("pad").style.display = on ? "none" : "";
+}
+// ---- στρώσεις
+function toggle(id, fn) { const b = $(id); b.addEventListener("click", () => { const v = b.getAttribute("aria-pressed") !== "true"; b.setAttribute("aria-pressed", String(v)); fn(v); }); }
+toggle("t-ceil", (v) => { if (!topView) { groups.ceil.visible = v; groups.lights.visible = v; } });
+toggle("t-furn", (v) => { groups.furn.visible = v; });
+toggle("t-sw", (v) => { groups.sw.visible = v; });
+toggle("t-so", (v) => { groups.so.visible = v; });
+toggle("t-hq", (v) => { HQ = v; setPR(); resize(); });
+$("t-top").addEventListener("click", () => setTop(!topView));
+</script>
